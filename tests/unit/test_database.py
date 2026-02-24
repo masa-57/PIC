@@ -24,12 +24,12 @@ class TestBuildEngineArgs:
             return _build_engine_args(url)
 
     def test_no_sslmode_localhost_no_ssl(self) -> None:
-        clean_url, connect_args = self._call("postgresql+asyncpg://localhost:5432/nic")
+        clean_url, connect_args = self._call("postgresql+asyncpg://localhost:5432/pic")
         assert "ssl" not in connect_args
         assert "command_timeout" in connect_args
 
     def test_sslmode_require_localhost_disables_verification(self) -> None:
-        clean_url, connect_args = self._call("postgresql+asyncpg://localhost:5432/nic?sslmode=require")
+        clean_url, connect_args = self._call("postgresql+asyncpg://localhost:5432/pic?sslmode=require")
         ctx = connect_args["ssl"]
         assert isinstance(ctx, ssl.SSLContext)
         assert ctx.check_hostname is False
@@ -62,6 +62,6 @@ class TestBuildEngineArgs:
         assert "sslmode=verify-full" in caplog.text
 
     def test_sslmode_stripped_from_url(self) -> None:
-        clean_url, _ = self._call("postgresql+asyncpg://localhost:5432/nic?sslmode=require&application_name=test")
+        clean_url, _ = self._call("postgresql+asyncpg://localhost:5432/pic?sslmode=require&application_name=test")
         assert "sslmode" not in clean_url
         assert "application_name=test" in clean_url

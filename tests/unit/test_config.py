@@ -81,7 +81,7 @@ class TestSyncDatabaseUrl:
     def test_asyncpg_to_psycopg2(self):
         from pic.config import Settings
 
-        s = Settings(database_url="postgresql+asyncpg://localhost:5432/nic")
+        s = Settings(database_url="postgresql+asyncpg://localhost:5432/pic")
         assert "psycopg2" in s.sync_database_url
         assert "asyncpg" not in s.sync_database_url
 
@@ -89,8 +89,8 @@ class TestSyncDatabaseUrl:
 @pytest.mark.unit
 class TestExtraIgnore:
     def test_extra_env_vars_tolerated(self, monkeypatch):
-        """Settings should tolerate extra NIC_* env vars without crashing."""
-        monkeypatch.setenv("NIC_SOME_RANDOM_THING", "hello")
+        """Settings should tolerate extra PIC_* env vars without crashing."""
+        monkeypatch.setenv("PIC_SOME_RANDOM_THING", "hello")
         from pic.config import Settings
 
         # Should not raise

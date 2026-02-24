@@ -16,14 +16,14 @@ from sqlalchemy.pool import NullPool
 def _make_alembic_config() -> Config:
     """Build Alembic config pointing at the test database."""
     cfg = Config("alembic.ini")
-    db_url = os.environ.get("NIC_DATABASE_URL", "postgresql+asyncpg://localhost:5432/nic")
+    db_url = os.environ.get("PIC_DATABASE_URL", "postgresql+asyncpg://localhost:5432/pic")
     sync_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
     cfg.set_main_option("sqlalchemy.url", sync_url)
     return cfg
 
 
 def _sync_url() -> str:
-    db_url = os.environ.get("NIC_DATABASE_URL", "postgresql+asyncpg://localhost:5432/nic")
+    db_url = os.environ.get("PIC_DATABASE_URL", "postgresql+asyncpg://localhost:5432/pic")
     return db_url.replace("postgresql+asyncpg://", "postgresql://")
 
 

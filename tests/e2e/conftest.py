@@ -9,13 +9,13 @@ import pytest
 @pytest.fixture
 def e2e_base_url() -> str:
     """Base URL for the running API under test."""
-    return os.environ.get("NIC_E2E_BASE_URL", "http://localhost:8000")
+    return os.environ.get("PIC_E2E_BASE_URL", "http://localhost:8000")
 
 
 @pytest.fixture
 def e2e_api_key() -> str:
     """API key for authenticated E2E requests (empty = auth disabled)."""
-    return os.environ.get("NIC_E2E_API_KEY", "")
+    return os.environ.get("PIC_E2E_API_KEY", "")
 
 
 @pytest.fixture
