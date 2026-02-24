@@ -41,7 +41,7 @@ The REST API handles all client requests: image management, clustering triggers,
 ML workloads run as separate processes: DINOv2 embedding generation, HDBSCAN clustering, and Google Drive sync.
 
 - **Runtime**: Python 3.12 with PyTorch, torchvision, HDBSCAN
-- **Resources**: GPU recommended (CUDA), 4-8GB RAM
+- **Resources**: GPU recommended (CUDA), 8GB+ RAM (16GB for 10k+ images)
 - **Current implementation**: Modal serverless functions (see [modal-setup.md](modal-setup.md))
 - **Alternative**: Can run as local processes (see [self-hosted.md](self-hosted.md))
 
