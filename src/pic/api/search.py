@@ -31,20 +31,7 @@ async def search_similar(
     db: AsyncSession = Depends(get_db),
 ) -> SearchResultsOut:
     """Find semantically similar images using DINOv2 embeddings + pgvector k-NN."""
-    query_image = await get_or_404(db, Image, body.image_id, "Query image not found")
-    if not query_image.has_embedding:
-        raise HTTPException(status_code=400, detail="Query image has no embedding yet")
-
-    similar = await find_similar_images(
-        db=db,
-        image_id=body.image_id,
-        n_results=body.n_results,
-    )
-
-    return SearchResultsOut(
-        query_image_id=body.image_id,
-        results=similar,
-    )
+    return await _do_similar_search(body.image_id, body.n_results, db)
 
 
 @router.post(
@@ -67,7 +54,7 @@ async def search_duplicates(
     if not query_image.phash:
         raise HTTPException(status_code=400, detail="Query image has no perceptual hash yet")
 
-    threshold = body.threshold or settings.l1_hash_threshold
+    threshold = body.threshold if body.threshold is not None else settings.l1_hash_threshold
     return await _do_duplicate_search(
         db=db,
         image_id=body.image_id,

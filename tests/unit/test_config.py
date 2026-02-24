@@ -74,6 +74,8 @@ class TestDefaultValues:
         assert s.l2_min_cluster_size == 5
         assert s.l2_min_samples == 3
         assert s.embedding_batch_size == 32
+        assert s.env == "development"
+        assert s.auth_disabled is False
 
 
 @pytest.mark.unit
@@ -96,6 +98,27 @@ class TestExtraIgnore:
         # Should not raise
         s = Settings()
         assert s is not None
+
+
+@pytest.mark.unit
+class TestAuthConfiguration:
+    def test_production_requires_api_key_or_explicit_disable(self):
+        from pic.config import Settings
+
+        with pytest.raises(ValueError, match="PIC_API_KEY is required when PIC_ENV=production"):
+            Settings(env="production", api_key="", auth_disabled=False)
+
+    def test_production_allows_explicit_auth_disable(self):
+        from pic.config import Settings
+
+        s = Settings(env="production", api_key="", auth_disabled=True)
+        assert s.auth_disabled is True
+
+    def test_production_with_api_key_is_valid(self):
+        from pic.config import Settings
+
+        s = Settings(env="production", api_key="secret")
+        assert s.api_key == "secret"
 
 
 @pytest.mark.unit

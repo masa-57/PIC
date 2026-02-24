@@ -228,6 +228,17 @@ function lb(full,cap){
   document.getElementById('lb').classList.add('on');
 }
 function lbOff(){document.getElementById('lb').classList.remove('on')}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('.card').forEach(card=>{
+    card.addEventListener('click',e=>{
+      e.stopPropagation();
+      lb(card.dataset.fullUrl||'', card.dataset.caption||'');
+    });
+  });
+  document.querySelectorAll('.l2-hdr').forEach(header=>{
+    header.addEventListener('click',()=>tog(header.dataset.clusterId));
+  });
+});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')lbOff()});
 """
 
@@ -258,7 +269,7 @@ def render_html(hierarchy: list[dict[str, Any]], total_l1: int) -> str:
                 tu = _esc(img["thumb_url"])
                 fu = _esc(img["full_url"])
                 imgs_parts.append(
-                    f"<div class='card{rc}' onclick=\"lb('{fu}','{fn_full}')\">"
+                    f"<div class='card{rc}' data-full-url='{fu}' data-caption='{fn_full}'>"
                     f"<img src='{tu}' alt='{fn_full}' loading='lazy'>{badge}"
                     f"<span class='fname'>{fn}</span></div>"
                 )
@@ -272,7 +283,7 @@ def render_html(hierarchy: list[dict[str, Any]], total_l1: int) -> str:
 
         parts.append(
             f"<div class='l2'>"
-            f"<div class='l2-hdr' onclick=\"tog('{cid}')\">"
+            f"<div class='l2-hdr' data-cluster-id='{_esc(cid)}'>"
             f"<h2>{label}</h2>"
             f"<div class='l2-meta'><span>{len(c['groups'])} L1 groups</span>"
             f"<span>{img_count} images</span>"

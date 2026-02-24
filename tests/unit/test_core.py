@@ -114,6 +114,16 @@ class TestRequestIdMiddleware:
             response = client.get("/health", headers={"X-Request-ID": "my-custom-id"})
             assert response.headers["X-Request-ID"] == "my-custom-id"
 
+    def test_rejects_unsafe_request_id(self, client):
+        with patch("pic.main.engine") as mock_engine:
+            mock_conn = AsyncMock()
+            mock_conn.execute = AsyncMock()
+            mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+            mock_engine.connect.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            response = client.get("/health", headers={"X-Request-ID": "bad\nid"})
+            assert response.headers["X-Request-ID"] != "bad\nid"
+
 
 @pytest.mark.unit
 class TestDetailedHealthEndpoint:

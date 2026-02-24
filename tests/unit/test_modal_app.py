@@ -61,6 +61,27 @@ async def test_check_gdrive_skips_spawn_when_job_already_inflight() -> None:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+async def test_check_gdrive_skips_spawn_when_queue_is_full() -> None:
+    with (
+        patch("pic.config.settings") as mock_settings,
+        patch("pic.services.gdrive.build_drive_service", return_value=MagicMock()),
+        patch("pic.services.gdrive.list_image_files", return_value=[MagicMock(id="f1")]),
+        patch("pic.modal_app._has_inflight_gdrive_sync_job", new_callable=AsyncMock, return_value=False),
+        patch("pic.modal_app._create_gdrive_sync_job_if_capacity", new_callable=AsyncMock, return_value=None),
+        patch("pic.modal_app.modal.Function.from_name") as mock_from_name,
+    ):
+        mock_settings.gdrive_folder_id = "folder-123"
+        mock_settings.gdrive_service_account_json = '{"type":"service_account"}'
+
+        from pic.modal_app import _check_gdrive_for_new_files_impl
+
+        await _check_gdrive_for_new_files_impl()
+
+    mock_from_name.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
 async def test_check_gdrive_spawns_worker_when_files_present_and_no_inflight_job() -> None:
     mock_fn = MagicMock()
 
@@ -69,6 +90,7 @@ async def test_check_gdrive_spawns_worker_when_files_present_and_no_inflight_job
         patch("pic.services.gdrive.build_drive_service", return_value=MagicMock()),
         patch("pic.services.gdrive.list_image_files", return_value=[MagicMock(id="f1")]),
         patch("pic.modal_app._has_inflight_gdrive_sync_job", new_callable=AsyncMock, return_value=False),
+        patch("pic.modal_app._create_gdrive_sync_job_if_capacity", new_callable=AsyncMock, return_value="job-123"),
         patch("pic.modal_app.modal.Function.from_name", return_value=mock_fn) as mock_from_name,
     ):
         mock_settings.gdrive_folder_id = "folder-123"
@@ -79,4 +101,4 @@ async def test_check_gdrive_spawns_worker_when_files_present_and_no_inflight_job
         await _check_gdrive_for_new_files_impl()
 
     mock_from_name.assert_called_once_with("pic", "sync_gdrive_to_r2")
-    mock_fn.spawn.assert_called_once()
+    mock_fn.spawn.assert_called_once_with("job-123", None)

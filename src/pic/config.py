@@ -2,13 +2,17 @@ import json
 import logging
 from pathlib import Path
 
-from pydantic import ValidationInfo, field_validator, model_validator
+from pydantic import ValidationError, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # Runtime environment
+    env: str = "development"  # development, staging, production, test
+
     # Database (Neon PostgreSQL)
     database_url: str = "postgresql+asyncpg://localhost:5432/pic"
+    postgres_url: str = ""  # Optional sync URL for CLI tools (backup/restore)
     db_pool_size: int = 10
     db_pool_max_overflow: int = 20
     db_pool_timeout: int = 30
@@ -40,6 +44,7 @@ class Settings(BaseSettings):
 
     # API
     api_key: str = ""  # If empty, auth is disabled (dev mode)
+    auth_disabled: bool = False  # Explicit acknowledgment for unauthenticated development mode
     cors_origins: list[str] = []  # Empty = no CORS; set explicitly in production
     cors_allow_credentials: bool = False  # Set True only with specific origins, not "*"
     max_upload_size_mb: int = 20
@@ -84,6 +89,14 @@ class Settings(BaseSettings):
             raise ValueError("phash_size must be between 4 and 32")
         return v
 
+    @field_validator("env")
+    @classmethod
+    def validate_env(cls, v: str) -> str:
+        env = v.lower().strip()
+        if env not in {"development", "staging", "production", "test"}:
+            raise ValueError("env must be one of: development, staging, production, test")
+        return env
+
     @field_validator(
         "db_pool_size",
         "db_pool_max_overflow",
@@ -91,11 +104,19 @@ class Settings(BaseSettings):
         "job_queue_max_pending",
         "max_pagination_offset",
         "presigned_url_max_expiry",
+        "hnsw_ef_search",
     )
     @classmethod
     def validate_positive_ints(cls, v: int) -> int:
         if v < 1:
             raise ValueError("value must be >= 1")
+        return v
+
+    @field_validator("hnsw_ef_search")
+    @classmethod
+    def validate_hnsw_ef_search(cls, v: int) -> int:
+        if v > 1000:
+            raise ValueError("hnsw_ef_search must be <= 1000")
         return v
 
     @field_validator("cors_allow_credentials")
@@ -125,6 +146,16 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def validate_auth_configuration(self) -> "Settings":
+        """Prevent accidental unauthenticated production deployments."""
+        if self.env == "production" and not self.api_key and not self.auth_disabled:
+            raise ValueError(
+                "PIC_API_KEY is required when PIC_ENV=production. "
+                "Set PIC_AUTH_DISABLED=true only if you explicitly intend unauthenticated mode."
+            )
+        return self
+
+    @model_validator(mode="after")
     def validate_gdrive_json(self) -> "Settings":
         if self.gdrive_service_account_json:
             try:
@@ -141,4 +172,9 @@ class Settings(BaseSettings):
         return self.database_url.replace("asyncpg", "psycopg2").replace("+asyncpg", "")
 
 
-settings = Settings()
+try:
+    settings = Settings()
+except ValidationError as exc:
+    raise RuntimeError(
+        "Invalid PIC configuration. Review PIC_* environment variables in your shell/.env and retry startup."
+    ) from exc

@@ -75,7 +75,7 @@ PIC uses a two-level clustering approach:
 
 ## API Overview
 
-All endpoints are under `/api/v1/` and require an API key via `X-API-Key` header (disabled in dev mode).
+All endpoints are under `/api/v1/` and require an API key via `X-API-Key` header. For local development only, set `PIC_AUTH_DISABLED=true` to run without auth.
 
 | Endpoint Group | Description |
 |----------------|-------------|
@@ -110,7 +110,9 @@ Copy `.env.example` to `.env` and configure. Key environment variables:
 | `PIC_S3_ENDPOINT_URL` | S3-compatible endpoint URL |
 | `PIC_S3_ACCESS_KEY_ID` | S3 access key |
 | `PIC_S3_SECRET_ACCESS_KEY` | S3 secret key |
-| `PIC_API_KEY` | API authentication key (empty = auth disabled) |
+| `PIC_ENV` | Runtime environment (`development`, `staging`, `production`, `test`) |
+| `PIC_API_KEY` | API authentication key (required in production unless explicitly disabled) |
+| `PIC_AUTH_DISABLED` | Explicitly allow unauthenticated mode (development only) |
 | `PIC_SENTRY_DSN` | Sentry DSN for error tracking (optional) |
 | `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | Google Drive service account JSON (optional) |
 | `PIC_GDRIVE_FOLDER_ID` | Google Drive folder ID to watch (optional) |
@@ -135,8 +137,11 @@ uv run pytest -m unit
 # Run integration tests (requires Docker)
 uv run pytest -m integration
 
-# Run all tests
-uv run pytest
+# Run unit + integration tests
+uv run pytest -m "unit or integration"
+
+# Run e2e tests (requires a running API; defaults to http://localhost:8000)
+PIC_E2E_BASE_URL=http://localhost:8000 uv run pytest -m e2e
 
 # Security audit
 uv run pip-audit
