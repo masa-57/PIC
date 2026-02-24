@@ -1,4 +1,4 @@
-"""AWS Batch job entry point. Dispatches to ingest or cluster tasks."""
+"""Worker entry point. Dispatches ML jobs to Modal for ingest or cluster tasks."""
 
 import argparse
 import asyncio
@@ -12,7 +12,7 @@ def main() -> None:
     setup_logging()
     logger = logging.getLogger(__name__)
 
-    parser = argparse.ArgumentParser(description="NIC Worker")
+    parser = argparse.ArgumentParser(description="PIC Worker")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Ingest command

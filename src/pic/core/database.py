@@ -34,7 +34,7 @@ def _build_engine_args(url: str) -> tuple[str, dict[str, object]]:
         connect_args["ssl"] = ctx
     elif parts.hostname not in ("localhost", "127.0.0.1", None):
         logger.warning(
-            "Non-localhost DB without sslmode set. Set ?sslmode=verify-full in NIC_DATABASE_URL for production TLS."
+            "Non-localhost DB without sslmode set. Set ?sslmode=verify-full in PIC_DATABASE_URL for production TLS."
         )
 
     # Statement timeout for asyncpg (seconds)

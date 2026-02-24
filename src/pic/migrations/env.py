@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, pool
 
 from pic.models.db import Base
 
-# Load .env so NIC_DATABASE_URL is available (pydantic_settings does this
+# Load .env so PIC_DATABASE_URL is available (pydantic_settings does this
 # automatically, but Alembic env.py uses os.environ directly).
 load_dotenv()
 
@@ -23,7 +23,7 @@ target_metadata = Base.metadata
 
 def get_sync_url() -> str:
     """Get synchronous database URL for migrations."""
-    url = os.environ.get("NIC_DATABASE_URL", "postgresql://localhost:5432/nic")
+    url = os.environ.get("PIC_DATABASE_URL", "postgresql://localhost:5432/pic")
     # Convert async URL to sync for Alembic
     return url.replace("postgresql+asyncpg://", "postgresql://")
 

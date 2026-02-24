@@ -1,1 +1,1 @@
-"""NIC — Hierarchical image clustering API."""
+"""PIC — Hierarchical image clustering API."""

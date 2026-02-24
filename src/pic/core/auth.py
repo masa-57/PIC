@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 if not settings.api_key:
-    logger.warning("NIC_API_KEY not set — authentication is disabled")
+    logger.warning("PIC_API_KEY not set — authentication is disabled")
 
 
 async def verify_api_key(api_key: str | None = Security(_api_key_header)) -> None:

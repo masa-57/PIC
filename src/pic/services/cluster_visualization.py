@@ -284,8 +284,8 @@ def render_html(hierarchy: list[dict[str, Any]], total_l1: int) -> str:
     return (
         "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1.0'>"
-        f"<title>NIC Cluster Visualization</title><style>{_CSS}</style></head>"
-        "<body><h1>NIC Cluster Visualization</h1>"
+        f"<title>PIC Cluster Visualization</title><style>{_CSS}</style></head>"
+        "<body><h1>PIC Cluster Visualization</h1>"
         f"<div class='stats'><span>{total_imgs} images</span>"
         f"<span>{total_l2} L2 clusters</span>"
         f"<span>{total_l1} L1 groups</span></div>"

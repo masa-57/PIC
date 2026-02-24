@@ -8,7 +8,7 @@ IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".png", ".gif", "
 # PostgreSQL advisory lock ID — shared across pipeline, clustering, and gdrive-sync
 # workers to ensure mutual exclusion. All three use the same lock because they
 # all modify the same data (images + clusters).
-ADVISORY_LOCK_ID: int = 0x4E494301  # "NIC\x01"
+ADVISORY_LOCK_ID: int = 0x4E494301  # "PIC\x01"
 
 # S3 key prefixes for image lifecycle
 S3_PREFIX_INBOX: str = "images/"

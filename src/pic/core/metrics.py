@@ -1,4 +1,4 @@
-"""Prometheus metrics for the NIC API.
+"""Prometheus metrics for the PIC API.
 
 Defines application-level counters and histograms for HTTP request
 tracking and background job monitoring. These complement the
