@@ -1,4 +1,4 @@
-"""Dispatch ML jobs to Modal functions (replaces AWS Batch)."""
+"""Dispatch ML jobs to Modal functions (dispatches ML jobs to Modal)."""
 
 import functools
 import json
@@ -11,7 +11,7 @@ from pic.core.constants import default_retry
 logger = logging.getLogger(__name__)
 
 # Modal function names — keep in sync with modal_app.py
-MODAL_APP_NAME = "nic"
+MODAL_APP_NAME = "pic"
 MODAL_FN_INGEST = "run_ingest"
 MODAL_FN_CLUSTER = "run_cluster"
 MODAL_FN_PIPELINE = "run_pipeline"

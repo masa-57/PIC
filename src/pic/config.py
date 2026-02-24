@@ -8,14 +8,14 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Database (Neon PostgreSQL)
-    database_url: str = "postgresql+asyncpg://localhost:5432/nic"
+    database_url: str = "postgresql+asyncpg://localhost:5432/pic"
     db_pool_size: int = 10
     db_pool_max_overflow: int = 20
     db_pool_timeout: int = 30
     db_ssl_ca: str = ""  # Path to custom CA cert for DB TLS verification
 
     # Object Storage (Cloudflare R2, S3-compatible)
-    s3_bucket: str = "nic-images"
+    s3_bucket: str = "pic-images"
     s3_endpoint_url: str = ""  # R2 endpoint URL
     s3_access_key_id: str = ""  # R2 API token access key
     s3_secret_access_key: str = ""  # R2 API token secret key
@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     # Paths (local dev)
     data_dir: Path = Path("data")
 
-    model_config = {"env_prefix": "NIC_", "env_file": ".env", "extra": "ignore"}
+    model_config = {"env_prefix": "PIC_", "env_file": ".env", "extra": "ignore"}
 
     @field_validator("log_level")
     @classmethod
@@ -109,8 +109,8 @@ class Settings(BaseSettings):
     def validate_s3_credentials(self) -> "Settings":
         if self.s3_endpoint_url and (not self.s3_access_key_id or not self.s3_secret_access_key):
             raise ValueError(
-                "S3 credentials (NIC_S3_ACCESS_KEY_ID, NIC_S3_SECRET_ACCESS_KEY) "
-                "are required when NIC_S3_ENDPOINT_URL is set"
+                "S3 credentials (PIC_S3_ACCESS_KEY_ID, PIC_S3_SECRET_ACCESS_KEY) "
+                "are required when PIC_S3_ENDPOINT_URL is set"
             )
         return self
 
@@ -119,8 +119,8 @@ class Settings(BaseSettings):
         """Block CORS wildcard in production (when api_key is set)."""
         if self.cors_origins == ["*"] and self.api_key:
             raise ValueError(
-                "CORS wildcard ['*'] is not allowed when NIC_API_KEY is set (production mode). "
-                "Specify explicit origins in NIC_CORS_ORIGINS."
+                "CORS wildcard ['*'] is not allowed when PIC_API_KEY is set (production mode). "
+                "Specify explicit origins in PIC_CORS_ORIGINS."
             )
         return self
 
@@ -132,7 +132,7 @@ class Settings(BaseSettings):
                 if not isinstance(data, dict) or "type" not in data:
                     raise ValueError("GDrive JSON must contain 'type' field")
             except json.JSONDecodeError as e:
-                raise ValueError(f"NIC_GDRIVE_SERVICE_ACCOUNT_JSON is not valid JSON: {e}") from e
+                raise ValueError(f"PIC_GDRIVE_SERVICE_ACCOUNT_JSON is not valid JSON: {e}") from e
         return self
 
     @property

@@ -1,11 +1,11 @@
-"""Modal app definition for NIC GPU workers (ingest + clustering)."""
+"""Modal app definition for PIC GPU workers (ingest + clustering)."""
 
 import modal
 
-app = modal.App("nic")
+app = modal.App("pic")
 
 # Container image with all dependencies (core + ML)
-nic_image = (
+pic_image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install(
         # Core
@@ -34,7 +34,7 @@ nic_image = (
 )
 
 # Lightweight image for GDrive file check (no ML deps — fast cold start ~5s)
-nic_check_image = (
+pic_check_image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install(
         "sqlalchemy[asyncio]>=2.0,<3.0",
@@ -92,20 +92,20 @@ async def _check_gdrive_for_new_files_impl() -> None:
     logger.info("Found %d new files in Google Drive, spawning GPU worker", len(files))
 
     try:
-        fn = modal.Function.from_name("nic", "sync_gdrive_to_r2")
+        fn = modal.Function.from_name("pic", "sync_gdrive_to_r2")
         fn.spawn()
     except Exception:
         logger.exception("Failed to spawn GPU worker for GDrive sync")
 
 
 @app.function(
-    image=nic_image,
+    image=pic_image,
     gpu="T4",
     memory=8192,
     timeout=1800,
     max_containers=5,
     retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=5.0),
-    secrets=[modal.Secret.from_name("nic-env")],
+    secrets=[modal.Secret.from_name("pic-env")],
 )
 async def run_ingest(image_id: str) -> None:
     """Process an uploaded image: compute pHash + DINOv2 embedding."""
@@ -115,13 +115,13 @@ async def run_ingest(image_id: str) -> None:
 
 
 @app.function(
-    image=nic_image,
+    image=pic_image,
     gpu="T4",
     memory=8192,
     timeout=1800,
     max_containers=1,
     retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=10.0),
-    secrets=[modal.Secret.from_name("nic-env")],
+    secrets=[modal.Secret.from_name("pic-env")],
 )
 async def run_cluster(job_id: str, params_json: str | None = None) -> None:
     """Run L1 + L2 clustering pipeline."""
@@ -131,13 +131,13 @@ async def run_cluster(job_id: str, params_json: str | None = None) -> None:
 
 
 @app.function(
-    image=nic_image,
+    image=pic_image,
     gpu="T4",
     memory=8192,
     timeout=3600,
     max_containers=1,
     retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=10.0),
-    secrets=[modal.Secret.from_name("nic-env")],
+    secrets=[modal.Secret.from_name("pic-env")],
 )
 async def run_pipeline(job_id: str, params_json: str | None = None) -> None:
     """Full pipeline: discover images in R2, deduplicate, ingest, then cluster."""
@@ -147,12 +147,12 @@ async def run_pipeline(job_id: str, params_json: str | None = None) -> None:
 
 
 @app.function(
-    image=nic_check_image,
+    image=pic_check_image,
     schedule=modal.Cron("*/15 * * * *"),
     timeout=120,
     max_containers=1,
     retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=5.0),
-    secrets=[modal.Secret.from_name("nic-env")],
+    secrets=[modal.Secret.from_name("pic-env")],
 )
 async def check_gdrive_for_new_files() -> None:
     """Tier 1 (CPU): Lightweight cron — check GDrive folder, spawn GPU worker if files found."""
@@ -160,13 +160,13 @@ async def check_gdrive_for_new_files() -> None:
 
 
 @app.function(
-    image=nic_image,
+    image=pic_image,
     gpu="T4",
     memory=8192,
     timeout=3600,
     max_containers=1,
     retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
-    secrets=[modal.Secret.from_name("nic-env")],
+    secrets=[modal.Secret.from_name("pic-env")],
 )
 async def sync_gdrive_to_r2(job_id: str | None = None, params_json: str | None = None) -> None:
     """Tier 2 (GPU): Download from GDrive, process, upload to R2, cluster."""
