@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from scipy.spatial.distance import pdist, squareform
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-DB_URL = os.environ["NIC_POSTGRES_URL"]
+DB_URL = os.environ["PIC_POSTGRES_URL"]
 
 
 def main() -> None:

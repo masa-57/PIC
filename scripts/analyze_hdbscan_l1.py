@@ -9,7 +9,7 @@ import psycopg2
 from sklearn.cluster import HDBSCAN
 from sklearn.metrics.pairwise import cosine_distances
 
-DB_URL = os.environ["NIC_POSTGRES_URL"]
+DB_URL = os.environ["PIC_POSTGRES_URL"]
 
 
 def parse_vec(s: str) -> np.ndarray:

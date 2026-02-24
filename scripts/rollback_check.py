@@ -45,7 +45,7 @@ def main() -> int:
     before = get_current_revision()
     if not before:
         print("ERROR: Could not determine current Alembic revision.")
-        print("Make sure NIC_DATABASE_URL is set and the database is reachable.")
+        print("Make sure PIC_DATABASE_URL is set and the database is reachable.")
         return 1
     print(f"  Current revision: {before}")
 

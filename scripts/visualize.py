@@ -16,7 +16,7 @@ import urllib.request
 import webbrowser
 from pathlib import Path
 
-DEFAULT_API = "http://niccom-nicap-0baotbesgnbn-1066176341.eu-west-2.elb.amazonaws.com"
+DEFAULT_API = "http://localhost:8000"
 
 
 def _api_get(base_url: str, path: str) -> dict:
@@ -135,11 +135,11 @@ h1 { margin-bottom: 8px; }
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>NIC Cluster Report</title>
+<title>PIC Cluster Report</title>
 <style>{css}</style>
 </head>
 <body>
-<h1>NIC Cluster Report</h1>
+<h1>PIC Cluster Report</h1>
 <div class="summary">{summary_line}</div>
 """
     ]

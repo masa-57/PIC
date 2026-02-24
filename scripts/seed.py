@@ -85,7 +85,7 @@ def _submit_clustering(conn) -> str | None:  # noqa: ANN001
     conn.commit()
 
     # Trigger Modal clustering function
-    fn = modal.Function.from_name("nic", "run_cluster")
+    fn = modal.Function.from_name("pic", "run_cluster")
     call = fn.spawn(job_id, None)
     print(f"Submitted clustering job {job_id[:8]} (Modal: {call.object_id})")
     return job_id
@@ -159,7 +159,7 @@ def main() -> None:
     import psycopg2
 
     conn = psycopg2.connect(_get_sync_db_url())
-    ingest_fn = modal.Function.from_name("nic", "run_ingest")
+    ingest_fn = modal.Function.from_name("pic", "run_ingest")
 
     try:
         for i, filepath in enumerate(image_files, 1):

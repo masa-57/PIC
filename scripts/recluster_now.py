@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# Add src/ to path so nic package is importable
+# Add src/ to path so pic package is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 

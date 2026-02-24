@@ -31,11 +31,11 @@ load_dotenv(_PROJECT_ROOT / ".env")
 
 import os  # noqa: E402 — after load_dotenv so env vars are available
 
-DB_URL = os.environ["NIC_POSTGRES_URL"]
-S3_BUCKET = os.environ.get("NIC_S3_BUCKET", "nic-images")
-S3_ENDPOINT = os.environ["NIC_S3_ENDPOINT_URL"]
-S3_KEY_ID = os.environ["NIC_S3_ACCESS_KEY_ID"]
-S3_SECRET = os.environ["NIC_S3_SECRET_ACCESS_KEY"]
+DB_URL = os.environ["PIC_POSTGRES_URL"]
+S3_BUCKET = os.environ.get("PIC_S3_BUCKET", "pic-images")
+S3_ENDPOINT = os.environ["PIC_S3_ENDPOINT_URL"]
+S3_KEY_ID = os.environ["PIC_S3_ACCESS_KEY_ID"]
+S3_SECRET = os.environ["PIC_S3_SECRET_ACCESS_KEY"]
 
 _s3 = boto3.client(
     "s3",
@@ -301,8 +301,8 @@ def _render_html(hierarchy: list[dict], total_l1: int) -> str:
     return (
         "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1.0'>"
-        f"<title>NIC Cluster Visualization</title><style>{_CSS}</style></head><body>"
-        "<h1>NIC Cluster Visualization</h1>"
+        f"<title>PIC Cluster Visualization</title><style>{_CSS}</style></head><body>"
+        "<h1>PIC Cluster Visualization</h1>"
         f"<div class='stats'><span>{total_imgs} images</span>"
         f"<span>{total_l2} L2 clusters</span><span>{total_l1} L1 groups</span></div>"
         "<div class='toolbar'><button class='btn' onclick='togAll()'>Expand / Collapse All</button></div>"
@@ -319,7 +319,7 @@ def _render_html(hierarchy: list[dict], total_l1: int) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate HTML visualization of NIC image clusters (direct DB + R2).")
+    parser = argparse.ArgumentParser(description="Generate HTML visualization of PIC image clusters (direct DB + R2).")
     parser.add_argument(
         "-o",
         "--output",

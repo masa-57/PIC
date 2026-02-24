@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Post-deploy smoke tests for the NIC API.
+"""Post-deploy smoke tests for the PIC API.
 
-Runs basic HTTP checks against a deployed NIC instance to verify
+Runs basic HTTP checks against a deployed PIC instance to verify
 core endpoints are responsive.
 
 Usage:
