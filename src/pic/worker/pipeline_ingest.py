@@ -6,11 +6,11 @@ from typing import TypedDict
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.config import settings
-from nic.models.db import Image, Job
-from nic.services.embedding import compute_embeddings_batch
-from nic.worker.image_processing import process_single_image, retry_single_image_ingest
-from nic.worker.pipeline_discover import download_s3_concurrent
+from pic.config import settings
+from pic.models.db import Image, Job
+from pic.services.embedding import compute_embeddings_batch
+from pic.worker.image_processing import process_single_image, retry_single_image_ingest
+from pic.worker.pipeline_discover import download_s3_concurrent
 
 logger = logging.getLogger(__name__)
 

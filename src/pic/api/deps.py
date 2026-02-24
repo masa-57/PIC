@@ -8,9 +8,9 @@ from fastapi import HTTPException, Query
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.config import settings
-from nic.core.database import async_session
-from nic.models.db import Job, JobStatus, JobType
+from pic.config import settings
+from pic.core.database import async_session
+from pic.models.db import Job, JobStatus, JobType
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def build_pagination_links(
     extra_params: dict[str, str] | None = None,
 ) -> Any:
     """Build pagination navigation links for list responses."""
-    from nic.models.schemas import PaginationLinks
+    from pic.models.schemas import PaginationLinks
 
     def _url(o: int) -> str:
         params = {"offset": str(o), "limit": str(limit)}

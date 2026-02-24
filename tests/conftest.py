@@ -29,7 +29,7 @@ def sample_phash_alt() -> str:
 @pytest.fixture
 def mock_s3():
     """Mock boto3 S3 client."""
-    with patch("nic.services.image_store.get_s3_client") as mock:
+    with patch("pic.services.image_store.get_s3_client") as mock:
         client = MagicMock()
         mock.return_value = client
         yield client

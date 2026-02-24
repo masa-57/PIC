@@ -55,7 +55,7 @@ class TestRunFullClustering:
         """Test that empty DB returns all zero stats."""
         db = self._make_db()
 
-        from nic.services.clustering_pipeline import run_full_clustering
+        from pic.services.clustering_pipeline import run_full_clustering
 
         stats = await run_full_clustering(db, {})
 
@@ -121,9 +121,9 @@ class TestRunFullClustering:
         db.flush = AsyncMock(side_effect=tracking_flush)
 
         with (
-            patch("nic.services.clustering_pipeline.cluster_level1") as mock_l1,
-            patch("nic.services.clustering_pipeline.select_representative") as mock_rep,
-            patch("nic.services.clustering_pipeline.cluster_level2") as mock_l2,
+            patch("pic.services.clustering_pipeline.cluster_level1") as mock_l1,
+            patch("pic.services.clustering_pipeline.select_representative") as mock_rep,
+            patch("pic.services.clustering_pipeline.cluster_level2") as mock_l2,
         ):
             mock_l1.return_value = {
                 0: ["img1", "img2"],
@@ -139,7 +139,7 @@ class TestRunFullClustering:
                 "n_noise": 1,
             }
 
-            from nic.services.clustering_pipeline import run_full_clustering
+            from pic.services.clustering_pipeline import run_full_clustering
 
             stats = await run_full_clustering(
                 db,
@@ -214,9 +214,9 @@ class TestRunFullClustering:
         db.flush = AsyncMock(side_effect=tracking_flush)
 
         with (
-            patch("nic.services.clustering_pipeline.cluster_level1") as mock_l1,
-            patch("nic.services.clustering_pipeline.select_representative") as mock_rep,
-            patch("nic.services.clustering_pipeline.cluster_level2") as mock_l2,
+            patch("pic.services.clustering_pipeline.cluster_level1") as mock_l1,
+            patch("pic.services.clustering_pipeline.select_representative") as mock_rep,
+            patch("pic.services.clustering_pipeline.cluster_level2") as mock_l2,
         ):
             mock_l1.return_value = {0: ["img1", "img2", "img3"]}
             mock_rep.return_value = "img1"
@@ -228,7 +228,7 @@ class TestRunFullClustering:
                 "n_noise": 1,
             }
 
-            from nic.services.clustering_pipeline import run_full_clustering
+            from pic.services.clustering_pipeline import run_full_clustering
 
             stats = await run_full_clustering(db, {})
 
@@ -288,9 +288,9 @@ class TestRunFullClustering:
         db.flush = AsyncMock(side_effect=tracking_flush)
 
         with (
-            patch("nic.services.clustering_pipeline.cluster_level1") as mock_l1,
-            patch("nic.services.clustering_pipeline.select_representative") as mock_rep,
-            patch("nic.services.clustering_pipeline.cluster_level2") as mock_l2,
+            patch("pic.services.clustering_pipeline.cluster_level1") as mock_l1,
+            patch("pic.services.clustering_pipeline.select_representative") as mock_rep,
+            patch("pic.services.clustering_pipeline.cluster_level2") as mock_l2,
         ):
             mock_l1.return_value = {
                 0: ["img1"],
@@ -307,7 +307,7 @@ class TestRunFullClustering:
                 "n_noise": 4,
             }
 
-            from nic.services.clustering_pipeline import run_full_clustering
+            from pic.services.clustering_pipeline import run_full_clustering
 
             stats = await run_full_clustering(db, {})
 
@@ -363,14 +363,14 @@ class TestRunFullClustering:
         db.flush = AsyncMock(side_effect=tracking_flush)
 
         with (
-            patch("nic.services.clustering_pipeline.cluster_level1") as mock_l1,
-            patch("nic.services.clustering_pipeline.select_representative") as mock_rep,
-            patch("nic.services.clustering_pipeline.cluster_level2", side_effect=RuntimeError("l2 boom")),
+            patch("pic.services.clustering_pipeline.cluster_level1") as mock_l1,
+            patch("pic.services.clustering_pipeline.select_representative") as mock_rep,
+            patch("pic.services.clustering_pipeline.cluster_level2", side_effect=RuntimeError("l2 boom")),
         ):
             mock_l1.return_value = {0: ["img1", "img2"]}
             mock_rep.return_value = "img1"
 
-            from nic.services.clustering_pipeline import run_full_clustering
+            from pic.services.clustering_pipeline import run_full_clustering
 
             with pytest.raises(RuntimeError, match="l2 boom"):
                 await run_full_clustering(db, {})
@@ -413,9 +413,9 @@ class TestBulkOperations:
         db.commit = AsyncMock()
 
         with (
-            patch("nic.services.clustering_pipeline.cluster_level1") as mock_l1,
-            patch("nic.services.clustering_pipeline.select_representative") as mock_rep,
-            patch("nic.services.clustering_pipeline.cluster_level2") as mock_l2,
+            patch("pic.services.clustering_pipeline.cluster_level1") as mock_l1,
+            patch("pic.services.clustering_pipeline.select_representative") as mock_rep,
+            patch("pic.services.clustering_pipeline.cluster_level2") as mock_l2,
         ):
             mock_l1.return_value = {0: ["img1"]}
             mock_rep.return_value = "img1"
@@ -427,7 +427,7 @@ class TestBulkOperations:
                 "n_noise": 1,
             }
 
-            from nic.services.clustering_pipeline import run_full_clustering
+            from pic.services.clustering_pipeline import run_full_clustering
 
             await run_full_clustering(db, {})
 
@@ -464,9 +464,9 @@ class TestBulkOperations:
         db.commit = AsyncMock()
 
         with (
-            patch("nic.services.clustering_pipeline.cluster_level1") as mock_l1,
-            patch("nic.services.clustering_pipeline.select_representative") as mock_rep,
-            patch("nic.services.clustering_pipeline.cluster_level2") as mock_l2,
+            patch("pic.services.clustering_pipeline.cluster_level1") as mock_l1,
+            patch("pic.services.clustering_pipeline.select_representative") as mock_rep,
+            patch("pic.services.clustering_pipeline.cluster_level2") as mock_l2,
         ):
             mock_l1.return_value = {0: ["img1"]}
             mock_rep.return_value = "img1"
@@ -478,7 +478,7 @@ class TestBulkOperations:
                 "n_noise": 1,
             }
 
-            from nic.services.clustering_pipeline import run_full_clustering
+            from pic.services.clustering_pipeline import run_full_clustering
 
             await run_full_clustering(db, {})
 
@@ -499,7 +499,7 @@ class TestBulkOperations:
         db.execute = AsyncMock(side_effect=empty_execute)
         db.add = MagicMock()
 
-        from nic.services.clustering_pipeline import run_full_clustering
+        from pic.services.clustering_pipeline import run_full_clustering
 
         stats = await run_full_clustering(db, {})
 

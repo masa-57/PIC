@@ -7,7 +7,7 @@ from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import QueuePool
 
-from nic.config import settings
+from pic.config import settings
 
 logger = logging.getLogger(__name__)
 

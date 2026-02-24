@@ -16,7 +16,7 @@ class TestFindSimilarImages:
         # First call: SET LOCAL hnsw.ef_search, second: query image lookup
         mock_session.execute = AsyncMock(side_effect=[MagicMock(), mock_result])
 
-        from nic.services.vector_store import find_similar_images
+        from pic.services.vector_store import find_similar_images
 
         results = await find_similar_images(mock_session, "nonexistent-id")
         assert results == []
@@ -33,7 +33,7 @@ class TestFindSimilarImages:
         # First call: SET LOCAL hnsw.ef_search, second: query image lookup
         mock_session.execute = AsyncMock(side_effect=[MagicMock(), mock_result])
 
-        from nic.services.vector_store import find_similar_images
+        from pic.services.vector_store import find_similar_images
 
         results = await find_similar_images(mock_session, "img-no-embed")
         assert results == []
@@ -74,7 +74,7 @@ class TestFindSimilarImages:
 
         mock_session.execute = AsyncMock(side_effect=[MagicMock(), mock_query_result, mock_search_result])
 
-        from nic.services.vector_store import find_similar_images
+        from pic.services.vector_store import find_similar_images
 
         results = await find_similar_images(mock_session, "query-1", n_results=5)
         assert len(results) == 2
@@ -93,9 +93,9 @@ class TestFindSimilarImages:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(side_effect=[MagicMock(), mock_result])
 
-        with patch("nic.services.vector_store.settings") as mock_settings:
+        with patch("pic.services.vector_store.settings") as mock_settings:
             mock_settings.hnsw_ef_search = 200
-            from nic.services.vector_store import find_similar_images
+            from pic.services.vector_store import find_similar_images
 
             await find_similar_images(mock_session, "test-id")
 

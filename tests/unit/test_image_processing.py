@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from PIL import Image as PILImage
 
-from nic.worker.image_processing import (
+from pic.worker.image_processing import (
     check_content_duplicate,
     compute_content_hash,
     insert_image_record,
@@ -38,12 +38,12 @@ def test_process_single_image_success_sets_fields_and_moves_key() -> None:
     img = SimpleNamespace(id="img-1", s3_key="images/img-1.jpg")
 
     with (
-        patch("nic.worker.image_processing.compute_hashes", return_value=("phash", "dhash")),
-        patch("nic.worker.image_processing.hex_to_bitstring", return_value="bits"),
-        patch("nic.worker.image_processing.get_image_dimensions", return_value=(64, 64)),
-        patch("nic.worker.image_processing.generate_thumbnail", return_value=b"thumb"),
-        patch("nic.worker.image_processing.upload_to_s3") as mock_upload,
-        patch("nic.worker.image_processing.move_s3_object") as mock_move,
+        patch("pic.worker.image_processing.compute_hashes", return_value=("phash", "dhash")),
+        patch("pic.worker.image_processing.hex_to_bitstring", return_value="bits"),
+        patch("pic.worker.image_processing.get_image_dimensions", return_value=(64, 64)),
+        patch("pic.worker.image_processing.generate_thumbnail", return_value=b"thumb"),
+        patch("pic.worker.image_processing.upload_to_s3") as mock_upload,
+        patch("pic.worker.image_processing.move_s3_object") as mock_move,
     ):
         ok = process_single_image(img, _image_bytes(), [0.1] * 4)
 
@@ -62,12 +62,12 @@ def test_process_single_image_keeps_original_key_if_move_fails() -> None:
     img = SimpleNamespace(id="img-1", s3_key="images/img-1.jpg")
 
     with (
-        patch("nic.worker.image_processing.compute_hashes", return_value=("phash", "dhash")),
-        patch("nic.worker.image_processing.hex_to_bitstring", return_value="bits"),
-        patch("nic.worker.image_processing.get_image_dimensions", return_value=(64, 64)),
-        patch("nic.worker.image_processing.generate_thumbnail", return_value=b"thumb"),
-        patch("nic.worker.image_processing.upload_to_s3"),
-        patch("nic.worker.image_processing.move_s3_object", side_effect=RuntimeError("boom")),
+        patch("pic.worker.image_processing.compute_hashes", return_value=("phash", "dhash")),
+        patch("pic.worker.image_processing.hex_to_bitstring", return_value="bits"),
+        patch("pic.worker.image_processing.get_image_dimensions", return_value=(64, 64)),
+        patch("pic.worker.image_processing.generate_thumbnail", return_value=b"thumb"),
+        patch("pic.worker.image_processing.upload_to_s3"),
+        patch("pic.worker.image_processing.move_s3_object", side_effect=RuntimeError("boom")),
     ):
         ok = process_single_image(img, _image_bytes(), [0.1] * 4)
 
@@ -77,7 +77,7 @@ def test_process_single_image_keeps_original_key_if_move_fails() -> None:
 
 def test_process_single_image_returns_false_on_decode_error() -> None:
     img = SimpleNamespace(id="img-1", s3_key="images/img-1.jpg")
-    with patch("nic.worker.image_processing.PILImage.open", side_effect=OSError("bad image")):
+    with patch("pic.worker.image_processing.PILImage.open", side_effect=OSError("bad image")):
         assert process_single_image(img, b"not-an-image", [0.1]) is False
 
 
@@ -85,10 +85,10 @@ def test_retry_single_image_ingest_succeeds_on_second_attempt() -> None:
     img = SimpleNamespace(id="img-1")
     with (
         patch(
-            "nic.worker.image_processing.compute_embeddings_batch",
+            "pic.worker.image_processing.compute_embeddings_batch",
             side_effect=[RuntimeError("first"), [[0.2] * 4]],
         ),
-        patch("nic.worker.image_processing.process_single_image", return_value=True) as mock_process,
+        patch("pic.worker.image_processing.process_single_image", return_value=True) as mock_process,
     ):
         assert retry_single_image_ingest(img, b"image-bytes") is True
 
@@ -98,8 +98,8 @@ def test_retry_single_image_ingest_succeeds_on_second_attempt() -> None:
 def test_retry_single_image_ingest_returns_false_after_exhaustion() -> None:
     img = SimpleNamespace(id="img-1")
     with (
-        patch("nic.worker.image_processing.compute_embeddings_batch", side_effect=RuntimeError("always")),
-        patch("nic.worker.image_processing.process_single_image") as mock_process,
+        patch("pic.worker.image_processing.compute_embeddings_batch", side_effect=RuntimeError("always")),
+        patch("pic.worker.image_processing.process_single_image") as mock_process,
     ):
         assert retry_single_image_ingest(img, b"image-bytes") is False
 
@@ -127,7 +127,7 @@ async def test_insert_image_record_returns_id_when_inserted() -> None:
     inserted.rowcount = 1
     db.execute = AsyncMock(return_value=inserted)
 
-    with patch("nic.worker.image_processing.uuid.uuid4", return_value="fixed-uuid"):
+    with patch("pic.worker.image_processing.uuid.uuid4", return_value="fixed-uuid"):
         image_id = await insert_image_record(
             db,
             filename="a.jpg",

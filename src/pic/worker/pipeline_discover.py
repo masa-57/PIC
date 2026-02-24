@@ -7,10 +7,10 @@ import os
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.config import settings
-from nic.core.constants import IMAGE_EXTENSIONS, S3_PREFIX_INBOX, S3_PREFIX_PROCESSED, S3_PREFIX_REJECTED
-from nic.services.image_store import download_from_s3, list_s3_objects, move_s3_object
-from nic.worker.image_processing import check_content_duplicate, compute_content_hash, insert_image_record
+from pic.config import settings
+from pic.core.constants import IMAGE_EXTENSIONS, S3_PREFIX_INBOX, S3_PREFIX_PROCESSED, S3_PREFIX_REJECTED
+from pic.services.image_store import download_from_s3, list_s3_objects, move_s3_object
+from pic.worker.image_processing import check_content_duplicate, compute_content_hash, insert_image_record
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def download_s3_concurrent(s3_keys: list[str], max_concurrency: int) -> li
 
 async def phase_discover_and_dedup(db: AsyncSession, job_id: str) -> tuple[list[str], dict[str, int]]:
     """Scan R2 images/ prefix, deduplicate, create DB records for new images."""
-    from nic.models.db import Image
+    from pic.models.db import Image
 
     s3_keys = list_s3_objects(S3_PREFIX_INBOX)
     s3_keys = [k for k in s3_keys if os.path.splitext(k)[1].lower() in IMAGE_EXTENSIONS]

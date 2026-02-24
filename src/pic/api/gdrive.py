@@ -5,12 +5,12 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.api.deps import create_and_dispatch_job, get_db
-from nic.config import settings
-from nic.core.rate_limit import limiter
-from nic.models.db import JobType
-from nic.models.schemas import JobOut
-from nic.services.modal_dispatch import submit_gdrive_sync_job
+from pic.api.deps import create_and_dispatch_job, get_db
+from pic.config import settings
+from pic.core.rate_limit import limiter
+from pic.models.db import JobType
+from pic.models.schemas import JobOut
+from pic.services.modal_dispatch import submit_gdrive_sync_job
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/gdrive", tags=["gdrive"])

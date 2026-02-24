@@ -6,7 +6,7 @@ import logging
 
 import modal
 
-from nic.core.constants import default_retry
+from pic.core.constants import default_retry
 
 logger = logging.getLogger(__name__)
 

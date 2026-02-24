@@ -3,7 +3,7 @@ from typing import TypedDict
 
 from pydantic import BaseModel, Field, field_validator
 
-from nic.models.db import JobStatus, JobType
+from pic.models.db import JobStatus, JobType
 
 
 class PaginationLinks(BaseModel):

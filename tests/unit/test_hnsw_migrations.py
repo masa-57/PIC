@@ -44,7 +44,7 @@ def _run_migration(module_name: str, fn_name: str) -> tuple[list[str], list[str]
 
 @pytest.mark.unit
 def test_migration_003_upgrade_uses_concurrent_index_creation() -> None:
-    events, sql_calls = _run_migration("nic.migrations.versions.003_add_hnsw_vector_index", "upgrade")
+    events, sql_calls = _run_migration("pic.migrations.versions.003_add_hnsw_vector_index", "upgrade")
     assert events == ["autocommit_block", "enter", "exit"]
     assert len(sql_calls) == 1
     sql = sql_calls[0].lower()
@@ -53,7 +53,7 @@ def test_migration_003_upgrade_uses_concurrent_index_creation() -> None:
 
 @pytest.mark.unit
 def test_migration_003_downgrade_uses_concurrent_index_drop() -> None:
-    events, sql_calls = _run_migration("nic.migrations.versions.003_add_hnsw_vector_index", "downgrade")
+    events, sql_calls = _run_migration("pic.migrations.versions.003_add_hnsw_vector_index", "downgrade")
     assert events == ["autocommit_block", "enter", "exit"]
     assert len(sql_calls) == 1
     sql = sql_calls[0].lower()
@@ -62,7 +62,7 @@ def test_migration_003_downgrade_uses_concurrent_index_drop() -> None:
 
 @pytest.mark.unit
 def test_migration_015_upgrade_uses_concurrent_drop_and_create() -> None:
-    events, sql_calls = _run_migration("nic.migrations.versions.015_tune_hnsw_index_params", "upgrade")
+    events, sql_calls = _run_migration("pic.migrations.versions.015_tune_hnsw_index_params", "upgrade")
     assert events == ["autocommit_block", "enter", "exit"]
     assert len(sql_calls) == 2
     assert "drop index concurrently if exists ix_images_embedding_hnsw" in sql_calls[0].lower()
@@ -71,7 +71,7 @@ def test_migration_015_upgrade_uses_concurrent_drop_and_create() -> None:
 
 @pytest.mark.unit
 def test_migration_015_downgrade_uses_concurrent_drop_and_create() -> None:
-    events, sql_calls = _run_migration("nic.migrations.versions.015_tune_hnsw_index_params", "downgrade")
+    events, sql_calls = _run_migration("pic.migrations.versions.015_tune_hnsw_index_params", "downgrade")
     assert events == ["autocommit_block", "enter", "exit"]
     assert len(sql_calls) == 2
     assert "drop index concurrently if exists ix_images_embedding_hnsw" in sql_calls[0].lower()

@@ -30,13 +30,13 @@ class TestRunIngest:
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
         with (
-            patch("nic.worker.ingest.async_session", return_value=mock_session_ctx),
-            patch("nic.worker.ingest.download_from_s3", return_value=b"fake-image-bytes"),
-            patch("nic.worker.ingest.compute_hashes", return_value=(sample_phash, sample_phash)),
-            patch("nic.worker.ingest.compute_embedding", return_value=sample_embedding),
-            patch("nic.worker.ingest.move_s3_object") as mock_move,
+            patch("pic.worker.ingest.async_session", return_value=mock_session_ctx),
+            patch("pic.worker.ingest.download_from_s3", return_value=b"fake-image-bytes"),
+            patch("pic.worker.ingest.compute_hashes", return_value=(sample_phash, sample_phash)),
+            patch("pic.worker.ingest.compute_embedding", return_value=sample_embedding),
+            patch("pic.worker.ingest.move_s3_object") as mock_move,
         ):
-            from nic.worker.ingest import run_ingest
+            from pic.worker.ingest import run_ingest
 
             await run_ingest("abc-123")
 
@@ -63,13 +63,13 @@ class TestRunIngest:
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
         with (
-            patch("nic.worker.ingest.async_session", return_value=mock_session_ctx),
-            patch("nic.worker.ingest.download_from_s3", return_value=b"fake-image-bytes"),
-            patch("nic.worker.ingest.compute_hashes", return_value=(sample_phash, sample_phash)),
-            patch("nic.worker.ingest.compute_embedding", return_value=sample_embedding),
-            patch("nic.worker.ingest.move_s3_object", side_effect=Exception("S3 error")),
+            patch("pic.worker.ingest.async_session", return_value=mock_session_ctx),
+            patch("pic.worker.ingest.download_from_s3", return_value=b"fake-image-bytes"),
+            patch("pic.worker.ingest.compute_hashes", return_value=(sample_phash, sample_phash)),
+            patch("pic.worker.ingest.compute_embedding", return_value=sample_embedding),
+            patch("pic.worker.ingest.move_s3_object", side_effect=Exception("S3 error")),
         ):
-            from nic.worker.ingest import run_ingest
+            from pic.worker.ingest import run_ingest
 
             await run_ingest("abc-123")
 

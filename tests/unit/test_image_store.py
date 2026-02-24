@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from PIL import Image as PILImage
 
-from nic.services.image_store import (
+from pic.services.image_store import (
     _clear_presigned_url_cache,
     generate_presigned_url,
     generate_thumbnail,
@@ -71,7 +71,7 @@ class TestThumbnailGeneration:
     def test_rejects_oversized_image(self):
         image_bytes = _make_test_image(100, 100)
         with (
-            patch("nic.services.image_store.validate_pixel_count", side_effect=ValueError("too many pixels")),
+            patch("pic.services.image_store.validate_pixel_count", side_effect=ValueError("too many pixels")),
             pytest.raises(ValueError, match="too many pixels"),
         ):
             generate_thumbnail(image_bytes)
@@ -98,7 +98,7 @@ class TestImageDimensions:
     def test_rejects_oversized_image(self):
         image_bytes = _make_test_image(100, 100)
         with (
-            patch("nic.services.image_store.validate_pixel_count", side_effect=ValueError("too many pixels")),
+            patch("pic.services.image_store.validate_pixel_count", side_effect=ValueError("too many pixels")),
             pytest.raises(ValueError, match="too many pixels"),
         ):
             get_image_dimensions(image_bytes)
@@ -107,8 +107,8 @@ class TestImageDimensions:
 @pytest.mark.unit
 class TestMoveS3Object:
     def test_copies_then_deletes(self, mock_s3):
-        from nic.config import settings
-        from nic.services.image_store import move_s3_object
+        from pic.config import settings
+        from pic.services.image_store import move_s3_object
 
         move_s3_object("images/photo.jpg", "processed/photo.jpg")
 
@@ -133,7 +133,7 @@ class TestPresignedUrl:
         _clear_presigned_url_cache()
 
     def test_clamps_negative_expiry(self, mock_s3):
-        from nic.config import settings
+        from pic.config import settings
 
         mock_s3.generate_presigned_url.return_value = "https://example.com/signed"
         generate_presigned_url("processed/photo.jpg", expires_in=-30)
@@ -141,7 +141,7 @@ class TestPresignedUrl:
         assert settings.presigned_url_max_expiry >= 1
 
     def test_clamps_huge_expiry(self, mock_s3):
-        from nic.config import settings
+        from pic.config import settings
 
         mock_s3.generate_presigned_url.return_value = "https://example.com/signed"
         generate_presigned_url("processed/photo.jpg", expires_in=settings.presigned_url_max_expiry + 9999)
@@ -166,7 +166,7 @@ class TestPresignedUrl:
         ]
 
         # Cache logic now reads time twice on misses: before and after URL generation.
-        with patch("nic.services.image_store.time.monotonic", side_effect=[0.0, 0.0, 61.0, 61.0]):
+        with patch("pic.services.image_store.time.monotonic", side_effect=[0.0, 0.0, 61.0, 61.0]):
             first = generate_presigned_url("processed/photo.jpg", expires_in=120)
             second = generate_presigned_url("processed/photo.jpg", expires_in=120)
 

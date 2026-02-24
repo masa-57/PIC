@@ -11,11 +11,11 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.core.constants import S3_PREFIX_INBOX, S3_PREFIX_PROCESSED, S3_PREFIX_THUMBNAILS
-from nic.models.db import Image
-from nic.services.embedding import compute_embeddings_batch, compute_hashes
-from nic.services.hash_utils import hex_to_bitstring
-from nic.services.image_store import generate_thumbnail, get_image_dimensions, move_s3_object, upload_to_s3
+from pic.core.constants import S3_PREFIX_INBOX, S3_PREFIX_PROCESSED, S3_PREFIX_THUMBNAILS
+from pic.models.db import Image
+from pic.services.embedding import compute_embeddings_batch, compute_hashes
+from pic.services.hash_utils import hex_to_bitstring
+from pic.services.image_store import generate_thumbnail, get_image_dimensions, move_s3_object, upload_to_s3
 
 logger = logging.getLogger(__name__)
 

@@ -30,7 +30,7 @@ nic_image = (
         "numba>=0.59,<1.0",
         "scipy>=1.12,<2.0",
     )
-    .add_local_python_source("nic")
+    .add_local_python_source("pic")
 )
 
 # Lightweight image for GDrive file check (no ML deps — fast cold start ~5s)
@@ -45,7 +45,7 @@ nic_check_image = (
         "google-auth>=2.0,<3.0",
         "tenacity>=8.0,<10.0",
     )
-    .add_local_python_source("nic")
+    .add_local_python_source("pic")
 )
 
 
@@ -53,8 +53,8 @@ async def _has_inflight_gdrive_sync_job() -> bool:
     """Return True if a GDRIVE_SYNC job is already pending or running."""
     from sqlalchemy import func, select
 
-    from nic.core.database import async_session
-    from nic.models.db import Job, JobStatus, JobType
+    from pic.core.database import async_session
+    from pic.models.db import Job, JobStatus, JobType
 
     async with async_session() as db:
         result = await db.execute(
@@ -71,14 +71,14 @@ async def _has_inflight_gdrive_sync_job() -> bool:
 async def _check_gdrive_for_new_files_impl() -> None:
     import logging
 
-    from nic.config import settings
+    from pic.config import settings
 
     logger = logging.getLogger(__name__)
 
     if not settings.gdrive_folder_id or not settings.gdrive_service_account_json:
         return
 
-    from nic.services.gdrive import build_drive_service, list_image_files
+    from pic.services.gdrive import build_drive_service, list_image_files
 
     service = build_drive_service(settings.gdrive_service_account_json)
     files = list_image_files(service, settings.gdrive_folder_id)
@@ -109,7 +109,7 @@ async def _check_gdrive_for_new_files_impl() -> None:
 )
 async def run_ingest(image_id: str) -> None:
     """Process an uploaded image: compute pHash + DINOv2 embedding."""
-    from nic.worker.ingest import run_ingest as _run_ingest
+    from pic.worker.ingest import run_ingest as _run_ingest
 
     await _run_ingest(image_id)
 
@@ -125,7 +125,7 @@ async def run_ingest(image_id: str) -> None:
 )
 async def run_cluster(job_id: str, params_json: str | None = None) -> None:
     """Run L1 + L2 clustering pipeline."""
-    from nic.worker.cluster import run_cluster as _run_cluster
+    from pic.worker.cluster import run_cluster as _run_cluster
 
     await _run_cluster(job_id, params_json)
 
@@ -141,7 +141,7 @@ async def run_cluster(job_id: str, params_json: str | None = None) -> None:
 )
 async def run_pipeline(job_id: str, params_json: str | None = None) -> None:
     """Full pipeline: discover images in R2, deduplicate, ingest, then cluster."""
-    from nic.worker.pipeline import run_pipeline as _run_pipeline
+    from pic.worker.pipeline import run_pipeline as _run_pipeline
 
     await _run_pipeline(job_id, params_json)
 
@@ -170,15 +170,15 @@ async def check_gdrive_for_new_files() -> None:
 )
 async def sync_gdrive_to_r2(job_id: str | None = None, params_json: str | None = None) -> None:
     """Tier 2 (GPU): Download from GDrive, process, upload to R2, cluster."""
-    from nic.config import settings
+    from pic.config import settings
 
     if not settings.gdrive_folder_id or not settings.gdrive_service_account_json:
         return
 
     import uuid
 
-    from nic.core.database import async_session
-    from nic.models.db import Job, JobStatus, JobType
+    from pic.core.database import async_session
+    from pic.models.db import Job, JobStatus, JobType
 
     if job_id is None:
         job_id = str(uuid.uuid4())
@@ -186,6 +186,6 @@ async def sync_gdrive_to_r2(job_id: str | None = None, params_json: str | None =
             db.add(Job(id=job_id, type=JobType.GDRIVE_SYNC, status=JobStatus.PENDING))
             await db.commit()
 
-    from nic.worker.gdrive_sync import run_gdrive_sync as _run
+    from pic.worker.gdrive_sync import run_gdrive_sync as _run
 
     await _run(job_id, params_json)

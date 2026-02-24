@@ -7,12 +7,12 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.core.constants import S3_PREFIX_PROCESSED, S3_PREFIX_THUMBNAILS
-from nic.services.embedding import compute_embeddings_batch, compute_hashes
-from nic.services.gdrive import GDriveFile, download_file, move_file_to_folder
-from nic.services.hash_utils import hex_to_bitstring
-from nic.services.image_store import generate_thumbnail, get_image_dimensions, upload_to_s3
-from nic.worker.image_processing import (
+from pic.core.constants import S3_PREFIX_PROCESSED, S3_PREFIX_THUMBNAILS
+from pic.services.embedding import compute_embeddings_batch, compute_hashes
+from pic.services.gdrive import GDriveFile, download_file, move_file_to_folder
+from pic.services.hash_utils import hex_to_bitstring
+from pic.services.image_store import generate_thumbnail, get_image_dimensions, upload_to_s3
+from pic.worker.image_processing import (
     check_content_duplicate,
     compute_content_hash,
     insert_image_record,

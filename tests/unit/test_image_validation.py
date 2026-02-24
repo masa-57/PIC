@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from PIL import Image as PILImage
 
-from nic.services.image_validation import MAX_IMAGE_PIXELS, validate_pixel_count
+from pic.services.image_validation import MAX_IMAGE_PIXELS, validate_pixel_count
 
 
 @pytest.mark.unit

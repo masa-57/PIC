@@ -3,9 +3,9 @@
 import json
 import logging
 
-from nic.core.constants import ADVISORY_LOCK_ID
-from nic.services.clustering_pipeline import run_full_clustering
-from nic.worker.helpers import mark_job_completed, worker_lifecycle
+from pic.core.constants import ADVISORY_LOCK_ID
+from pic.services.clustering_pipeline import run_full_clustering
+from pic.worker.helpers import mark_job_completed, worker_lifecycle
 
 logger = logging.getLogger(__name__)
 

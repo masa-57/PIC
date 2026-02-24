@@ -5,7 +5,7 @@ import asyncio
 import logging
 import sys
 
-from nic.core.logging import setup_logging
+from pic.core.logging import setup_logging
 
 
 def main() -> None:
@@ -27,12 +27,12 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "ingest":
-        from nic.worker.ingest import run_ingest
+        from pic.worker.ingest import run_ingest
 
         logger.info("Starting ingest for image %s", args.image_id)
         asyncio.run(run_ingest(args.image_id))
     elif args.command == "cluster":
-        from nic.worker.cluster import run_cluster
+        from pic.worker.cluster import run_cluster
 
         logger.info("Starting clustering for job %s", args.job_id)
         asyncio.run(run_cluster(args.job_id, args.params))

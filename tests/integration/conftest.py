@@ -15,14 +15,14 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from nic.core.database import _build_engine_args
-from nic.models.db import Base, Image, Job, JobStatus, JobType, L1Group, L2Cluster
+from pic.core.database import _build_engine_args
+from pic.models.db import Base, Image, Job, JobStatus, JobType, L1Group, L2Cluster
 
 
 @pytest.fixture
 async def db():
     """Per-test async session with NullPool engine (no cross-loop connection reuse)."""
-    from nic.config import settings
+    from pic.config import settings
 
     db_url, connect_args = _build_engine_args(settings.database_url)
     engine = create_async_engine(db_url, poolclass=NullPool, connect_args=connect_args)
@@ -54,7 +54,7 @@ async def db():
 @pytest.fixture
 async def db_engine():
     """Standalone NullPool engine for tests that need direct engine access."""
-    from nic.config import settings
+    from pic.config import settings
 
     db_url, connect_args = _build_engine_args(settings.database_url)
     engine = create_async_engine(db_url, poolclass=NullPool, connect_args=connect_args)
@@ -69,10 +69,10 @@ async def client(db):
     async def override_get_db():
         yield db  # Reuse the SAME session — seeded data is visible to API
 
-    with patch("nic.core.auth.settings") as mock_auth:
+    with patch("pic.core.auth.settings") as mock_auth:
         mock_auth.api_key = ""
-        from nic.api.deps import get_db
-        from nic.main import app
+        from pic.api.deps import get_db
+        from pic.main import app
 
         app.dependency_overrides[get_db] = override_get_db
         transport = ASGITransport(app=app)

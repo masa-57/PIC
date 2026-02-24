@@ -7,7 +7,7 @@ from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, pool
 
-from nic.models.db import Base
+from pic.models.db import Base
 
 # Load .env so NIC_DATABASE_URL is available (pydantic_settings does this
 # automatically, but Alembic env.py uses os.environ directly).

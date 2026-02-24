@@ -7,8 +7,8 @@ import torch
 from PIL import Image as PILImage
 from transformers import AutoImageProcessor, AutoModel
 
-from nic.config import settings
-from nic.services.image_validation import validate_pixel_count
+from pic.config import settings
+from pic.services.image_validation import validate_pixel_count
 
 logger = logging.getLogger(__name__)
 
@@ -129,4 +129,4 @@ def hamming_distance(hash1: str, hash2: str) -> int:
     return h1 - h2
 
 
-from nic.services.hash_utils import hex_to_bitstring as hex_to_bitstring  # noqa: F401, E402
+from pic.services.hash_utils import hex_to_bitstring as hex_to_bitstring  # noqa: F401, E402

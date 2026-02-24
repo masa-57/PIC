@@ -23,8 +23,8 @@ class TestRunCluster:
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("nic.worker.helpers.async_session", return_value=mock_session_ctx):
-            from nic.worker.cluster import run_cluster
+        with patch("pic.worker.helpers.async_session", return_value=mock_session_ctx):
+            from pic.worker.cluster import run_cluster
 
             await run_cluster("job-1")
 
@@ -49,10 +49,10 @@ class TestRunCluster:
         stats = {"total_images": 100, "l1_groups": 50, "l2_clusters": 5, "l2_noise_groups": 3}
 
         with (
-            patch("nic.worker.helpers.async_session", return_value=mock_session_ctx),
-            patch("nic.worker.cluster.run_full_clustering", return_value=stats) as mock_cluster,
+            patch("pic.worker.helpers.async_session", return_value=mock_session_ctx),
+            patch("pic.worker.cluster.run_full_clustering", return_value=stats) as mock_cluster,
         ):
-            from nic.worker.cluster import run_cluster
+            from pic.worker.cluster import run_cluster
 
             await run_cluster("job-1", json.dumps({"l1_cluster_selection_epsilon": 0.15}))
 
@@ -75,10 +75,10 @@ class TestRunCluster:
         empty_stats = {"total_images": 0, "l1_groups": 0, "l2_clusters": 0, "l2_noise_groups": 0}
 
         with (
-            patch("nic.worker.helpers.async_session", return_value=mock_session_ctx),
-            patch("nic.worker.cluster.run_full_clustering", return_value=empty_stats),
+            patch("pic.worker.helpers.async_session", return_value=mock_session_ctx),
+            patch("pic.worker.cluster.run_full_clustering", return_value=empty_stats),
         ):
-            from nic.worker.cluster import run_cluster
+            from pic.worker.cluster import run_cluster
 
             await run_cluster("job-1")
 
@@ -101,13 +101,13 @@ class TestRunCluster:
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
         with (
-            patch("nic.worker.helpers.async_session", return_value=mock_session_ctx),
+            patch("pic.worker.helpers.async_session", return_value=mock_session_ctx),
             patch(
-                "nic.worker.cluster.run_full_clustering",
+                "pic.worker.cluster.run_full_clustering",
                 side_effect=RuntimeError("UMAP failed"),
             ),
         ):
-            from nic.worker.cluster import run_cluster
+            from pic.worker.cluster import run_cluster
 
             with pytest.raises(RuntimeError, match="UMAP failed"):
                 await run_cluster("job-1")

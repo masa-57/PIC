@@ -8,9 +8,9 @@ import numpy as np
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.models.db import Image, L1Group, L2Cluster
-from nic.models.schemas import ClusteringStats
-from nic.services.clustering import cluster_level1, cluster_level2, select_representative
+from pic.models.db import Image, L1Group, L2Cluster
+from pic.models.schemas import ClusteringStats
+from pic.services.clustering import cluster_level1, cluster_level2, select_representative
 
 logger = logging.getLogger(__name__)
 

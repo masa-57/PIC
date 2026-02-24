@@ -6,12 +6,12 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.api.deps import create_and_dispatch_job, get_db
-from nic.config import settings
-from nic.core.rate_limit import limiter
-from nic.models.db import JobType
-from nic.models.schemas import ClusterRunRequest, JobOut, ProblemDetail
-from nic.services.modal_dispatch import submit_pipeline_job
+from pic.api.deps import create_and_dispatch_job, get_db
+from pic.config import settings
+from pic.core.rate_limit import limiter
+from pic.models.db import JobType
+from pic.models.schemas import ClusterRunRequest, JobOut, ProblemDetail
+from pic.services.modal_dispatch import submit_pipeline_job
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])

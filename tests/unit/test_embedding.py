@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from PIL import Image as PILImage
 
-from nic.services.embedding import compute_dhash, compute_hashes, compute_phash, hamming_distance
+from pic.services.embedding import compute_dhash, compute_hashes, compute_phash, hamming_distance
 
 
 def _make_test_image(width: int = 100, height: int = 100, color: str = "red") -> bytes:
@@ -69,7 +69,7 @@ class TestPerceptualHashing:
     def test_compute_hashes_rejects_oversized_image(self):
         image_bytes = _make_test_image()
         with (
-            patch("nic.services.embedding.validate_pixel_count", side_effect=ValueError("too many pixels")),
+            patch("pic.services.embedding.validate_pixel_count", side_effect=ValueError("too many pixels")),
             pytest.raises(ValueError, match="too many pixels"),
         ):
             compute_hashes(image_bytes)
@@ -150,8 +150,8 @@ class TestComputeEmbeddingsBatch:
         mock_output.last_hidden_state = torch.randn(2, 197, 768)
         mock_model.return_value = mock_output
 
-        with patch("nic.services.embedding._load_model", return_value=(mock_model, mock_processor)):
-            from nic.services.embedding import compute_embeddings_batch
+        with patch("pic.services.embedding._load_model", return_value=(mock_model, mock_processor)):
+            from pic.services.embedding import compute_embeddings_batch
 
             img1 = _make_test_image(color="red")
             img2 = _make_test_image(color="blue")
@@ -165,10 +165,10 @@ class TestComputeEmbeddingsBatch:
         """Empty input returns empty output."""
         from unittest.mock import MagicMock, patch
 
-        with patch("nic.services.embedding._load_model") as mock_load:
+        with patch("pic.services.embedding._load_model") as mock_load:
             mock_load.return_value = (MagicMock(), MagicMock())
 
-            from nic.services.embedding import compute_embeddings_batch
+            from pic.services.embedding import compute_embeddings_batch
 
             results = compute_embeddings_batch([])
 

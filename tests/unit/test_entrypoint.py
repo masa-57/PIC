@@ -15,11 +15,11 @@ class TestEntrypoint:
 
         with (
             patch("sys.argv", ["entrypoint", "ingest", "--image-id", "img-123"]),
-            patch("nic.worker.entrypoint.setup_logging"),
-            patch("nic.worker.ingest.run_ingest", mock_run_ingest),
+            patch("pic.worker.entrypoint.setup_logging"),
+            patch("pic.worker.ingest.run_ingest", mock_run_ingest),
             patch("asyncio.run") as mock_asyncio_run,
         ):
-            from nic.worker.entrypoint import main
+            from pic.worker.entrypoint import main
 
             main()
 
@@ -34,11 +34,11 @@ class TestEntrypoint:
 
         with (
             patch("sys.argv", ["entrypoint", "cluster", "--job-id", "job-456"]),
-            patch("nic.worker.entrypoint.setup_logging"),
-            patch("nic.worker.cluster.run_cluster", mock_run_cluster),
+            patch("pic.worker.entrypoint.setup_logging"),
+            patch("pic.worker.cluster.run_cluster", mock_run_cluster),
             patch("asyncio.run") as mock_asyncio_run,
         ):
-            from nic.worker.entrypoint import main
+            from pic.worker.entrypoint import main
 
             main()
 
@@ -57,11 +57,11 @@ class TestEntrypoint:
                 "sys.argv",
                 ["entrypoint", "cluster", "--job-id", "job-456", "--params", params_json],
             ),
-            patch("nic.worker.entrypoint.setup_logging"),
-            patch("nic.worker.cluster.run_cluster", mock_run_cluster),
+            patch("pic.worker.entrypoint.setup_logging"),
+            patch("pic.worker.cluster.run_cluster", mock_run_cluster),
             patch("asyncio.run") as mock_asyncio_run,
         ):
-            from nic.worker.entrypoint import main
+            from pic.worker.entrypoint import main
 
             main()
 
@@ -72,9 +72,9 @@ class TestEntrypoint:
         """Missing subcommand should cause SystemExit from argparse."""
         with (
             patch("sys.argv", ["entrypoint"]),
-            patch("nic.worker.entrypoint.setup_logging"),
+            patch("pic.worker.entrypoint.setup_logging"),
         ):
-            from nic.worker.entrypoint import main
+            from pic.worker.entrypoint import main
 
             with pytest.raises(SystemExit):
                 main()
@@ -83,9 +83,9 @@ class TestEntrypoint:
         """Ingest without --image-id should cause SystemExit from argparse."""
         with (
             patch("sys.argv", ["entrypoint", "ingest"]),
-            patch("nic.worker.entrypoint.setup_logging"),
+            patch("pic.worker.entrypoint.setup_logging"),
         ):
-            from nic.worker.entrypoint import main
+            from pic.worker.entrypoint import main
 
             with pytest.raises(SystemExit):
                 main()
@@ -94,9 +94,9 @@ class TestEntrypoint:
         """Cluster without --job-id should cause SystemExit from argparse."""
         with (
             patch("sys.argv", ["entrypoint", "cluster"]),
-            patch("nic.worker.entrypoint.setup_logging"),
+            patch("pic.worker.entrypoint.setup_logging"),
         ):
-            from nic.worker.entrypoint import main
+            from pic.worker.entrypoint import main
 
             with pytest.raises(SystemExit):
                 main()

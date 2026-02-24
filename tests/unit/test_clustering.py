@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from nic.services.clustering import (
+from pic.services.clustering import (
     _cluster_reduced,
     _compute_viz_coords,
     _reduce_dimensions,
@@ -49,7 +49,7 @@ class TestLevel1Clustering:
         emb = _make_embeddings(3)
         ids = ["img1", "img2", "img3"]
 
-        with patch("nic.services.clustering.HDBSCAN") as mock_hdbscan:
+        with patch("pic.services.clustering.HDBSCAN") as mock_hdbscan:
             clusterer = MagicMock()
             clusterer.fit_predict.return_value = np.array([0, 0, -1])
             mock_hdbscan.return_value = clusterer

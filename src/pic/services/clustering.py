@@ -5,7 +5,7 @@ from sklearn.cluster import HDBSCAN
 from sklearn.decomposition import PCA
 from umap import UMAP
 
-from nic.config import settings
+from pic.config import settings
 
 logger = logging.getLogger(__name__)
 

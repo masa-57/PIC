@@ -11,14 +11,14 @@ class TestModalDispatch:
 
     def setup_method(self) -> None:
         """Clear the Modal function cache before each test."""
-        from nic.services.modal_dispatch import _get_modal_function
+        from pic.services.modal_dispatch import _get_modal_function
 
         _get_modal_function.cache_clear()
 
     @pytest.mark.asyncio
     async def test_submit_ingest_job_success(self):
         """Test successful ingest job submission returns Modal call ID."""
-        from nic.services.modal_dispatch import submit_ingest_job
+        from pic.services.modal_dispatch import submit_ingest_job
 
         mock_call = MagicMock()
         mock_call.object_id = "modal-call-123"
@@ -36,7 +36,7 @@ class TestModalDispatch:
     @pytest.mark.asyncio
     async def test_submit_cluster_job_success_with_params(self):
         """Test successful cluster job submission with parameters."""
-        from nic.services.modal_dispatch import submit_cluster_job
+        from pic.services.modal_dispatch import submit_cluster_job
 
         mock_call = MagicMock()
         mock_call.object_id = "modal-call-456"
@@ -59,7 +59,7 @@ class TestModalDispatch:
     @pytest.mark.asyncio
     async def test_submit_cluster_job_success_no_params(self):
         """Test successful cluster job submission without parameters."""
-        from nic.services.modal_dispatch import submit_cluster_job
+        from pic.services.modal_dispatch import submit_cluster_job
 
         mock_call = MagicMock()
         mock_call.object_id = "modal-call-789"
@@ -76,7 +76,7 @@ class TestModalDispatch:
     @pytest.mark.asyncio
     async def test_submit_pipeline_job_success_with_params(self):
         """Test successful pipeline job submission with parameters."""
-        from nic.services.modal_dispatch import submit_pipeline_job
+        from pic.services.modal_dispatch import submit_pipeline_job
 
         mock_call = MagicMock()
         mock_call.object_id = "modal-call-pipeline-1"
@@ -97,7 +97,7 @@ class TestModalDispatch:
     @pytest.mark.asyncio
     async def test_submit_pipeline_job_success_no_params(self):
         """Test successful pipeline job submission without parameters."""
-        from nic.services.modal_dispatch import submit_pipeline_job
+        from pic.services.modal_dispatch import submit_pipeline_job
 
         mock_call = MagicMock()
         mock_call.object_id = "modal-call-pipeline-2"
@@ -114,7 +114,7 @@ class TestModalDispatch:
     @pytest.mark.asyncio
     async def test_submit_ingest_job_modal_connection_error(self):
         """Test that Modal connection errors propagate correctly."""
-        from nic.services.modal_dispatch import submit_ingest_job
+        from pic.services.modal_dispatch import submit_ingest_job
 
         with (
             patch("modal.Function.from_name", side_effect=Exception("Modal connection failed")),
@@ -125,7 +125,7 @@ class TestModalDispatch:
     @pytest.mark.asyncio
     async def test_submit_cluster_job_modal_connection_error(self):
         """Test that Modal connection errors propagate for cluster jobs."""
-        from nic.services.modal_dispatch import submit_cluster_job
+        from pic.services.modal_dispatch import submit_cluster_job
 
         with (
             patch("modal.Function.from_name", side_effect=Exception("Modal unavailable")),
@@ -136,7 +136,7 @@ class TestModalDispatch:
     @pytest.mark.asyncio
     async def test_submit_pipeline_job_modal_connection_error(self):
         """Test that Modal connection errors propagate for pipeline jobs."""
-        from nic.services.modal_dispatch import submit_pipeline_job
+        from pic.services.modal_dispatch import submit_pipeline_job
 
         with (
             patch("modal.Function.from_name", side_effect=Exception("Modal timeout")),

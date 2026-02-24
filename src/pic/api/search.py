@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.api.deps import PaginationParams, get_db, get_or_404
-from nic.config import settings
-from nic.core.rate_limit import limiter
-from nic.models.db import Image
-from nic.models.schemas import DuplicateSearchRequest, ProblemDetail, SearchRequest, SearchResult, SearchResultsOut
-from nic.services.hash_utils import hex_to_bitstring
-from nic.services.vector_store import find_similar_images
+from pic.api.deps import PaginationParams, get_db, get_or_404
+from pic.config import settings
+from pic.core.rate_limit import limiter
+from pic.models.db import Image
+from pic.models.schemas import DuplicateSearchRequest, ProblemDetail, SearchRequest, SearchResult, SearchResultsOut
+from pic.services.hash_utils import hex_to_bitstring
+from pic.services.vector_store import find_similar_images
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/search", tags=["search"])

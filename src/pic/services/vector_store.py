@@ -4,9 +4,9 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from nic.config import settings
-from nic.models.db import Image
-from nic.models.schemas import SearchResult
+from pic.config import settings
+from pic.models.db import Image
+from pic.models.schemas import SearchResult
 
 logger = logging.getLogger(__name__)
 

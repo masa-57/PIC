@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.api.deps import PaginationParams, build_pagination_links, get_db, get_or_404
-from nic.config import settings
-from nic.models.db import Image
-from nic.models.schemas import ImageFileOut, ImageListOut, ImageOut, ProblemDetail
-from nic.services.image_store import generate_presigned_url
+from pic.api.deps import PaginationParams, build_pagination_links, get_db, get_or_404
+from pic.config import settings
+from pic.models.db import Image
+from pic.models.schemas import ImageFileOut, ImageListOut, ImageOut, ProblemDetail
+from pic.services.image_store import generate_presigned_url
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/images", tags=["images"])

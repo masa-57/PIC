@@ -22,8 +22,8 @@ import modal
 
 # Load settings
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from nic.config import settings  # noqa: E402
-from nic.services.image_store import get_s3_client  # noqa: E402
+from pic.config import settings  # noqa: E402
+from pic.services.image_store import get_s3_client  # noqa: E402
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".tif"}
 POLL_INTERVAL_SECONDS = 30

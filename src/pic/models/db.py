@@ -6,7 +6,7 @@ from sqlalchemy import CheckConstraint, DateTime, Enum, Float, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from nic.models.types import AsyncpgBIT
+from pic.models.types import AsyncpgBIT
 
 
 class Base(DeclarativeBase):

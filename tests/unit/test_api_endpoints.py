@@ -26,7 +26,7 @@ def _make_image(**overrides):
 
 def _make_job(**overrides):
     """Create a mock Job ORM object."""
-    from nic.models.db import JobStatus, JobType
+    from pic.models.db import JobStatus, JobType
 
     job = MagicMock()
     job.id = overrides.get("id", "job-1")
@@ -70,9 +70,9 @@ def _make_product(**overrides):
 @pytest.fixture
 def client():
     """Create a test client with mocked DB dependency and auth disabled."""
-    with patch("nic.core.auth.settings") as mock_auth_settings:
+    with patch("pic.core.auth.settings") as mock_auth_settings:
         mock_auth_settings.api_key = ""  # Disable auth for most tests
-        from nic.main import app
+        from pic.main import app
 
         with TestClient(app) as c:
             yield c
@@ -88,7 +88,7 @@ def mock_db():
 def clear_dependency_overrides():
     """Guarantee dependency overrides are cleared even when a test errors."""
     yield
-    from nic.main import app
+    from pic.main import app
 
     app.dependency_overrides.clear()
 
@@ -96,8 +96,8 @@ def clear_dependency_overrides():
 @pytest.fixture
 def override_db(mock_db):
     """Override get_db dependency with mock session; auto-clears after test."""
-    from nic.api.deps import get_db
-    from nic.main import app
+    from pic.api.deps import get_db
+    from pic.main import app
 
     async def _mock_get_db():
         yield mock_db
@@ -110,7 +110,7 @@ def override_db(mock_db):
 @pytest.mark.unit
 class TestHealthEndpoint:
     def test_health_returns_ok(self, client):
-        with patch("nic.main.engine") as mock_engine:
+        with patch("pic.main.engine") as mock_engine:
             mock_conn = AsyncMock()
             mock_conn.execute = AsyncMock()
             mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -123,7 +123,7 @@ class TestHealthEndpoint:
 
     def test_health_does_not_leak_errors(self, client):
         """Health check should not expose internal error details."""
-        with patch("nic.main.engine") as mock_engine:
+        with patch("pic.main.engine") as mock_engine:
             mock_engine.connect.side_effect = Exception("connection refused postgresql://user:secret@host:5432/db")
             response = client.get("/health")
             assert response.status_code == 200
@@ -182,7 +182,7 @@ class TestImagesEndpoint:
         mock_result.scalar_one_or_none.return_value = img
         override_db.execute = AsyncMock(return_value=mock_result)
 
-        with patch("nic.api.images.generate_presigned_url", return_value="https://example.com/thumb") as mock_presign:
+        with patch("pic.api.images.generate_presigned_url", return_value="https://example.com/thumb") as mock_presign:
             response = client.get("/api/v1/images/img-1/file?thumbnail=true")
 
         assert response.status_code == 200
@@ -196,7 +196,7 @@ class TestImagesEndpoint:
         override_db.execute = AsyncMock(return_value=mock_result)
 
         with patch(
-            "nic.api.images.generate_presigned_url", return_value="https://example.com/original"
+            "pic.api.images.generate_presigned_url", return_value="https://example.com/original"
         ) as mock_presign:
             response = client.get("/api/v1/images/img-1/file?thumbnail=true")
 
@@ -256,45 +256,45 @@ class TestAuthGlobal:
     """Test that all API routes require auth when api_key is configured."""
 
     def test_images_requires_auth(self):
-        with patch("nic.core.auth.settings") as mock_settings:
+        with patch("pic.core.auth.settings") as mock_settings:
             mock_settings.api_key = "secret-key"
-            from nic.main import app
+            from pic.main import app
 
             with TestClient(app) as c:
                 response = c.get("/api/v1/images")
                 assert response.status_code == 401
 
     def test_clusters_requires_auth(self):
-        with patch("nic.core.auth.settings") as mock_settings:
+        with patch("pic.core.auth.settings") as mock_settings:
             mock_settings.api_key = "secret-key"
-            from nic.main import app
+            from pic.main import app
 
             with TestClient(app) as c:
                 response = c.get("/api/v1/clusters")
                 assert response.status_code == 401
 
     def test_jobs_requires_auth(self):
-        with patch("nic.core.auth.settings") as mock_settings:
+        with patch("pic.core.auth.settings") as mock_settings:
             mock_settings.api_key = "secret-key"
-            from nic.main import app
+            from pic.main import app
 
             with TestClient(app) as c:
                 response = c.get("/api/v1/jobs")
                 assert response.status_code == 401
 
     def test_search_requires_auth(self):
-        with patch("nic.core.auth.settings") as mock_settings:
+        with patch("pic.core.auth.settings") as mock_settings:
             mock_settings.api_key = "secret-key"
-            from nic.main import app
+            from pic.main import app
 
             with TestClient(app) as c:
                 response = c.post("/api/v1/search/similar", json={"image_id": "x"})
                 assert response.status_code == 401
 
     def test_valid_key_passes(self, mock_db):
-        with patch("nic.core.auth.settings") as mock_settings:
+        with patch("pic.core.auth.settings") as mock_settings:
             mock_settings.api_key = "secret-key"
-            from nic.main import app
+            from pic.main import app
 
             mock_result = MagicMock()
             mock_result.scalars.return_value.all.return_value = []
@@ -302,7 +302,7 @@ class TestAuthGlobal:
             mock_count.scalar_one.return_value = 0
             mock_db.execute = AsyncMock(side_effect=[mock_result, mock_count])
 
-            from nic.api.deps import get_db
+            from pic.api.deps import get_db
 
             async def _mock_get_db():
                 yield mock_db
@@ -372,7 +372,7 @@ class TestOpenApiSpec:
 @pytest.mark.unit
 class TestClustersEndpoint:
     def test_run_clustering_returns_202(self, client, override_db):
-        from nic.models.db import JobStatus, JobType
+        from pic.models.db import JobStatus, JobType
 
         job = _make_job(type=JobType.CLUSTER_FULL, status=JobStatus.PENDING)
         mock_pending_result = MagicMock()
@@ -394,7 +394,7 @@ class TestClustersEndpoint:
 
         override_db.refresh = AsyncMock(side_effect=mock_refresh)
 
-        with patch("nic.api.clusters.submit_cluster_job", new_callable=AsyncMock) as mock_submit:
+        with patch("pic.api.clusters.submit_cluster_job", new_callable=AsyncMock) as mock_submit:
             mock_submit.return_value = None
             response = client.post("/api/v1/clusters/run", json={})
             assert response.status_code == 202
@@ -403,7 +403,7 @@ class TestClustersEndpoint:
 
     def test_run_clustering_returns_location_header(self, client, override_db):
         """202 response should include Location header pointing to job."""
-        from nic.models.db import JobStatus, JobType
+        from pic.models.db import JobStatus, JobType
 
         job = _make_job(id="job-abc", type=JobType.CLUSTER_FULL, status=JobStatus.PENDING)
         mock_pending_result = MagicMock()
@@ -424,7 +424,7 @@ class TestClustersEndpoint:
 
         override_db.refresh = AsyncMock(side_effect=mock_refresh)
 
-        with patch("nic.api.clusters.submit_cluster_job", new_callable=AsyncMock) as mock_submit:
+        with patch("pic.api.clusters.submit_cluster_job", new_callable=AsyncMock) as mock_submit:
             mock_submit.return_value = None
             response = client.post("/api/v1/clusters/run", json={})
             assert response.status_code == 202
@@ -442,7 +442,7 @@ class TestClustersEndpoint:
         override_db.refresh = AsyncMock(side_effect=mock_refresh)
         override_db.execute = AsyncMock(side_effect=[mock_pending_result, MagicMock()])
 
-        with patch("nic.api.clusters.submit_cluster_job", new_callable=AsyncMock) as mock_submit:
+        with patch("pic.api.clusters.submit_cluster_job", new_callable=AsyncMock) as mock_submit:
             mock_submit.side_effect = Exception("Modal service unavailable")
             response = client.post("/api/v1/clusters/run", json={})
             assert response.status_code == 503
@@ -646,7 +646,7 @@ class TestSearchEndpoint:
         mock_result.scalar_one_or_none.return_value = img
         override_db.execute = AsyncMock(return_value=mock_result)
 
-        with patch("nic.api.search.find_similar_images", new_callable=AsyncMock) as mock_find:
+        with patch("pic.api.search.find_similar_images", new_callable=AsyncMock) as mock_find:
             response = client.post(
                 "/api/v1/search/similar",
                 json={"image_id": "img-1", "n_results": 5},
@@ -693,7 +693,7 @@ class TestSearchEndpoint:
 @pytest.mark.unit
 class TestPipelineEndpoint:
     def test_run_pipeline_returns_202(self, client, override_db):
-        from nic.models.db import JobStatus, JobType
+        from pic.models.db import JobStatus, JobType
 
         job = _make_job(type=JobType.PIPELINE, status=JobStatus.PENDING)
         mock_pending_result = MagicMock()
@@ -715,7 +715,7 @@ class TestPipelineEndpoint:
 
         override_db.refresh = AsyncMock(side_effect=mock_refresh)
 
-        with patch("nic.api.pipeline.submit_pipeline_job", new_callable=AsyncMock) as mock_submit:
+        with patch("pic.api.pipeline.submit_pipeline_job", new_callable=AsyncMock) as mock_submit:
             mock_submit.return_value = None
             response = client.post("/api/v1/pipeline/run", json={})
             assert response.status_code == 202
@@ -724,7 +724,7 @@ class TestPipelineEndpoint:
 
     def test_run_pipeline_returns_location_header(self, client, override_db):
         """202 response should include Location header pointing to job."""
-        from nic.models.db import JobStatus, JobType
+        from pic.models.db import JobStatus, JobType
 
         job = _make_job(id="job-xyz", type=JobType.PIPELINE, status=JobStatus.PENDING)
         mock_pending_result = MagicMock()
@@ -745,7 +745,7 @@ class TestPipelineEndpoint:
 
         override_db.refresh = AsyncMock(side_effect=mock_refresh)
 
-        with patch("nic.api.pipeline.submit_pipeline_job", new_callable=AsyncMock) as mock_submit:
+        with patch("pic.api.pipeline.submit_pipeline_job", new_callable=AsyncMock) as mock_submit:
             mock_submit.return_value = None
             response = client.post("/api/v1/pipeline/run", json={})
             assert response.status_code == 202
@@ -757,7 +757,7 @@ class TestPipelineEndpoint:
         override_db.execute = AsyncMock(return_value=mock_pending_result)
         override_db.add = MagicMock()
 
-        with patch("nic.api.pipeline.submit_pipeline_job", new_callable=AsyncMock):
+        with patch("pic.api.pipeline.submit_pipeline_job", new_callable=AsyncMock):
             response = client.post("/api/v1/pipeline/run", json={})
             assert response.status_code == 429
             assert not override_db.add.called
@@ -976,7 +976,7 @@ class TestProductsEndpoint:
 
         override_db.execute = AsyncMock(side_effect=[mock_groups, mock_count])
 
-        with patch("nic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
+        with patch("pic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
             response = client.get("/api/v1/products/candidates")
             assert response.status_code == 200
             data = response.json()
@@ -1012,7 +1012,7 @@ class TestProductsEndpoint:
         mock_images_result.scalars.return_value.all.return_value = [img1, img2]
         override_db.execute = AsyncMock(side_effect=[mock_product_result, mock_count_result, mock_images_result])
 
-        with patch("nic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
+        with patch("pic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
             response = client.get("/api/v1/products/1/images")
             assert response.status_code == 200
             data = response.json()
@@ -1174,7 +1174,7 @@ class TestProductsEndpoint:
 
         override_db.execute = AsyncMock(side_effect=[mock_product_result, mock_total_result, mock_images_result])
 
-        with patch("nic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
+        with patch("pic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
             response = client.get("/api/v1/products/1/images?offset=2&limit=1")
             assert response.status_code == 200
             data = response.json()
@@ -1197,7 +1197,7 @@ class TestProductsEndpoint:
 
         override_db.execute = AsyncMock(side_effect=[mock_product_result, mock_total_result, mock_images_result])
 
-        with patch("nic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
+        with patch("pic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
             response = client.get("/api/v1/products/1/images")
             assert response.status_code == 200
             data = response.json()
@@ -1208,9 +1208,9 @@ class TestProductsEndpoint:
 @pytest.mark.unit
 class TestProductsAuth:
     def test_products_requires_auth(self):
-        with patch("nic.core.auth.settings") as mock_settings:
+        with patch("pic.core.auth.settings") as mock_settings:
             mock_settings.api_key = "secret-key"
-            from nic.main import app
+            from pic.main import app
 
             with TestClient(app) as c:
                 assert c.get("/api/v1/products").status_code == 401
@@ -1225,7 +1225,7 @@ class TestCacheControlHeaders:
 
     def test_health_endpoint_has_no_cache(self, client):
         """GET /health should return Cache-Control: no-cache."""
-        with patch("nic.main.engine") as mock_engine:
+        with patch("pic.main.engine") as mock_engine:
             mock_conn = AsyncMock()
             mock_conn.execute = AsyncMock()
             mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -1270,7 +1270,7 @@ class TestCacheControlHeaders:
         mock_result.scalar_one_or_none.return_value = img
         override_db.execute = AsyncMock(return_value=mock_result)
 
-        with patch("nic.api.images.generate_presigned_url", return_value="https://example.com/signed"):
+        with patch("pic.api.images.generate_presigned_url", return_value="https://example.com/signed"):
             response = client.get("/api/v1/images/img-1/file")
             assert response.status_code == 200
             assert response.headers.get("Cache-Control") == "private, max-age=300"
@@ -1445,7 +1445,7 @@ class TestClusterViewEndpoint:
         """GET /clusters/view should return HTML with cluster visualization."""
         with (
             patch(
-                "nic.api.clusters.generate_visualization_html",
+                "pic.api.clusters.generate_visualization_html",
                 return_value="<html><body>test</body></html>",
             ),
         ):
@@ -1456,9 +1456,9 @@ class TestClusterViewEndpoint:
 
     def test_view_requires_api_key_header(self):
         """With API key configured, /clusters/view requires X-API-Key header."""
-        with patch("nic.core.auth.settings") as mock_settings:
+        with patch("pic.core.auth.settings") as mock_settings:
             mock_settings.api_key = "secret-key"
-            from nic.main import app
+            from pic.main import app
 
             with TestClient(app) as c:
                 response = c.get("/api/v1/clusters/view")

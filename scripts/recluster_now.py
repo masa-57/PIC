@@ -19,8 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 
 async def main(epsilon: float | None, min_cluster_size: int | None, min_samples: int | None) -> None:
-    from nic.core.database import async_session
-    from nic.services.clustering_pipeline import run_full_clustering
+    from pic.core.database import async_session
+    from pic.services.clustering_pipeline import run_full_clustering
 
     params: dict[str, Any] = {}
     if epsilon is not None:

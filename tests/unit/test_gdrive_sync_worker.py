@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from nic.services.gdrive import GDriveFile
+from pic.services.gdrive import GDriveFile
 
 
 def _make_gfile(name: str = "cake.jpg", file_id: str = "f1", size: int = 1024) -> GDriveFile:
@@ -50,19 +50,19 @@ class TestGdriveSyncWorker:
         mock_db = _mock_db_for_batch()
 
         with (
-            patch("nic.worker.gdrive_sync.build_drive_service"),
-            patch("nic.worker.gdrive_sync.list_image_files", return_value=[gfile]),
-            patch("nic.worker.gdrive_sync.get_or_create_processed_folder", return_value="proc-folder"),
-            patch("nic.worker.gdrive_download.download_file", return_value=file_bytes),
-            patch("nic.worker.gdrive_download.compute_embeddings_batch", return_value=[[0.1] * 768]),
-            patch("nic.worker.gdrive_download.compute_hashes", return_value=("a" * 64, "b" * 64)),
-            patch("nic.worker.gdrive_download.get_image_dimensions", return_value=(800, 600)),
-            patch("nic.worker.gdrive_download.upload_to_s3") as mock_upload,
-            patch("nic.worker.gdrive_download.generate_thumbnail", return_value=b"thumb"),
-            patch("nic.worker.gdrive_download.move_file_to_folder") as mock_move,
-            patch("nic.worker.gdrive_sync.run_full_clustering") as mock_cluster,
-            patch("nic.worker.gdrive_sync.mark_job_completed") as mock_complete,
-            patch("nic.worker.gdrive_sync.settings") as mock_settings,
+            patch("pic.worker.gdrive_sync.build_drive_service"),
+            patch("pic.worker.gdrive_sync.list_image_files", return_value=[gfile]),
+            patch("pic.worker.gdrive_sync.get_or_create_processed_folder", return_value="proc-folder"),
+            patch("pic.worker.gdrive_download.download_file", return_value=file_bytes),
+            patch("pic.worker.gdrive_download.compute_embeddings_batch", return_value=[[0.1] * 768]),
+            patch("pic.worker.gdrive_download.compute_hashes", return_value=("a" * 64, "b" * 64)),
+            patch("pic.worker.gdrive_download.get_image_dimensions", return_value=(800, 600)),
+            patch("pic.worker.gdrive_download.upload_to_s3") as mock_upload,
+            patch("pic.worker.gdrive_download.generate_thumbnail", return_value=b"thumb"),
+            patch("pic.worker.gdrive_download.move_file_to_folder") as mock_move,
+            patch("pic.worker.gdrive_sync.run_full_clustering") as mock_cluster,
+            patch("pic.worker.gdrive_sync.mark_job_completed") as mock_complete,
+            patch("pic.worker.gdrive_sync.settings") as mock_settings,
         ):
             mock_settings.gdrive_service_account_json = '{"type":"service_account"}'
             mock_settings.gdrive_folder_id = "folder-123"
@@ -70,7 +70,7 @@ class TestGdriveSyncWorker:
             mock_settings.embedding_batch_size = 8
             mock_cluster.return_value = {"total_images": 1, "l1_groups": 1, "l2_clusters": 0, "l2_noise_groups": 1}
 
-            from nic.worker.gdrive_sync import _sync_process_and_cluster
+            from pic.worker.gdrive_sync import _sync_process_and_cluster
 
             await _sync_process_and_cluster(mock_db, "job-1", {})
 
@@ -93,16 +93,16 @@ class TestGdriveSyncWorker:
         mock_db = AsyncMock()
 
         with (
-            patch("nic.worker.gdrive_sync.build_drive_service"),
-            patch("nic.worker.gdrive_sync.list_image_files", return_value=[]),
-            patch("nic.worker.gdrive_sync.run_full_clustering") as mock_cluster,
-            patch("nic.worker.gdrive_sync.mark_job_completed") as mock_complete,
-            patch("nic.worker.gdrive_sync.settings") as mock_settings,
+            patch("pic.worker.gdrive_sync.build_drive_service"),
+            patch("pic.worker.gdrive_sync.list_image_files", return_value=[]),
+            patch("pic.worker.gdrive_sync.run_full_clustering") as mock_cluster,
+            patch("pic.worker.gdrive_sync.mark_job_completed") as mock_complete,
+            patch("pic.worker.gdrive_sync.settings") as mock_settings,
         ):
             mock_settings.gdrive_service_account_json = '{"type":"service_account"}'
             mock_settings.gdrive_folder_id = "folder-123"
 
-            from nic.worker.gdrive_sync import _sync_process_and_cluster
+            from pic.worker.gdrive_sync import _sync_process_and_cluster
 
             await _sync_process_and_cluster(mock_db, "job-1", {})
 
@@ -116,17 +116,17 @@ class TestGdriveSyncWorker:
     async def test_sync_acquires_advisory_lock(self) -> None:
         """Worker acquires advisory lock before processing."""
         with (
-            patch("nic.worker.helpers.async_session") as mock_session_ctx,
-            patch("nic.worker.helpers.acquire_advisory_lock", return_value=True) as mock_lock,
-            patch("nic.worker.helpers.mark_job_running"),
-            patch("nic.worker.gdrive_sync._sync_process_and_cluster"),
-            patch("nic.worker.helpers.release_advisory_lock"),
+            patch("pic.worker.helpers.async_session") as mock_session_ctx,
+            patch("pic.worker.helpers.acquire_advisory_lock", return_value=True) as mock_lock,
+            patch("pic.worker.helpers.mark_job_running"),
+            patch("pic.worker.gdrive_sync._sync_process_and_cluster"),
+            patch("pic.worker.helpers.release_advisory_lock"),
         ):
             mock_db = AsyncMock()
             mock_session_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            from nic.worker.gdrive_sync import run_gdrive_sync
+            from pic.worker.gdrive_sync import run_gdrive_sync
 
             await run_gdrive_sync("job-1")
 
@@ -136,15 +136,15 @@ class TestGdriveSyncWorker:
     async def test_sync_concurrent_lock_fails(self) -> None:
         """If advisory lock is not acquired, worker returns early without processing."""
         with (
-            patch("nic.worker.helpers.async_session") as mock_session_ctx,
-            patch("nic.worker.helpers.acquire_advisory_lock", return_value=False) as mock_lock,
-            patch("nic.worker.gdrive_sync._sync_process_and_cluster") as mock_sync,
+            patch("pic.worker.helpers.async_session") as mock_session_ctx,
+            patch("pic.worker.helpers.acquire_advisory_lock", return_value=False) as mock_lock,
+            patch("pic.worker.gdrive_sync._sync_process_and_cluster") as mock_sync,
         ):
             mock_db = AsyncMock()
             mock_session_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            from nic.worker.gdrive_sync import run_gdrive_sync
+            from pic.worker.gdrive_sync import run_gdrive_sync
 
             await run_gdrive_sync("job-1")
 
@@ -155,18 +155,18 @@ class TestGdriveSyncWorker:
     async def test_sync_marks_job_failed_on_processing_exception(self) -> None:
         """Unhandled processing errors should mark job failed and release advisory lock."""
         with (
-            patch("nic.worker.helpers.async_session") as mock_session_ctx,
-            patch("nic.worker.helpers.acquire_advisory_lock", return_value=True),
-            patch("nic.worker.helpers.mark_job_running"),
-            patch("nic.worker.gdrive_sync._sync_process_and_cluster", side_effect=RuntimeError("boom")),
-            patch("nic.worker.helpers.mark_job_failed") as mock_failed,
-            patch("nic.worker.helpers.release_advisory_lock") as mock_release,
+            patch("pic.worker.helpers.async_session") as mock_session_ctx,
+            patch("pic.worker.helpers.acquire_advisory_lock", return_value=True),
+            patch("pic.worker.helpers.mark_job_running"),
+            patch("pic.worker.gdrive_sync._sync_process_and_cluster", side_effect=RuntimeError("boom")),
+            patch("pic.worker.helpers.mark_job_failed") as mock_failed,
+            patch("pic.worker.helpers.release_advisory_lock") as mock_release,
         ):
             mock_db = AsyncMock()
             mock_session_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            from nic.worker.gdrive_sync import run_gdrive_sync
+            from pic.worker.gdrive_sync import run_gdrive_sync
 
             with pytest.raises(RuntimeError, match="boom"):
                 await run_gdrive_sync("job-1")
@@ -187,11 +187,11 @@ class TestGdriveSyncWorker:
         mock_db = AsyncMock()
 
         with (
-            patch("nic.worker.gdrive_download.download_file", return_value=large_bytes),
-            patch("nic.worker.gdrive_download.move_file_to_folder"),
-            patch("nic.worker.gdrive_download.compute_embeddings_batch") as mock_embed,
+            patch("pic.worker.gdrive_download.download_file", return_value=large_bytes),
+            patch("pic.worker.gdrive_download.move_file_to_folder"),
+            patch("pic.worker.gdrive_download.compute_embeddings_batch") as mock_embed,
         ):
-            from nic.worker.gdrive_download import process_batch
+            from pic.worker.gdrive_download import process_batch
 
             result = await process_batch(
                 mock_db,
@@ -217,11 +217,11 @@ class TestGdriveSyncWorker:
         mock_db.execute.return_value = mock_existing
 
         with (
-            patch("nic.worker.gdrive_download.download_file", return_value=file_bytes),
-            patch("nic.worker.gdrive_download.move_file_to_folder"),
-            patch("nic.worker.gdrive_download.compute_embeddings_batch") as mock_embed,
+            patch("pic.worker.gdrive_download.download_file", return_value=file_bytes),
+            patch("pic.worker.gdrive_download.move_file_to_folder"),
+            patch("pic.worker.gdrive_download.compute_embeddings_batch") as mock_embed,
         ):
-            from nic.worker.gdrive_download import process_batch
+            from pic.worker.gdrive_download import process_batch
 
             result = await process_batch(
                 mock_db,
@@ -257,15 +257,15 @@ class TestGdriveSyncWorker:
             return good_bytes if fid == "f1" else bad_bytes
 
         with (
-            patch("nic.worker.gdrive_download.download_file", side_effect=side_download),
-            patch("nic.worker.gdrive_download.compute_embeddings_batch", return_value=[[0.1] * 768, [0.2] * 768]),
-            patch("nic.worker.gdrive_download.compute_hashes", return_value=("a" * 64, "b" * 64)),
-            patch("nic.worker.gdrive_download.get_image_dimensions", return_value=(100, 100)),
-            patch("nic.worker.gdrive_download.upload_to_s3"),
-            patch("nic.worker.gdrive_download.generate_thumbnail", return_value=b"thumb"),
-            patch("nic.worker.gdrive_download.move_file_to_folder"),
+            patch("pic.worker.gdrive_download.download_file", side_effect=side_download),
+            patch("pic.worker.gdrive_download.compute_embeddings_batch", return_value=[[0.1] * 768, [0.2] * 768]),
+            patch("pic.worker.gdrive_download.compute_hashes", return_value=("a" * 64, "b" * 64)),
+            patch("pic.worker.gdrive_download.get_image_dimensions", return_value=(100, 100)),
+            patch("pic.worker.gdrive_download.upload_to_s3"),
+            patch("pic.worker.gdrive_download.generate_thumbnail", return_value=b"thumb"),
+            patch("pic.worker.gdrive_download.move_file_to_folder"),
         ):
-            from nic.worker.gdrive_download import process_batch
+            from pic.worker.gdrive_download import process_batch
 
             result = await process_batch(
                 mock_db,
@@ -285,10 +285,10 @@ class TestGdriveSyncWorker:
         mock_db = AsyncMock()
 
         with (
-            patch("nic.worker.gdrive_download.download_file", side_effect=ConnectionError("GDrive unreachable")),
-            patch("nic.worker.gdrive_download.compute_embeddings_batch") as mock_embed,
+            patch("pic.worker.gdrive_download.download_file", side_effect=ConnectionError("GDrive unreachable")),
+            patch("pic.worker.gdrive_download.compute_embeddings_batch") as mock_embed,
         ):
-            from nic.worker.gdrive_download import process_batch
+            from pic.worker.gdrive_download import process_batch
 
             result = await process_batch(
                 mock_db,
@@ -315,11 +315,11 @@ class TestGdriveSyncWorker:
         mock_db.execute = AsyncMock(return_value=mock_no_match)
 
         with (
-            patch("nic.worker.gdrive_download.download_file", return_value=_fake_image_bytes("img")),
-            patch("nic.worker.gdrive_download.compute_embeddings_batch", side_effect=RuntimeError("GPU OOM")),
-            patch("nic.worker.gdrive_download.move_file_to_folder"),
+            patch("pic.worker.gdrive_download.download_file", return_value=_fake_image_bytes("img")),
+            patch("pic.worker.gdrive_download.compute_embeddings_batch", side_effect=RuntimeError("GPU OOM")),
+            patch("pic.worker.gdrive_download.move_file_to_folder"),
         ):
-            from nic.worker.gdrive_download import process_batch
+            from pic.worker.gdrive_download import process_batch
 
             result = await process_batch(
                 mock_db,
@@ -341,19 +341,19 @@ class TestGdriveSyncWorker:
         mock_db = _mock_db_for_batch()
 
         with (
-            patch("nic.worker.gdrive_sync.build_drive_service"),
-            patch("nic.worker.gdrive_sync.list_image_files", return_value=[gfile]),
-            patch("nic.worker.gdrive_sync.get_or_create_processed_folder", return_value="proc"),
-            patch("nic.worker.gdrive_download.download_file", return_value=file_bytes),
-            patch("nic.worker.gdrive_download.compute_embeddings_batch", return_value=[[0.1] * 768]),
-            patch("nic.worker.gdrive_download.compute_hashes", return_value=("a" * 64, "b" * 64)),
-            patch("nic.worker.gdrive_download.get_image_dimensions", return_value=(100, 100)),
-            patch("nic.worker.gdrive_download.upload_to_s3"),
-            patch("nic.worker.gdrive_download.generate_thumbnail", return_value=b"t"),
-            patch("nic.worker.gdrive_download.move_file_to_folder"),
-            patch("nic.worker.gdrive_sync.run_full_clustering") as mock_cluster,
-            patch("nic.worker.gdrive_sync.mark_job_completed") as mock_complete,
-            patch("nic.worker.gdrive_sync.settings") as mock_settings,
+            patch("pic.worker.gdrive_sync.build_drive_service"),
+            patch("pic.worker.gdrive_sync.list_image_files", return_value=[gfile]),
+            patch("pic.worker.gdrive_sync.get_or_create_processed_folder", return_value="proc"),
+            patch("pic.worker.gdrive_download.download_file", return_value=file_bytes),
+            patch("pic.worker.gdrive_download.compute_embeddings_batch", return_value=[[0.1] * 768]),
+            patch("pic.worker.gdrive_download.compute_hashes", return_value=("a" * 64, "b" * 64)),
+            patch("pic.worker.gdrive_download.get_image_dimensions", return_value=(100, 100)),
+            patch("pic.worker.gdrive_download.upload_to_s3"),
+            patch("pic.worker.gdrive_download.generate_thumbnail", return_value=b"t"),
+            patch("pic.worker.gdrive_download.move_file_to_folder"),
+            patch("pic.worker.gdrive_sync.run_full_clustering") as mock_cluster,
+            patch("pic.worker.gdrive_sync.mark_job_completed") as mock_complete,
+            patch("pic.worker.gdrive_sync.settings") as mock_settings,
         ):
             mock_settings.gdrive_service_account_json = '{"type":"service_account"}'
             mock_settings.gdrive_folder_id = "folder-123"
@@ -361,7 +361,7 @@ class TestGdriveSyncWorker:
             mock_settings.embedding_batch_size = 8
             mock_cluster.return_value = {"total_images": 1, "l1_groups": 1, "l2_clusters": 0, "l2_noise_groups": 0}
 
-            from nic.worker.gdrive_sync import _sync_process_and_cluster
+            from pic.worker.gdrive_sync import _sync_process_and_cluster
 
             await _sync_process_and_cluster(mock_db, "job-1", {})
 

@@ -7,8 +7,8 @@ from typing import Any
 from sqlalchemy import Row, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.models.db import Image, L1Group, L2Cluster
-from nic.services.image_store import generate_presigned_url
+from pic.models.db import Image, L1Group, L2Cluster
+from pic.services.image_store import generate_presigned_url
 
 # ---------------------------------------------------------------------------
 # DB queries (async)

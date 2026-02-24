@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from nic.api.gdrive import router
+from pic.api.gdrive import router
 
 
 def _build_app() -> FastAPI:
@@ -34,9 +34,9 @@ class TestGdriveApi:
         mock_job.completed_at = None
 
         with (
-            patch("nic.api.gdrive.settings") as mock_settings,
-            patch("nic.api.gdrive.create_and_dispatch_job", return_value=mock_job),
-            patch("nic.api.gdrive.get_db"),
+            patch("pic.api.gdrive.settings") as mock_settings,
+            patch("pic.api.gdrive.create_and_dispatch_job", return_value=mock_job),
+            patch("pic.api.gdrive.get_db"),
         ):
             mock_settings.gdrive_folder_id = "folder-123"
             mock_settings.gdrive_service_account_json = '{"type":"service_account"}'
@@ -53,8 +53,8 @@ class TestGdriveApi:
         app = _build_app()
 
         with (
-            patch("nic.api.gdrive.settings") as mock_settings,
-            patch("nic.api.gdrive.get_db"),
+            patch("pic.api.gdrive.settings") as mock_settings,
+            patch("pic.api.gdrive.get_db"),
         ):
             mock_settings.gdrive_folder_id = ""
             mock_settings.gdrive_service_account_json = ""

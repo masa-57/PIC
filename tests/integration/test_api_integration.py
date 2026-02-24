@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from nic.models.db import Image, JobStatus, JobType, L1Group
-from nic.services.hash_utils import hex_to_bitstring
+from pic.models.db import Image, JobStatus, JobType, L1Group
+from pic.services.hash_utils import hex_to_bitstring
 
 
 @pytest.mark.integration
@@ -251,7 +251,7 @@ class TestProductsAPI:
         """Groups without products should appear as candidates."""
         group_id, _ = await seed_l1_group(member_count=3)
 
-        with patch("nic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
+        with patch("pic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
             resp = await client.get("/api/v1/products/candidates")
         assert resp.status_code == 200
         data = resp.json()
@@ -264,7 +264,7 @@ class TestProductsAPI:
         group_id, _ = await seed_l1_group(member_count=2)
         await client.post("/api/v1/products", json={"l1_group_id": group_id})
 
-        with patch("nic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
+        with patch("pic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
             resp = await client.get("/api/v1/products/candidates")
         assert resp.status_code == 200
         assert resp.json()["total"] == 0
@@ -274,7 +274,7 @@ class TestProductsAPI:
         create_resp = await client.post("/api/v1/products", json={"l1_group_id": group_id})
         product_id = create_resp.json()["id"]
 
-        with patch("nic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
+        with patch("pic.api.products.generate_presigned_url", return_value="https://example.com/signed"):
             resp = await client.get(f"/api/v1/products/{product_id}/images")
         assert resp.status_code == 200
         data = resp.json()
@@ -390,10 +390,10 @@ class TestAuthIntegration:
             async with session_factory() as session:
                 yield session
 
-        with patch("nic.core.auth.settings") as mock_auth:
+        with patch("pic.core.auth.settings") as mock_auth:
             mock_auth.api_key = "test-secret-key"
-            from nic.api.deps import get_db
-            from nic.main import app
+            from pic.api.deps import get_db
+            from pic.main import app
 
             app.dependency_overrides[get_db] = override_get_db
             transport = ASGITransport(app=app)

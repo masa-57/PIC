@@ -9,8 +9,8 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.core.database import async_session
-from nic.models.db import Job, JobStatus
+from pic.core.database import async_session
+from pic.models.db import Job, JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ async def sweep_stale_jobs(db: AsyncSession, max_age_minutes: int | None = None)
     Modal function timeout (60min) to avoid false-positive sweeps.
     """
     if max_age_minutes is None:
-        from nic.config import settings
+        from pic.config import settings
 
         max_age_minutes = settings.stale_job_timeout_minutes
     cutoff = datetime.now(UTC) - timedelta(minutes=max_age_minutes)

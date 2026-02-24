@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 
-from nic.models.db import Image, Job, JobStatus, JobType, L1Group, L2Cluster, Product
+from pic.models.db import Image, Job, JobStatus, JobType, L1Group, L2Cluster, Product
 
 
 @pytest.mark.integration

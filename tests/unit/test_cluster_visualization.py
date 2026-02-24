@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from nic.services.cluster_visualization import _build_hierarchy, generate_visualization_html, render_html
+from pic.services.cluster_visualization import _build_hierarchy, generate_visualization_html, render_html
 
 
 @pytest.mark.unit
@@ -56,7 +56,7 @@ def test_build_hierarchy_includes_cluster_unclustered_and_no_l1_sections() -> No
         ),
     ]
 
-    with patch("nic.services.cluster_visualization._presigned", side_effect=lambda k, e: f"signed:{k}:{e}"):
+    with patch("pic.services.cluster_visualization._presigned", side_effect=lambda k, e: f"signed:{k}:{e}"):
         hierarchy = _build_hierarchy(l2_clusters, l1_groups, images, expiry=3600)
 
     assert len(hierarchy) == 3
@@ -123,12 +123,12 @@ async def test_generate_visualization_html_composes_load_build_and_render() -> N
 
     with (
         patch(
-            "nic.services.cluster_visualization._load_hierarchy",
+            "pic.services.cluster_visualization._load_hierarchy",
             new_callable=AsyncMock,
             return_value=(l2, l1, imgs),
         ),
-        patch("nic.services.cluster_visualization._build_hierarchy", return_value=built) as mock_build,
-        patch("nic.services.cluster_visualization.render_html", return_value="<html>ok</html>") as mock_render,
+        patch("pic.services.cluster_visualization._build_hierarchy", return_value=built) as mock_build,
+        patch("pic.services.cluster_visualization.render_html", return_value="<html>ok</html>") as mock_render,
     ):
         html = await generate_visualization_html(db, url_expiry=1800)
 

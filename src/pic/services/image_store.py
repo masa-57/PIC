@@ -14,9 +14,9 @@ from PIL import Image as PILImage
 from PIL import UnidentifiedImageError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from nic.config import settings
-from nic.core.constants import S3_PREFIX_INBOX, S3_PREFIX_PROCESSED, S3_PREFIX_REJECTED, S3_PREFIX_THUMBNAILS
-from nic.services.image_validation import validate_pixel_count
+from pic.config import settings
+from pic.core.constants import S3_PREFIX_INBOX, S3_PREFIX_PROCESSED, S3_PREFIX_REJECTED, S3_PREFIX_THUMBNAILS
+from pic.services.image_validation import validate_pixel_count
 
 logger = logging.getLogger(__name__)
 

@@ -7,11 +7,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from nic.api.deps import PaginationParams, build_pagination_links, create_and_dispatch_job, get_db
-from nic.config import settings
-from nic.core.rate_limit import limiter
-from nic.models.db import Image, JobType, L1Group, L2Cluster
-from nic.models.schemas import (
+from pic.api.deps import PaginationParams, build_pagination_links, create_and_dispatch_job, get_db
+from pic.config import settings
+from pic.core.rate_limit import limiter
+from pic.models.db import Image, JobType, L1Group, L2Cluster
+from pic.models.schemas import (
     ClusterHierarchyOut,
     ClusterRunRequest,
     JobOut,
@@ -26,8 +26,8 @@ from nic.models.schemas import (
     VisualizationOut,
     VisualizationPoint,
 )
-from nic.services.cluster_visualization import generate_visualization_html
-from nic.services.modal_dispatch import submit_cluster_job
+from pic.services.cluster_visualization import generate_visualization_html
+from pic.services.modal_dispatch import submit_cluster_job
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/clusters", tags=["clusters"])

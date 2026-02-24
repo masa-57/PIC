@@ -2,7 +2,7 @@
 
 from starlette.requests import Request
 
-from nic.core.rate_limit import _get_rate_limit_key
+from pic.core.rate_limit import _get_rate_limit_key
 
 
 def _request(headers: list[tuple[bytes, bytes]] | None = None) -> Request:

@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from nic.services.gdrive import _gdrive_query_literal, build_drive_service
+from pic.services.gdrive import _gdrive_query_literal, build_drive_service
 
 
 @pytest.mark.unit

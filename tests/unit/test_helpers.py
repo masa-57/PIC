@@ -14,7 +14,7 @@ class TestSweepStaleJobs:
         return AsyncMock()
 
     async def test_sweeps_stale_running_jobs(self, mock_db):
-        from nic.worker.helpers import sweep_stale_jobs
+        from pic.worker.helpers import sweep_stale_jobs
 
         mock_result = MagicMock()
         mock_result.rowcount = 2
@@ -26,7 +26,7 @@ class TestSweepStaleJobs:
         mock_db.commit.assert_awaited_once()
 
     async def test_no_stale_jobs_returns_zero(self, mock_db):
-        from nic.worker.helpers import sweep_stale_jobs
+        from pic.worker.helpers import sweep_stale_jobs
 
         mock_result = MagicMock()
         mock_result.rowcount = 0
@@ -38,7 +38,7 @@ class TestSweepStaleJobs:
         mock_db.commit.assert_awaited_once()
 
     async def test_custom_max_age(self, mock_db):
-        from nic.worker.helpers import sweep_stale_jobs
+        from pic.worker.helpers import sweep_stale_jobs
 
         mock_result = MagicMock()
         mock_result.rowcount = 1
@@ -51,7 +51,7 @@ class TestSweepStaleJobs:
         mock_db.execute.assert_awaited_once()
 
     async def test_default_max_age_is_60(self, mock_db):
-        from nic.worker.helpers import sweep_stale_jobs
+        from pic.worker.helpers import sweep_stale_jobs
 
         mock_result = MagicMock()
         mock_result.rowcount = 0
@@ -71,7 +71,7 @@ class TestMarkJobHelpers:
         return AsyncMock()
 
     async def test_mark_job_running(self, mock_db):
-        from nic.worker.helpers import mark_job_running
+        from pic.worker.helpers import mark_job_running
 
         await mark_job_running(mock_db, "job-1")
 
@@ -79,7 +79,7 @@ class TestMarkJobHelpers:
         mock_db.commit.assert_awaited_once()
 
     async def test_mark_job_failed(self, mock_db):
-        from nic.worker.helpers import mark_job_failed
+        from pic.worker.helpers import mark_job_failed
 
         await mark_job_failed(mock_db, "job-1", "something went wrong")
 
@@ -87,7 +87,7 @@ class TestMarkJobHelpers:
         mock_db.commit.assert_awaited_once()
 
     async def test_mark_job_completed(self, mock_db):
-        from nic.worker.helpers import mark_job_completed
+        from pic.worker.helpers import mark_job_completed
 
         await mark_job_completed(mock_db, "job-1", {"images_processed": 10})
 
@@ -104,7 +104,7 @@ class TestAcquireAdvisoryLock:
         return AsyncMock()
 
     async def test_lock_acquired(self, mock_db):
-        from nic.worker.helpers import acquire_advisory_lock
+        from pic.worker.helpers import acquire_advisory_lock
 
         mock_result = MagicMock()
         mock_result.scalar.return_value = True
@@ -115,7 +115,7 @@ class TestAcquireAdvisoryLock:
         assert acquired is True
 
     async def test_lock_not_acquired_marks_job_failed(self, mock_db):
-        from nic.worker.helpers import acquire_advisory_lock
+        from pic.worker.helpers import acquire_advisory_lock
 
         mock_result = MagicMock()
         mock_result.scalar.return_value = False
@@ -131,16 +131,16 @@ class TestAcquireAdvisoryLock:
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_worker_lifecycle_sets_session_statement_timeout() -> None:
-    from nic.worker.helpers import worker_lifecycle
+    from pic.worker.helpers import worker_lifecycle
 
     db = AsyncMock()
     db.execute = AsyncMock()
 
     with (
-        patch("nic.worker.helpers.async_session") as mock_session,
-        patch("nic.worker.helpers.acquire_advisory_lock", new_callable=AsyncMock) as mock_lock,
-        patch("nic.worker.helpers.mark_job_running", new_callable=AsyncMock) as mock_running,
-        patch("nic.worker.helpers.release_advisory_lock", new_callable=AsyncMock) as mock_release,
+        patch("pic.worker.helpers.async_session") as mock_session,
+        patch("pic.worker.helpers.acquire_advisory_lock", new_callable=AsyncMock) as mock_lock,
+        patch("pic.worker.helpers.mark_job_running", new_callable=AsyncMock) as mock_running,
+        patch("pic.worker.helpers.release_advisory_lock", new_callable=AsyncMock) as mock_release,
     ):
         mock_lock.return_value = True
         mock_session.return_value.__aenter__ = AsyncMock(return_value=db)

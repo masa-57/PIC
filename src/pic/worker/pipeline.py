@@ -12,12 +12,12 @@ import logging
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.core.constants import ADVISORY_LOCK_ID
-from nic.models.db import Job
-from nic.services.clustering_pipeline import run_full_clustering
-from nic.worker.helpers import mark_job_completed, worker_lifecycle
-from nic.worker.pipeline_discover import phase_discover_and_dedup
-from nic.worker.pipeline_ingest import phase_batch_ingest
+from pic.core.constants import ADVISORY_LOCK_ID
+from pic.models.db import Job
+from pic.services.clustering_pipeline import run_full_clustering
+from pic.worker.helpers import mark_job_completed, worker_lifecycle
+from pic.worker.pipeline_discover import phase_discover_and_dedup
+from pic.worker.pipeline_ingest import phase_batch_ingest
 
 logger = logging.getLogger(__name__)
 

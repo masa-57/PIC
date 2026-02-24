@@ -12,14 +12,14 @@ class TestBuildEngineArgs:
 
     def _call(self, url: str, db_ssl_ca: str = "") -> tuple[str, dict[str, object]]:
         """Import and call _build_engine_args with mocked settings."""
-        with patch("nic.core.database.settings") as mock_settings:
+        with patch("pic.core.database.settings") as mock_settings:
             mock_settings.db_ssl_ca = db_ssl_ca
             mock_settings.db_pool_size = 5
             mock_settings.db_pool_max_overflow = 10
             mock_settings.db_pool_timeout = 30
             mock_settings.database_url = url
             # Re-import to get the function (but call it directly)
-            from nic.core.database import _build_engine_args
+            from pic.core.database import _build_engine_args
 
             return _build_engine_args(url)
 
@@ -57,7 +57,7 @@ class TestBuildEngineArgs:
     def test_no_sslmode_remote_warns(self, caplog: pytest.LogCaptureFixture) -> None:
         import logging
 
-        with caplog.at_level(logging.WARNING, logger="nic.core.database"):
+        with caplog.at_level(logging.WARNING, logger="pic.core.database"):
             self._call("postgresql+asyncpg://db.neon.tech:5432/nic")
         assert "sslmode=verify-full" in caplog.text
 

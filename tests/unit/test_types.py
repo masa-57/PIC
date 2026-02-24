@@ -3,7 +3,7 @@
 import pytest
 from asyncpg.types import BitString
 
-from nic.models.types import AsyncpgBIT
+from pic.models.types import AsyncpgBIT
 
 
 @pytest.mark.unit

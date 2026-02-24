@@ -6,7 +6,7 @@ import logging
 from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
 
-from nic.config import settings
+from pic.config import settings
 
 logger = logging.getLogger(__name__)
 

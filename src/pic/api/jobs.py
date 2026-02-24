@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.api.deps import PaginationParams, build_pagination_links, get_db, get_or_404
-from nic.models.db import Job, JobStatus
-from nic.models.schemas import JobListOut, JobOut, ProblemDetail
+from pic.api.deps import PaginationParams, build_pagination_links, get_db, get_or_404
+from pic.models.db import Job, JobStatus
+from pic.models.schemas import JobListOut, JobOut, ProblemDetail
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/jobs", tags=["jobs"])

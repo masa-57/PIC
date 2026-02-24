@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 from sqlalchemy import func, select
 
-from nic.models.db import Image, L1Group, L2Cluster
-from nic.services.clustering_pipeline import run_full_clustering
+from pic.models.db import Image, L1Group, L2Cluster
+from pic.services.clustering_pipeline import run_full_clustering
 
 
 @pytest.mark.integration
@@ -50,9 +50,9 @@ class TestClusteringPipelineIntegration:
         ids = await self._seed_images_with_embeddings(db, count=4)
 
         with (
-            patch("nic.services.clustering_pipeline.cluster_level1") as mock_l1,
-            patch("nic.services.clustering_pipeline.select_representative") as mock_rep,
-            patch("nic.services.clustering_pipeline.cluster_level2") as mock_l2,
+            patch("pic.services.clustering_pipeline.cluster_level1") as mock_l1,
+            patch("pic.services.clustering_pipeline.select_representative") as mock_rep,
+            patch("pic.services.clustering_pipeline.cluster_level2") as mock_l2,
         ):
             # 2 L1 groups: [img0, img1] and [img2, img3]
             mock_l1.return_value = {0: [ids[0], ids[1]], 1: [ids[2], ids[3]]}
@@ -84,9 +84,9 @@ class TestClusteringPipelineIntegration:
         ids = await self._seed_images_with_embeddings(db, count=6)
 
         with (
-            patch("nic.services.clustering_pipeline.cluster_level1") as mock_l1,
-            patch("nic.services.clustering_pipeline.select_representative") as mock_rep,
-            patch("nic.services.clustering_pipeline.cluster_level2") as mock_l2,
+            patch("pic.services.clustering_pipeline.cluster_level1") as mock_l1,
+            patch("pic.services.clustering_pipeline.select_representative") as mock_rep,
+            patch("pic.services.clustering_pipeline.cluster_level2") as mock_l2,
         ):
             # 3 L1 groups, each with 2 images
             mock_l1.return_value = {
@@ -130,9 +130,9 @@ class TestClusteringPipelineIntegration:
 
         # First run: creates 2 L1 groups
         with (
-            patch("nic.services.clustering_pipeline.cluster_level1") as mock_l1,
-            patch("nic.services.clustering_pipeline.select_representative") as mock_rep,
-            patch("nic.services.clustering_pipeline.cluster_level2") as mock_l2,
+            patch("pic.services.clustering_pipeline.cluster_level1") as mock_l1,
+            patch("pic.services.clustering_pipeline.select_representative") as mock_rep,
+            patch("pic.services.clustering_pipeline.cluster_level2") as mock_l2,
         ):
             mock_l1.return_value = {0: [ids[0]], 1: [ids[1]]}
             mock_rep.side_effect = lambda g, *a: g[0]
@@ -150,9 +150,9 @@ class TestClusteringPipelineIntegration:
 
         # Second run: creates 1 L1 group (all in one)
         with (
-            patch("nic.services.clustering_pipeline.cluster_level1") as mock_l1,
-            patch("nic.services.clustering_pipeline.select_representative") as mock_rep,
-            patch("nic.services.clustering_pipeline.cluster_level2") as mock_l2,
+            patch("pic.services.clustering_pipeline.cluster_level1") as mock_l1,
+            patch("pic.services.clustering_pipeline.select_representative") as mock_rep,
+            patch("pic.services.clustering_pipeline.cluster_level2") as mock_l2,
         ):
             mock_l1.return_value = {0: [ids[0], ids[1]]}
             mock_rep.return_value = ids[0]
@@ -173,9 +173,9 @@ class TestClusteringPipelineIntegration:
         ids = await self._seed_images_with_embeddings(db, count=4)
 
         with (
-            patch("nic.services.clustering_pipeline.cluster_level1") as mock_l1,
-            patch("nic.services.clustering_pipeline.select_representative") as mock_rep,
-            patch("nic.services.clustering_pipeline.cluster_level2") as mock_l2,
+            patch("pic.services.clustering_pipeline.cluster_level1") as mock_l1,
+            patch("pic.services.clustering_pipeline.select_representative") as mock_rep,
+            patch("pic.services.clustering_pipeline.cluster_level2") as mock_l2,
         ):
             mock_l1.return_value = {i: [ids[i]] for i in range(4)}
             mock_rep.side_effect = lambda g, *a: g[0]
@@ -207,7 +207,7 @@ class TestVectorStoreIntegration:
 
     async def test_find_similar_images(self, db):
         """find_similar_images returns results ordered by cosine similarity."""
-        from nic.services.vector_store import find_similar_images
+        from pic.services.vector_store import find_similar_images
 
         # Create images with known embeddings
         base_vec = np.zeros(768)
@@ -264,7 +264,7 @@ class TestVectorStoreIntegration:
 
     async def test_find_similar_with_no_embedding(self, db):
         """Image without embedding returns empty results."""
-        from nic.services.vector_store import find_similar_images
+        from pic.services.vector_store import find_similar_images
 
         img_id = str(uuid.uuid4())
         db.add(Image(id=img_id, filename="no_embed.jpg", s3_key="n.jpg", has_embedding=0))
@@ -275,7 +275,7 @@ class TestVectorStoreIntegration:
 
     async def test_get_all_embeddings(self, db):
         """get_all_embeddings returns IDs and vectors for embedded images."""
-        from nic.services.vector_store import get_all_embeddings
+        from pic.services.vector_store import get_all_embeddings
 
         # Add 3 images: 2 with embeddings, 1 without
         for i in range(2):

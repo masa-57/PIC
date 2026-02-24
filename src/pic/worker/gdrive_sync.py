@@ -11,13 +11,13 @@ import logging
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.config import settings
-from nic.core.constants import ADVISORY_LOCK_ID
-from nic.models.db import Job
-from nic.services.clustering_pipeline import run_full_clustering
-from nic.services.gdrive import build_drive_service, get_or_create_processed_folder, list_image_files
-from nic.worker.gdrive_download import process_batch
-from nic.worker.helpers import mark_job_completed, worker_lifecycle
+from pic.config import settings
+from pic.core.constants import ADVISORY_LOCK_ID
+from pic.models.db import Job
+from pic.services.clustering_pipeline import run_full_clustering
+from pic.services.gdrive import build_drive_service, get_or_create_processed_folder, list_image_files
+from pic.worker.gdrive_download import process_batch
+from pic.worker.helpers import mark_job_completed, worker_lifecycle
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ async def _sync_process_and_cluster(
     if files_uploaded > 0:
         cluster_stats = await run_full_clustering(db, params)
     else:
-        from nic.models.schemas import ClusteringStats
+        from pic.models.schemas import ClusteringStats
 
         cluster_stats = ClusteringStats(total_images=0, l1_groups=0, l2_clusters=0, l2_noise_groups=0)
 

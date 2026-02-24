@@ -6,7 +6,7 @@ import threading
 from dataclasses import dataclass
 from typing import Any
 
-from nic.core.constants import IMAGE_EXTENSIONS, default_retry
+from pic.core.constants import IMAGE_EXTENSIONS, default_retry
 
 logger = logging.getLogger(__name__)
 

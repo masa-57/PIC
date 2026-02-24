@@ -11,9 +11,9 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def client():
     """Create a test client with auth disabled."""
-    with patch("nic.core.auth.settings") as mock_auth_settings:
+    with patch("pic.core.auth.settings") as mock_auth_settings:
         mock_auth_settings.api_key = ""
-        from nic.main import app
+        from pic.main import app
 
         with TestClient(app) as c:
             yield c
@@ -22,7 +22,7 @@ def client():
 @pytest.mark.unit
 class TestSetupLogging:
     def test_json_format_produces_json(self):
-        from nic.core.logging import JSONFormatter
+        from pic.core.logging import JSONFormatter
 
         formatter = JSONFormatter()
         record = logging.LogRecord(
@@ -42,7 +42,7 @@ class TestSetupLogging:
         assert "timestamp" in parsed
 
     def test_json_format_includes_exception(self):
-        from nic.core.logging import JSONFormatter
+        from pic.core.logging import JSONFormatter
 
         formatter = JSONFormatter()
         try:
@@ -67,7 +67,7 @@ class TestSetupLogging:
         assert "ValueError" in parsed["exception"]
 
     def test_json_format_includes_request_id(self):
-        from nic.core.logging import JSONFormatter
+        from pic.core.logging import JSONFormatter
 
         formatter = JSONFormatter()
         record = logging.LogRecord(
@@ -85,7 +85,7 @@ class TestSetupLogging:
         assert parsed["request_id"] == "req-abc-123"
 
     def test_setup_logging_configures_handler(self):
-        from nic.core.logging import setup_logging
+        from pic.core.logging import setup_logging
 
         setup_logging(level=logging.DEBUG, json_format=False)
         root = logging.getLogger()
@@ -95,7 +95,7 @@ class TestSetupLogging:
 @pytest.mark.unit
 class TestRequestIdMiddleware:
     def test_generates_request_id(self, client):
-        with patch("nic.main.engine") as mock_engine:
+        with patch("pic.main.engine") as mock_engine:
             mock_conn = AsyncMock()
             mock_conn.execute = AsyncMock()
             mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -105,7 +105,7 @@ class TestRequestIdMiddleware:
             assert "X-Request-ID" in response.headers
 
     def test_preserves_provided_request_id(self, client):
-        with patch("nic.main.engine") as mock_engine:
+        with patch("pic.main.engine") as mock_engine:
             mock_conn = AsyncMock()
             mock_conn.execute = AsyncMock()
             mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -119,8 +119,8 @@ class TestRequestIdMiddleware:
 class TestDetailedHealthEndpoint:
     def test_detailed_health_ok(self, client):
         with (
-            patch("nic.main.engine") as mock_engine,
-            patch("nic.main.async_session") as mock_session_factory,
+            patch("pic.main.engine") as mock_engine,
+            patch("pic.main.async_session") as mock_session_factory,
         ):
             mock_conn = AsyncMock()
             mock_conn.execute = AsyncMock()
@@ -142,7 +142,7 @@ class TestDetailedHealthEndpoint:
             assert data["recent_failed_jobs"] == 0
 
     def test_detailed_health_db_error(self, client):
-        with patch("nic.main.engine") as mock_engine:
+        with patch("pic.main.engine") as mock_engine:
             # Both engine.connect and async_session will fail, caught by try/except
             mock_engine.connect.side_effect = Exception("connection refused")
 

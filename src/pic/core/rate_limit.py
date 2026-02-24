@@ -6,7 +6,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.requests import Request
 
-from nic.config import settings
+from pic.config import settings
 
 
 def _get_rate_limit_key(request: Request) -> str:

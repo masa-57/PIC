@@ -5,12 +5,12 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nic.core.constants import S3_PREFIX_INBOX, S3_PREFIX_PROCESSED
-from nic.core.database import async_session
-from nic.models.db import Image
-from nic.services.embedding import compute_embedding, compute_hashes
-from nic.services.hash_utils import hex_to_bitstring
-from nic.services.image_store import download_from_s3, move_s3_object
+from pic.core.constants import S3_PREFIX_INBOX, S3_PREFIX_PROCESSED
+from pic.core.database import async_session
+from pic.models.db import Image
+from pic.services.embedding import compute_embedding, compute_hashes
+from pic.services.hash_utils import hex_to_bitstring
+from pic.services.image_store import download_from_s3, move_s3_object
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ import pytest
 @pytest.mark.unit
 class TestListS3Objects:
     def test_lists_objects_single_page(self, mock_s3):
-        from nic.services.image_store import list_s3_objects
+        from pic.services.image_store import list_s3_objects
 
         mock_s3.list_objects_v2.return_value = {
             "Contents": [
@@ -23,7 +23,7 @@ class TestListS3Objects:
         assert keys == ["images/a.jpg", "images/b.png"]
 
     def test_handles_pagination(self, mock_s3):
-        from nic.services.image_store import list_s3_objects
+        from pic.services.image_store import list_s3_objects
 
         mock_s3.list_objects_v2.side_effect = [
             {
@@ -42,7 +42,7 @@ class TestListS3Objects:
         assert mock_s3.list_objects_v2.call_count == 2
 
     def test_empty_bucket(self, mock_s3):
-        from nic.services.image_store import list_s3_objects
+        from pic.services.image_store import list_s3_objects
 
         mock_s3.list_objects_v2.return_value = {"IsTruncated": False}
 
@@ -53,8 +53,8 @@ class TestListS3Objects:
 @pytest.mark.unit
 class TestDeleteS3Object:
     def test_deletes_object(self, mock_s3):
-        from nic.config import settings
-        from nic.services.image_store import delete_s3_object
+        from pic.config import settings
+        from pic.services.image_store import delete_s3_object
 
         delete_s3_object("images/photo.jpg")
 
@@ -99,11 +99,11 @@ class TestPipelineDiscoverAndDedup:
         mock_session.execute = AsyncMock(side_effect=[mock_existing_key_result, mock_existing_result])
 
         with (
-            patch("nic.worker.pipeline_discover.list_s3_objects", return_value=["images/dup.jpg"]),
-            patch("nic.worker.pipeline_discover.download_from_s3", return_value=content),
-            patch("nic.worker.pipeline_discover.move_s3_object") as mock_move,
+            patch("pic.worker.pipeline_discover.list_s3_objects", return_value=["images/dup.jpg"]),
+            patch("pic.worker.pipeline_discover.download_from_s3", return_value=content),
+            patch("pic.worker.pipeline_discover.move_s3_object") as mock_move,
         ):
-            from nic.worker.pipeline_discover import phase_discover_and_dedup
+            from pic.worker.pipeline_discover import phase_discover_and_dedup
 
             new_ids, stats = await phase_discover_and_dedup(mock_session, "job-1")
 
@@ -131,13 +131,13 @@ class TestPipelineDiscoverAndDedup:
 
         with (
             patch(
-                "nic.worker.pipeline_discover.list_s3_objects",
+                "pic.worker.pipeline_discover.list_s3_objects",
                 return_value=["images/a.jpg", "images/b.jpg"],
             ),
-            patch("nic.worker.pipeline_discover.download_from_s3", return_value=content),
-            patch("nic.worker.pipeline_discover.move_s3_object") as mock_move,
+            patch("pic.worker.pipeline_discover.download_from_s3", return_value=content),
+            patch("pic.worker.pipeline_discover.move_s3_object") as mock_move,
         ):
-            from nic.worker.pipeline_discover import phase_discover_and_dedup
+            from pic.worker.pipeline_discover import phase_discover_and_dedup
 
             new_ids, stats = await phase_discover_and_dedup(mock_session, "job-1")
 
@@ -165,13 +165,13 @@ class TestPipelineDiscoverAndDedup:
 
         with (
             patch(
-                "nic.worker.pipeline_discover.list_s3_objects",
+                "pic.worker.pipeline_discover.list_s3_objects",
                 return_value=["images/existing.jpg", "images/new.jpg"],
             ),
-            patch("nic.worker.pipeline_discover.download_from_s3", return_value=content) as mock_download,
-            patch("nic.worker.pipeline_discover.move_s3_object") as mock_move,
+            patch("pic.worker.pipeline_discover.download_from_s3", return_value=content) as mock_download,
+            patch("pic.worker.pipeline_discover.move_s3_object") as mock_move,
         ):
-            from nic.worker.pipeline_discover import phase_discover_and_dedup
+            from pic.worker.pipeline_discover import phase_discover_and_dedup
 
             new_ids, stats = await phase_discover_and_dedup(mock_session, "job-1")
 
@@ -188,11 +188,11 @@ class TestPipelineDiscoverAndDedup:
 
         with (
             patch(
-                "nic.worker.pipeline_discover.list_s3_objects",
+                "pic.worker.pipeline_discover.list_s3_objects",
                 return_value=["images/readme.txt", "images/data.json"],
             ),
         ):
-            from nic.worker.pipeline_discover import phase_discover_and_dedup
+            from pic.worker.pipeline_discover import phase_discover_and_dedup
 
             new_ids, stats = await phase_discover_and_dedup(mock_session, "job-1")
 
@@ -209,8 +209,8 @@ class TestPipelineConcurrentDownload:
                 raise RuntimeError("download failed")
             return s3_key.encode()
 
-        with patch("nic.worker.pipeline_discover.download_from_s3", side_effect=side_download):
-            from nic.worker.pipeline_discover import download_s3_concurrent
+        with patch("pic.worker.pipeline_discover.download_from_s3", side_effect=side_download):
+            from pic.worker.pipeline_discover import download_s3_concurrent
 
             results = await download_s3_concurrent(
                 ["images/a.jpg", "images/b.jpg", "images/c.jpg"],
@@ -243,12 +243,12 @@ class TestPipelineIngestRetry:
         retry_embed = MagicMock(return_value=[[0.1] * 768])
 
         with (
-            patch("nic.worker.pipeline_discover.download_from_s3", return_value=b"image-bytes"),
-            patch("nic.worker.pipeline_ingest.compute_embeddings_batch", batch_embed),
-            patch("nic.worker.image_processing.compute_embeddings_batch", retry_embed),
-            patch("nic.worker.image_processing.process_single_image", return_value=True) as mock_process,
+            patch("pic.worker.pipeline_discover.download_from_s3", return_value=b"image-bytes"),
+            patch("pic.worker.pipeline_ingest.compute_embeddings_batch", batch_embed),
+            patch("pic.worker.image_processing.compute_embeddings_batch", retry_embed),
+            patch("pic.worker.image_processing.process_single_image", return_value=True) as mock_process,
         ):
-            from nic.worker.pipeline_ingest import phase_batch_ingest
+            from pic.worker.pipeline_ingest import phase_batch_ingest
 
             stats = await phase_batch_ingest(mock_db, "job-1", ["img-1"])
 
@@ -276,12 +276,12 @@ class TestPipelineIngestRetry:
         embed_mock = MagicMock(side_effect=Exception("embedding failed"))
 
         with (
-            patch("nic.worker.pipeline_discover.download_from_s3", return_value=b"image-bytes"),
-            patch("nic.worker.pipeline_ingest.compute_embeddings_batch", embed_mock),
-            patch("nic.worker.image_processing.compute_embeddings_batch", embed_mock),
-            patch("nic.worker.image_processing.process_single_image") as mock_process,
+            patch("pic.worker.pipeline_discover.download_from_s3", return_value=b"image-bytes"),
+            patch("pic.worker.pipeline_ingest.compute_embeddings_batch", embed_mock),
+            patch("pic.worker.image_processing.compute_embeddings_batch", embed_mock),
+            patch("pic.worker.image_processing.process_single_image") as mock_process,
         ):
-            from nic.worker.pipeline_ingest import phase_batch_ingest
+            from pic.worker.pipeline_ingest import phase_batch_ingest
 
             stats = await phase_batch_ingest(mock_db, "job-1", ["img-1"])
 

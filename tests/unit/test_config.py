@@ -6,31 +6,31 @@ import pytest
 @pytest.mark.unit
 class TestPhashSizeValidator:
     def test_valid_phash_size(self):
-        from nic.config import Settings
+        from pic.config import Settings
 
         s = Settings(phash_size=16)
         assert s.phash_size == 16
 
     def test_phash_size_minimum(self):
-        from nic.config import Settings
+        from pic.config import Settings
 
         s = Settings(phash_size=4)
         assert s.phash_size == 4
 
     def test_phash_size_maximum(self):
-        from nic.config import Settings
+        from pic.config import Settings
 
         s = Settings(phash_size=32)
         assert s.phash_size == 32
 
     def test_phash_size_too_small(self):
-        from nic.config import Settings
+        from pic.config import Settings
 
         with pytest.raises(ValueError, match="phash_size must be between 4 and 32"):
             Settings(phash_size=2)
 
     def test_phash_size_too_large(self):
-        from nic.config import Settings
+        from pic.config import Settings
 
         with pytest.raises(ValueError, match="phash_size must be between 4 and 32"):
             Settings(phash_size=64)
@@ -39,19 +39,19 @@ class TestPhashSizeValidator:
 @pytest.mark.unit
 class TestCorsCredentialsValidator:
     def test_credentials_with_wildcard_raises(self):
-        from nic.config import Settings
+        from pic.config import Settings
 
         with pytest.raises(ValueError, match="wildcard origins is insecure"):
             Settings(cors_origins=["*"], cors_allow_credentials=True)
 
     def test_credentials_with_specific_origins_ok(self):
-        from nic.config import Settings
+        from pic.config import Settings
 
         s = Settings(cors_origins=["https://example.com"], cors_allow_credentials=True)
         assert s.cors_allow_credentials is True
 
     def test_no_credentials_with_wildcard_ok(self):
-        from nic.config import Settings
+        from pic.config import Settings
 
         s = Settings(cors_origins=["*"], cors_allow_credentials=False, api_key="")
         assert s.cors_allow_credentials is False
@@ -60,7 +60,7 @@ class TestCorsCredentialsValidator:
 @pytest.mark.unit
 class TestDefaultValues:
     def test_defaults(self):
-        from nic.config import Settings
+        from pic.config import Settings
 
         s = Settings()
         assert s.rate_limit_default == "60/minute"
@@ -79,7 +79,7 @@ class TestDefaultValues:
 @pytest.mark.unit
 class TestSyncDatabaseUrl:
     def test_asyncpg_to_psycopg2(self):
-        from nic.config import Settings
+        from pic.config import Settings
 
         s = Settings(database_url="postgresql+asyncpg://localhost:5432/nic")
         assert "psycopg2" in s.sync_database_url
@@ -91,7 +91,7 @@ class TestExtraIgnore:
     def test_extra_env_vars_tolerated(self, monkeypatch):
         """Settings should tolerate extra NIC_* env vars without crashing."""
         monkeypatch.setenv("NIC_SOME_RANDOM_THING", "hello")
-        from nic.config import Settings
+        from pic.config import Settings
 
         # Should not raise
         s = Settings()
@@ -102,7 +102,7 @@ class TestExtraIgnore:
 class TestGDriveJsonValidator:
     def test_empty_json_is_ok(self):
         """Empty gdrive_service_account_json should be accepted (disabled)."""
-        from nic.config import Settings
+        from pic.config import Settings
 
         s = Settings(gdrive_service_account_json="")
         assert s.gdrive_service_account_json == ""
@@ -111,7 +111,7 @@ class TestGDriveJsonValidator:
         """Valid service account JSON should be accepted."""
         import json
 
-        from nic.config import Settings
+        from pic.config import Settings
 
         valid = json.dumps({"type": "service_account", "project_id": "test"})
         s = Settings(gdrive_service_account_json=valid)
@@ -119,7 +119,7 @@ class TestGDriveJsonValidator:
 
     def test_invalid_json_raises(self):
         """Malformed JSON should raise ValueError."""
-        from nic.config import Settings
+        from pic.config import Settings
 
         with pytest.raises(ValueError, match="not valid JSON"):
             Settings(gdrive_service_account_json="not-json-{{{")
@@ -128,7 +128,7 @@ class TestGDriveJsonValidator:
         """JSON without 'type' field should raise ValueError."""
         import json
 
-        from nic.config import Settings
+        from pic.config import Settings
 
         with pytest.raises(ValueError, match="must contain 'type' field"):
             Settings(gdrive_service_account_json=json.dumps({"project_id": "test"}))

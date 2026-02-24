@@ -18,15 +18,15 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import func, select, text
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from nic.api.router import api_router, browser_router
-from nic.config import settings
-from nic.core.auth import verify_api_key
-from nic.core.database import async_session, engine, get_pool_status
-from nic.core.logging import setup_logging
-from nic.core.rate_limit import limiter
-from nic.models.db import Job, JobStatus
-from nic.models.schemas import DetailedHealthOut, HealthOut, PoolStatusOut, ProblemDetail
-from nic.worker.helpers import check_modal_job_status, sweep_stale_jobs
+from pic.api.router import api_router, browser_router
+from pic.config import settings
+from pic.core.auth import verify_api_key
+from pic.core.database import async_session, engine, get_pool_status
+from pic.core.logging import setup_logging
+from pic.core.rate_limit import limiter
+from pic.models.db import Job, JobStatus
+from pic.models.schemas import DetailedHealthOut, HealthOut, PoolStatusOut, ProblemDetail
+from pic.worker.helpers import check_modal_job_status, sweep_stale_jobs
 
 logger = logging.getLogger(__name__)
 

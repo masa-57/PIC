@@ -2,7 +2,7 @@
 
 from prometheus_client import Counter, Histogram
 
-from nic.core import metrics
+from pic.core import metrics
 
 
 def test_metrics_objects_are_declared_with_expected_types() -> None:
