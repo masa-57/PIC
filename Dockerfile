@@ -1,7 +1,7 @@
 # API Dockerfile for PIC
 # Worker runs on Modal (serverless GPU) — no worker stage needed
 
-FROM python:3.12-slim AS base
+FROM python:3.14-slim AS base
 COPY --from=ghcr.io/astral-sh/uv:0.9.30 /uv /uvx /bin/
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
