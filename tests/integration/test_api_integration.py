@@ -66,7 +66,7 @@ class TestImagesAPI:
         assert resp.status_code == 200
         data = resp.json()
         assert data["id"] == ids[0]
-        assert data["filename"] == "cake_0.jpg"
+        assert data["filename"] == "product_0.jpg"
 
     async def test_get_image_not_found(self, client):
         resp = await client.get(f"/api/v1/images/{uuid.uuid4()}")
@@ -188,15 +188,15 @@ class TestProductsAPI:
             "/api/v1/products",
             json={
                 "l1_group_id": group_id,
-                "title": "Superman Cake",
-                "description": "A blue cake with Superman logo",
-                "tags": ["superman", "hero", "blue"],
+                "title": "Blue Widget",
+                "description": "A blue widget product",
+                "tags": ["blue", "widget", "product"],
             },
         )
         assert resp.status_code == 201
         data = resp.json()
-        assert data["title"] == "Superman Cake"
-        assert data["tags"] == ["superman", "hero", "blue"]
+        assert data["title"] == "Blue Widget"
+        assert data["tags"] == ["blue", "widget", "product"]
         assert data["image_count"] == 2
         assert data["representative_image_id"] == image_ids[0]
 

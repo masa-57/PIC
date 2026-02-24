@@ -139,7 +139,7 @@ class TestClusterHierarchy:
         assert group.representative_image_id == image_ids[0]
 
     async def test_l2_cluster_groups_relationship(self, db, seed_l1_group, seed_l2_cluster):
-        cluster_id = await seed_l2_cluster(label="superman cakes")
+        cluster_id = await seed_l2_cluster(label="blue widgets")
         group_id, _ = await seed_l1_group(member_count=2)
 
         # Link group to cluster
@@ -155,7 +155,7 @@ class TestClusterHierarchy:
 
     async def test_full_hierarchy_traversal(self, db, seed_images):
         """L2 Cluster → L1 Groups → Images full chain."""
-        cluster = L2Cluster(label="wedding cakes", member_count=2, total_images=4)
+        cluster = L2Cluster(label="red widgets", member_count=2, total_images=4)
         db.add(cluster)
         await db.flush()
 
@@ -193,9 +193,9 @@ class TestProductModel:
 
         product = Product(
             representative_image_id=image_ids[0],
-            title="Superman Cake",
-            description="A cake with Superman design",
-            tags='["superman", "hero"]',
+            title="Blue Widget",
+            description="A blue widget product",
+            tags='["blue", "widget"]',
         )
         db.add(product)
         await db.flush()

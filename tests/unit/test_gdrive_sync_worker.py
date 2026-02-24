@@ -7,7 +7,7 @@ import pytest
 from pic.services.gdrive import GDriveFile
 
 
-def _make_gfile(name: str = "cake.jpg", file_id: str = "f1", size: int = 1024) -> GDriveFile:
+def _make_gfile(name: str = "product.jpg", file_id: str = "f1", size: int = 1024) -> GDriveFile:
     return GDriveFile(id=file_id, name=name, mime_type="image/jpeg", size=size, parent_id="parent1")
 
 

@@ -48,16 +48,16 @@ class TestFindSimilarImages:
         # Simulate two similar results
         img1 = MagicMock()
         img1.id = "similar-1"
-        img1.filename = "cake1.jpg"
-        img1.s3_key = "processed/cake1.jpg"
+        img1.filename = "product1.jpg"
+        img1.s3_key = "processed/product1.jpg"
         img1.l1_group_id = 1
         img1.l1_group = MagicMock()
         img1.l1_group.l2_cluster_id = 5
 
         img2 = MagicMock()
         img2.id = "similar-2"
-        img2.filename = "cake2.jpg"
-        img2.s3_key = "processed/cake2.jpg"
+        img2.filename = "product2.jpg"
+        img2.s3_key = "processed/product2.jpg"
         img2.l1_group_id = 2
         img2.l1_group = None
 

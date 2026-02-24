@@ -56,9 +56,9 @@ def _make_product(**overrides):
     product = MagicMock()
     product.id = overrides.get("id", 1)
     product.representative_image_id = overrides.get("representative_image_id", "img-1")
-    product.title = overrides.get("title", "Superman Cake")
-    product.description = overrides.get("description", "A blue and red superhero cake")
-    product.tags = overrides.get("tags", ["superman", "birthday"])
+    product.title = overrides.get("title", "Blue Widget")
+    product.description = overrides.get("description", "A blue and red widget product")
+    product.tags = overrides.get("tags", ["blue", "widget"])
     product.created_at = overrides.get("created_at", datetime(2026, 1, 1))
     product.updated_at = overrides.get("updated_at")
     product.images = overrides.get(
@@ -792,9 +792,9 @@ class TestProductsEndpoint:
         async def mock_refresh(obj):
             obj.id = 1
             obj.representative_image_id = "img-1"
-            obj.title = "Superman Cake"
-            obj.description = "A cake"
-            obj.tags = ["superman"]
+            obj.title = "Blue Widget"
+            obj.description = "A widget"
+            obj.tags = ["blue"]
             obj.created_at = datetime(2026, 1, 1)
             obj.updated_at = None
 
@@ -802,13 +802,13 @@ class TestProductsEndpoint:
 
         response = client.post(
             "/api/v1/products",
-            json={"l1_group_id": 1, "title": "Superman Cake", "description": "A cake", "tags": ["superman"]},
+            json={"l1_group_id": 1, "title": "Blue Widget", "description": "A widget", "tags": ["blue"]},
         )
         assert response.status_code == 201
         data = response.json()
         assert data["id"] == 1
-        assert data["title"] == "Superman Cake"
-        assert data["tags"] == ["superman"]
+        assert data["title"] == "Blue Widget"
+        assert data["tags"] == ["blue"]
         assert data["image_count"] == 2
 
     def test_create_product_returns_location_header(self, client, override_db):
@@ -898,7 +898,7 @@ class TestProductsEndpoint:
         data = response.json()
         assert data["total"] == 1
         assert len(data["items"]) == 1
-        assert data["items"][0]["tags"] == ["superman", "birthday"]
+        assert data["items"][0]["tags"] == ["blue", "widget"]
         assert data["items"][0]["image_count"] == 2
 
     def test_get_product(self, client, override_db):
@@ -913,8 +913,8 @@ class TestProductsEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == 1
-        assert data["title"] == "Superman Cake"
-        assert data["tags"] == ["superman", "birthday"]
+        assert data["title"] == "Blue Widget"
+        assert data["tags"] == ["blue", "widget"]
         assert data["image_count"] == 2
 
     def test_get_product_not_found(self, client, override_db):
@@ -935,18 +935,18 @@ class TestProductsEndpoint:
         override_db.commit = AsyncMock()
 
         async def mock_refresh(obj, attribute_names=None):
-            obj.title = "Updated Cake"
+            obj.title = "Updated Widget"
             obj.tags = ["new-tag"]
 
         override_db.refresh = AsyncMock(side_effect=mock_refresh)
 
         response = client.patch(
             "/api/v1/products/1",
-            json={"title": "Updated Cake", "tags": ["new-tag"]},
+            json={"title": "Updated Widget", "tags": ["new-tag"]},
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["title"] == "Updated Cake"
+        assert data["title"] == "Updated Widget"
         assert data["tags"] == ["new-tag"]
         assert data["image_count"] == 2
 

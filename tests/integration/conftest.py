@@ -109,8 +109,8 @@ async def seed_images(db):
 
             img = Image(
                 id=img_id,
-                filename=f"cake_{i}.jpg",
-                s3_key=f"processed/cake_{i}.jpg",
+                filename=f"product_{i}.jpg",
+                s3_key=f"processed/product_{i}.jpg",
                 content_hash=f"{img_id[:64]}",
                 phash=phash,
                 embedding=embedding,
