@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Documentation
-    url: https://github.com/masa-57/NIC/blob/main/docs/n8n-setup-guide.md
+    url: https://github.com/masa-57/pic/blob/main/docs/n8n-setup-guide.md
     about: Check the setup guide for n8n integration help

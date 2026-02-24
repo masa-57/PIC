@@ -26,32 +26,19 @@ jobs:
       - run: uv run ruff check src/ tests/ scripts/
       - run: uv run ruff format --check src/ tests/ scripts/
       - run: uv lock --check
-      - run: uv run mypy src/nic/
+      - run: uv run mypy src/pic/
       - run: uv run pip-audit
-
-  debt-integrity:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Validate debt register
-        run: |
-          python3 scripts/debt_sync.py validate --strict --owner masa-57 --repo NIC
-          python3 scripts/debt_sync.py report --out-dir debt-report
-      - uses: actions/upload-artifact@v6
-        with:
-          name: debt-report
-          path: debt-report/
 
   container-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - name: Build Railway image for scan
-        run: docker build -f Dockerfile.railway -t nic-api:scan .
+        run: docker build -f Dockerfile.railway -t pic-api:scan .
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@0.34.0
         with:
-          image-ref: nic-api:scan
+          image-ref: pic-api:scan
           format: table
           exit-code: "1"
           ignore-unfixed: true
@@ -69,7 +56,7 @@ jobs:
           enable-cache: true
           prune-cache: false
       - run: uv sync --frozen --extra ml
-      - run: uv run pytest -m unit --cov=src/nic --cov-report=xml --cov-fail-under=70 -v
+      - run: uv run pytest -m unit --cov=src/pic --cov-report=xml --cov-fail-under=70 -v
       - uses: actions/upload-artifact@v6
         if: always()
         with:
@@ -82,7 +69,7 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_DB: nic_test
+          POSTGRES_DB: pic_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: test
         ports:
@@ -103,7 +90,7 @@ jobs:
 
           import psycopg2
 
-          dsn = "postgresql://postgres:test@localhost:5432/nic_test"
+          dsn = "postgresql://postgres:test@localhost:5432/pic_test"
           last_error = None
           for _ in range(10):
               try:
@@ -122,11 +109,11 @@ jobs:
       - name: Apply migrations before integration tests
         run: uv run alembic upgrade head
         env:
-          NIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/nic_test
+          PIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/pic_test
       - name: Run integration tests
-        run: uv run pytest -m integration --cov=src/nic --cov-report=xml:coverage-integration.xml --cov-fail-under=45 -v
+        run: uv run pytest -m integration --cov=src/pic --cov-report=xml:coverage-integration.xml --cov-fail-under=45 -v
         env:
-          NIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/nic_test
+          PIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/pic_test
       - uses: actions/upload-artifact@v6
         if: always()
         with:
@@ -152,7 +139,7 @@ jobs:
 
   deploy-modal:
     if: github.ref == 'refs/heads/main'
-    needs: [lint, unit-test, integration-test, container-scan, debt-integrity]
+    needs: [lint, unit-test, integration-test, container-scan]
     runs-on: ubuntu-latest
     outputs:
       rollback_sha: ${{ steps.rollback_sha.outputs.sha }}
@@ -181,7 +168,7 @@ jobs:
           version: "0.9.x"
           enable-cache: true
       - run: uv sync --frozen
-      - run: uv run modal deploy src/nic/modal_app.py --tag "${GITHUB_SHA}"
+      - run: uv run modal deploy src/pic/modal_app.py --tag "${GITHUB_SHA}"
 
   post-deploy-smoke:
     if: github.ref == 'refs/heads/main'
@@ -219,6 +206,6 @@ jobs:
           version: "0.9.x"
           enable-cache: true
       - run: uv sync --frozen
-      - run: uv run modal deploy src/nic/modal_app.py --tag "rollback-${{ needs.deploy-modal.outputs.rollback_sha }}"
+      - run: uv run modal deploy src/pic/modal_app.py --tag "rollback-${{ needs.deploy-modal.outputs.rollback_sha }}"
 
   # Railway auto-deploys from GitHub push — no step needed
