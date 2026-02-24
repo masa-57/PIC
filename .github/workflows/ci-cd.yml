@@ -36,7 +36,7 @@ jobs:
       - name: Build Railway image for scan
         run: docker build -f Dockerfile.railway -t pic-api:scan .
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.34.0
+        uses: aquasecurity/trivy-action@0.34.1
         with:
           image-ref: pic-api:scan
           format: table
