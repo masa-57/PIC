@@ -29,7 +29,7 @@ class TestModalDispatch:
         with patch("modal.Function.from_name", return_value=mock_fn) as mock_from_name:
             result = await submit_ingest_job("img-456", "s3://bucket/key")
 
-            mock_from_name.assert_called_once_with("nic", "run_ingest")
+            mock_from_name.assert_called_once_with("pic", "run_ingest")
             mock_fn.spawn.assert_called_once_with("img-456")
             assert result == "modal-call-123"
 
@@ -48,7 +48,7 @@ class TestModalDispatch:
             params = {"min_cluster_size": 5, "min_samples": 3}
             result = await submit_cluster_job("job-789", params)
 
-            mock_from_name.assert_called_once_with("nic", "run_cluster")
+            mock_from_name.assert_called_once_with("pic", "run_cluster")
             assert mock_fn.spawn.call_count == 1
             call_args = mock_fn.spawn.call_args[0]
             assert call_args[0] == "job-789"
@@ -88,7 +88,7 @@ class TestModalDispatch:
             params = {"min_cluster_size": 10}
             result = await submit_pipeline_job("job-pipeline-1", params)
 
-            mock_from_name.assert_called_once_with("nic", "run_pipeline")
+            mock_from_name.assert_called_once_with("pic", "run_pipeline")
             call_args = mock_fn.spawn.call_args[0]
             assert call_args[0] == "job-pipeline-1"
             assert '"min_cluster_size": 10' in call_args[1]

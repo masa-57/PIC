@@ -78,5 +78,5 @@ async def test_check_gdrive_spawns_worker_when_files_present_and_no_inflight_job
 
         await _check_gdrive_for_new_files_impl()
 
-    mock_from_name.assert_called_once_with("nic", "sync_gdrive_to_r2")
+    mock_from_name.assert_called_once_with("pic", "sync_gdrive_to_r2")
     mock_fn.spawn.assert_called_once()

@@ -36,7 +36,7 @@ class TestBuildEngineArgs:
         assert ctx.verify_mode == ssl.CERT_NONE
 
     def test_sslmode_verify_full_enforces_verification(self) -> None:
-        clean_url, connect_args = self._call("postgresql+asyncpg://db.neon.tech:5432/nic?sslmode=verify-full")
+        clean_url, connect_args = self._call("postgresql+asyncpg://db.neon.tech:5432/pic?sslmode=verify-full")
         ctx = connect_args["ssl"]
         assert isinstance(ctx, ssl.SSLContext)
         assert ctx.check_hostname is True
@@ -44,21 +44,21 @@ class TestBuildEngineArgs:
 
     def test_sslmode_require_remote_uses_default_context(self) -> None:
         """Remote host with sslmode=require uses default SSL context (CERT_REQUIRED by default)."""
-        clean_url, connect_args = self._call("postgresql+asyncpg://db.neon.tech:5432/nic?sslmode=require")
+        clean_url, connect_args = self._call("postgresql+asyncpg://db.neon.tech:5432/pic?sslmode=require")
         ctx = connect_args["ssl"]
         assert isinstance(ctx, ssl.SSLContext)
         # create_default_context sets CERT_REQUIRED and check_hostname=True by default
         assert ctx.verify_mode == ssl.CERT_REQUIRED
 
     def test_sslmode_disable_no_ssl(self) -> None:
-        clean_url, connect_args = self._call("postgresql+asyncpg://db.neon.tech:5432/nic?sslmode=disable")
+        clean_url, connect_args = self._call("postgresql+asyncpg://db.neon.tech:5432/pic?sslmode=disable")
         assert "ssl" not in connect_args
 
     def test_no_sslmode_remote_warns(self, caplog: pytest.LogCaptureFixture) -> None:
         import logging
 
         with caplog.at_level(logging.WARNING, logger="pic.core.database"):
-            self._call("postgresql+asyncpg://db.neon.tech:5432/nic")
+            self._call("postgresql+asyncpg://db.neon.tech:5432/pic")
         assert "sslmode=verify-full" in caplog.text
 
     def test_sslmode_stripped_from_url(self) -> None:

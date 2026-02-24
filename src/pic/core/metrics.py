@@ -3,7 +3,7 @@
 Defines application-level counters and histograms for HTTP request
 tracking and background job monitoring. These complement the
 auto-instrumentation provided by prometheus-fastapi-instrumentator
-and the database pool gauges in ``nic.core.database``.
+and the database pool gauges in ``pic.core.database``.
 """
 
 from prometheus_client import Counter, Histogram
