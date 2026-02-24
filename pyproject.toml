@@ -1,7 +1,7 @@
 [project]
-name = "nic"
+name = "pic"
 version = "0.1.0"
-description = "Hierarchical image clustering API for cake images"
+description = "Hierarchical image clustering API for product catalog images"
 readme = "README.md"
 authors = [
     { name = "masa-57", email = "m.ahanchian@outlook.com" }
@@ -51,7 +51,7 @@ ml = [
 ]
 
 [project.scripts]
-nic = "nic.main:app"
+pic = "pic.main:app"
 
 [build-system]
 requires = ["uv_build>=0.9.22,<0.11.0"]
@@ -76,7 +76,7 @@ dev = [
 target-version = "py312"
 line-length = 120
 src = ["src"]
-extend-exclude = ["src/nic/migrations"]
+extend-exclude = ["src/pic/migrations"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "TCH", "C901", "S", "TRY", "PT", "RET", "PIE"]
@@ -94,7 +94,7 @@ max-complexity = 12
 "scripts/**/*.py" = ["S310", "S603"] # scripts use urllib + subprocess legitimately
 
 [tool.ruff.lint.isort]
-known-first-party = ["nic"]
+known-first-party = ["pic"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -106,7 +106,7 @@ markers = [
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["src/nic"]
+source = ["src/pic"]
 
 [tool.coverage.report]
 fail_under = 70
