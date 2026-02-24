@@ -1,0 +1,149 @@
+audit_id,severity,domain,title,source,github_issue,status,milestone,labels,notes
+C1,critical,performance,Cluster hierarchy N+1 loads 25k+ Image records,TECHNICAL_DEBT.md:20-25,49,open,Debt-P0,"priority:critical,area:performance",
+C2,critical,performance,Pipeline downloads all S3 images before DB dedup check,TECHNICAL_DEBT.md:27-33,50,open,Debt-P0,"priority:critical,area:performance",
+C3,critical,devops,No database backup/restore strategy,TECHNICAL_DEBT.md:34-38,51,open,Debt-P0,"priority:critical,area:devops",
+C4,critical,testing,Missing test: image file thumbnail param,TECHNICAL_DEBT.md:40-42,52,open,Debt-P0,"priority:critical,area:testing",Expanded from C4-C9 bundle
+C5,critical,testing,Missing test: search error handling,TECHNICAL_DEBT.md:40-42,52,open,Debt-P0,"priority:critical,area:testing",Expanded from C4-C9 bundle
+C6,critical,testing,Missing test: l1_group_id filter,TECHNICAL_DEBT.md:40-42,52,open,Debt-P0,"priority:critical,area:testing",Expanded from C4-C9 bundle
+C7,critical,testing,Missing test: pipeline retry exhaustion,TECHNICAL_DEBT.md:40-42,52,open,Debt-P0,"priority:critical,area:testing",Expanded from C4-C9 bundle
+C8,critical,testing,Missing test: GDrive error paths,TECHNICAL_DEBT.md:40-42,52,open,Debt-P0,"priority:critical,area:testing",Expanded from C4-C9 bundle
+C9,critical,testing,Missing test: concurrent download failures,TECHNICAL_DEBT.md:40-42,52,open,Debt-P0,"priority:critical,area:testing",Expanded from C4-C9 bundle
+H-DO1,high,devops,Fix Dockerfile.railway healthcheck dependency,TECHNICAL_DEBT.md:48,60,open,Debt-P1-QuickWins,"priority:high,quick-win,area:devops",
+H-P2,high,performance,Add composite index ix_jobs_status_created_at,TECHNICAL_DEBT.md:49,61,open,Debt-P1-QuickWins,"priority:high,quick-win,area:performance",
+H-API3,high,api-design,Add Retry-After header on 429 responses,TECHNICAL_DEBT.md:50,62,open,Debt-P1-QuickWins,"priority:high,quick-win,area:api-design",
+H-API1-2,high,api-design,Add Location header on 201/202 responses,TECHNICAL_DEBT.md:51,63,open,Debt-P1-QuickWins,"priority:high,quick-win,area:api-design",
+H-API5,high,api-design,Fix hardcoded l1_group_id=0 in visualization endpoint,TECHNICAL_DEBT.md:52,64,open,Debt-P1-QuickWins,"priority:high,quick-win,area:api-design",
+H-D3,high,database,Optimize L2 clustering query projection,TECHNICAL_DEBT.md:53,65,open,Debt-P1-QuickWins,"priority:high,quick-win,area:database",
+H-P5,high,performance,Use np.float32 for embeddings array,TECHNICAL_DEBT.md:54,66,open,Debt-P1-QuickWins,"priority:high,quick-win,area:performance",
+H-CQ2,high,code-quality,Fix GDrive processed-folder cache thread safety,TECHNICAL_DEBT.md:55,67,open,Debt-P1-QuickWins,"priority:high,quick-win,area:code-quality",
+H-P1,high,performance,Duplicate search scans 1000 images in-memory,TECHNICAL_DEBT.md:60,53,open,Debt-P1-Bundles,"priority:high,area:performance",Mapped to performance bundle
+H-P3,high,performance,Connection pool too small for concurrent workers + API,TECHNICAL_DEBT.md:61,53,open,Debt-P1-Bundles,"priority:high,area:performance",Mapped to performance bundle
+H-P4,high,performance,Embedding batch processing lacks GPU memory cleanup,TECHNICAL_DEBT.md:62,53,open,Debt-P1-Bundles,"priority:high,area:performance",Mapped to performance bundle
+H-P6,high,performance,Product images endpoint generates presigned URLs serially,TECHNICAL_DEBT.md:63,53,open,Debt-P1-Bundles,"priority:high,area:performance",Mapped to performance bundle
+H-P7,high,performance,GDrive sync downloads files serially within batch,TECHNICAL_DEBT.md:64,53,open,Debt-P1-Bundles,"priority:high,area:performance",Mapped to performance bundle
+H-S1,high,security,Use sslmode=verify-full in production,TECHNICAL_DEBT.md:67,54,open,Debt-P1-Bundles,"priority:high,area:security",Mapped to security bundle
+H-S2,high,security,Protect /health/detailed endpoint,TECHNICAL_DEBT.md:68,54,open,Debt-P1-Bundles,"priority:high,area:security",Mapped to security bundle
+H-A1,high,architecture,Worker image-processing logic duplicated across modules,TECHNICAL_DEBT.md:71,57,open,Debt-P1-Bundles,"priority:high,area:architecture",Mapped to refactor bundle
+H-A2,high,architecture,God module pipeline.py,TECHNICAL_DEBT.md:72,57,open,Debt-P1-Bundles,"priority:high,area:architecture",Mapped to refactor bundle
+H-A3,high,architecture,God module gdrive_sync.py,TECHNICAL_DEBT.md:73,57,open,Debt-P1-Bundles,"priority:high,area:architecture",Mapped to refactor bundle
+H-A4,high,architecture,Missing advisory lock abstraction,TECHNICAL_DEBT.md:74,57,open,Debt-P1-Bundles,"priority:high,area:architecture",Mapped to refactor bundle
+H-CQ1,high,code-quality,Overly broad worker exception handling,TECHNICAL_DEBT.md:77,55,open,Debt-P1-Bundles,"priority:high,area:code-quality",Mapped to code-quality bundle
+H-CQ3,high,code-quality,Product creation TOCTOU race condition,TECHNICAL_DEBT.md:78,55,open,Debt-P1-Bundles,"priority:high,area:code-quality",Mapped to code-quality bundle
+H-D1,high,database,HNSW index params suboptimal for DINOv2,TECHNICAL_DEBT.md:81,56,open,Debt-P1-Bundles,"priority:high,area:database",Mapped to database bundle
+H-D2,high,database,Missing index on l1_groups.l2_cluster_id,TECHNICAL_DEBT.md:82,56,open,Debt-P1-Bundles,"priority:high,area:database",Mapped to database bundle
+H-API4,high,api-design,Search endpoints use POST instead of GET,TECHNICAL_DEBT.md:85,58,open,Debt-P1-Bundles,"priority:high,area:api-design",Mapped to API-design bundle
+H-API6,high,api-design,Cluster hierarchy pagination inconsistency,TECHNICAL_DEBT.md:86,58,open,Debt-P1-Bundles,"priority:high,area:api-design",Mapped to API-design bundle
+H-API7,high,api-design,No API-layer body size limits,TECHNICAL_DEBT.md:87,58,open,Debt-P1-Bundles,"priority:high,area:api-design",Mapped to API-design bundle
+H-DO2,high,devops,No deployment rollback strategy,TECHNICAL_DEBT.md:90,59,open,Debt-P1-Bundles,"priority:high,area:devops",Mapped to DevOps bundle
+H-DO3,high,devops,Integration tests do not run migrations first,TECHNICAL_DEBT.md:91,59,open,Debt-P1-Bundles,"priority:high,area:devops",Mapped to DevOps bundle
+H-DO4,high,devops,No monitoring/alerting beyond health endpoints,TECHNICAL_DEBT.md:92,59,open,Debt-P1-Bundles,"priority:high,area:devops",Mapped to DevOps bundle
+H-DO5,high,devops,No log aggregation for Railway/Modal,TECHNICAL_DEBT.md:93,59,open,Debt-P1-Bundles,"priority:high,area:devops",Mapped to DevOps bundle
+H-DO6,high,devops,No staging environment,TECHNICAL_DEBT.md:94,59,open,Debt-P1-Bundles,"priority:high,area:devops",Mapped to DevOps bundle
+H-DO7,high,devops,No post-deploy smoke tests,TECHNICAL_DEBT.md:95,59,open,Debt-P1-Bundles,"priority:high,area:devops",Mapped to DevOps bundle
+H-T1,high,testing,High-priority test gap 1 from audit bundle,TECHNICAL_DEBT.md:97-99,52,open,Debt-P1-Bundles,"priority:high,area:testing",Source text references 11 gaps; normalized to 9 to preserve 41-high total
+H-T2,high,testing,High-priority test gap 2 from audit bundle,TECHNICAL_DEBT.md:97-99,52,open,Debt-P1-Bundles,"priority:high,area:testing",Source text references 11 gaps; normalized to 9 to preserve 41-high total
+H-T3,high,testing,High-priority test gap 3 from audit bundle,TECHNICAL_DEBT.md:97-99,52,open,Debt-P1-Bundles,"priority:high,area:testing",Source text references 11 gaps; normalized to 9 to preserve 41-high total
+H-T4,high,testing,High-priority test gap 4 from audit bundle,TECHNICAL_DEBT.md:97-99,52,open,Debt-P1-Bundles,"priority:high,area:testing",Source text references 11 gaps; normalized to 9 to preserve 41-high total
+H-T5,high,testing,High-priority test gap 5 from audit bundle,TECHNICAL_DEBT.md:97-99,52,open,Debt-P1-Bundles,"priority:high,area:testing",Source text references 11 gaps; normalized to 9 to preserve 41-high total
+H-T6,high,testing,High-priority test gap 6 from audit bundle,TECHNICAL_DEBT.md:97-99,52,open,Debt-P1-Bundles,"priority:high,area:testing",Source text references 11 gaps; normalized to 9 to preserve 41-high total
+H-T7,high,testing,High-priority test gap 7 from audit bundle,TECHNICAL_DEBT.md:97-99,52,open,Debt-P1-Bundles,"priority:high,area:testing",Source text references 11 gaps; normalized to 9 to preserve 41-high total
+H-T8,high,testing,High-priority test gap 8 from audit bundle,TECHNICAL_DEBT.md:97-99,52,open,Debt-P1-Bundles,"priority:high,area:testing",Source text references 11 gaps; normalized to 9 to preserve 41-high total
+H-T9,high,testing,High-priority test gap 9 from audit bundle,TECHNICAL_DEBT.md:97-99,52,open,Debt-P1-Bundles,"priority:high,area:testing",Source text references 11 gaps; normalized to 9 to preserve 41-high total
+M-P1,medium,performance,UMAP runs twice per clustering,TECHNICAL_DEBT.md:103,151,closed,Debt-P2,"priority:medium,area:performance",Verified: UMAP runs once for 25D; PCA projects to 2D
+M-P2,medium,performance,Missing index on images.s3_key,TECHNICAL_DEBT.md:104,152,closed,Debt-P2,"priority:medium,area:performance",Already fixed: ix_images_s3_key index exists in models/db.py
+M-P3,medium,performance,Vector search missing HNSW ef_search tuning,TECHNICAL_DEBT.md:105,153,closed,Debt-P2,"priority:medium,area:performance",Fixed: hnsw_ef_search configurable via NIC_HNSW_EF_SEARCH (default 100)
+M-P4,medium,performance,Image opened multiple times per ingest,TECHNICAL_DEBT.md:106,154,closed,Debt-P2,"priority:medium,area:performance",Already fixed: process_single_image opens PIL once and passes PIL object to all helpers
+M-P5,medium,performance,No caching for presigned URL generation,TECHNICAL_DEBT.md:107,155,closed,Debt-P2,"priority:medium,area:performance",Already fixed: lru_cache(maxsize=1024) on generate_presigned_url
+M-P6,medium,performance,Per-group UPDATE pattern in clustering pipeline,TECHNICAL_DEBT.md:108,156,open,Debt-P2,"priority:medium,area:performance",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/156
+M-S1,medium,security,Rate limit key uses raw API key,TECHNICAL_DEBT.md:111,157,closed,Debt-P2,"priority:medium,area:security",Fixed: SHA256-hashed API key prefix for rate limit bucket key
+M-S2,medium,security,GDrive service account JSON as raw env var,TECHNICAL_DEBT.md:112,158,closed,Debt-P2,"priority:medium,area:security",Fixed: model_validator validates JSON structure + 'type' field at startup
+M-S3,medium,security,CORS wildcard not hard-blocked in production,TECHNICAL_DEBT.md:113,159,closed,Debt-P2,"priority:medium,area:security",Fixed: model_validator blocks cors_origins=['*'] when api_key is set
+M-CQ1,medium,code-quality,Duplicate _IMAGE_EXTENSIONS constants,TECHNICAL_DEBT.md:116,127,closed,Debt-P2,"priority:medium,area:code-quality",Already fixed: IMAGE_EXTENSIONS centralized in core/constants.py
+M-CQ2,medium,code-quality,Duplicate advisory lock ID constants,TECHNICAL_DEBT.md:117,128,closed,Debt-P2,"priority:medium,area:code-quality",Already fixed: ADVISORY_LOCK_ID centralized in core/constants.py
+M-CQ3,medium,code-quality,Missing type hints for GDrive service,TECHNICAL_DEBT.md:118,129,open,Debt-P2,"priority:medium,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/129
+M-CQ4,medium,code-quality,Complex function _phase_batch_ingest,TECHNICAL_DEBT.md:119,130,open,Debt-P2,"priority:medium,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/130
+M-CQ5,medium,code-quality,Complex function _phase_discover_and_dedup,TECHNICAL_DEBT.md:120,131,open,Debt-P2,"priority:medium,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/131
+M-CQ6,medium,code-quality,Complex function cluster_level2,TECHNICAL_DEBT.md:121,132,closed,Debt-P2,"priority:medium,area:code-quality",Fixed: extracted _reduce_dimensions/_cluster_reduced/_compute_viz_coords helpers
+M-CQ7,medium,code-quality,Broad exception in Modal job status check,TECHNICAL_DEBT.md:122,133,closed,Debt-P2,"priority:medium,area:code-quality",Fixed: narrowed to modal.exception.Error
+M-CQ8,medium,code-quality,Complex function _process_batch in gdrive_sync,TECHNICAL_DEBT.md:123,134,open,Debt-P2,"priority:medium,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/134
+M-CQ9,medium,code-quality,Inconsistent None vs empty-string optional config fields,TECHNICAL_DEBT.md:124,135,closed,Debt-P2,"priority:medium,area:code-quality",Already fixed: config consistently uses empty string defaults
+M-A1,medium,architecture,Missing advisory lock context manager,TECHNICAL_DEBT.md:127,107,open,Debt-P2,"priority:medium,area:architecture",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/107
+M-A2,medium,architecture,Configuration coupling via global settings imports,TECHNICAL_DEBT.md:128,108,deferred,Debt-P2,"priority:medium,area:architecture",Deferred: standard FastAPI/Pydantic pattern; full DI refactoring minimal benefit
+M-A3,medium,architecture,Service layer inconsistency,TECHNICAL_DEBT.md:129,109,deferred,Debt-P2,"priority:medium,area:architecture",Deferred: current patterns match domain needs; uniform pattern would over-abstract
+M-A4,medium,architecture,Modal dispatch lacks abstraction,TECHNICAL_DEBT.md:130,110,closed,Debt-P2,"priority:medium,area:architecture",Fixed: extracted _spawn_modal_job() helper to eliminate duplication across 4 submit functions
+M-A5,medium,architecture,Inconsistent DB session management,TECHNICAL_DEBT.md:131,111,closed,Debt-P2,"priority:medium,area:architecture",Verified: both API and workers use same async_session factory; difference is intentional
+M-A6,medium,architecture,Missing batch operations abstraction,TECHNICAL_DEBT.md:132,112,closed,Debt-P2,"priority:medium,area:architecture",Already separated: pipeline_discover.py and gdrive_download.py have dedicated download+dedup functions
+M-A7,medium,architecture,No separation of orchestration and business logic in workers,TECHNICAL_DEBT.md:133,113,closed,Debt-P2,"priority:medium,area:architecture",Already separated: worker_lifecycle() handles orchestration; business logic in dedicated modules
+M-D1,medium,database,Missing composite index for Job status + modal_call_id query,TECHNICAL_DEBT.md:136,136,open,Debt-P2,"priority:medium,area:database",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/136
+M-D2,medium,database,Unbounded IN clause in bulk image update,TECHNICAL_DEBT.md:137,137,closed,Debt-P2,"priority:medium,area:database",Fixed: _batched_update helper with 5000-row chunks
+M-D3,medium,database,No CHECK constraint for has_embedding consistency,TECHNICAL_DEBT.md:138,138,closed,Debt-P2,"priority:medium,area:database",Already fixed: CheckConstraint ck_has_embedding_consistency in models/db.py
+M-D4,medium,database,Connection pool size may be undersized for concurrent workers,TECHNICAL_DEBT.md:139,139,open,Debt-P2,"priority:medium,area:database",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/139
+M-API1,medium,api-design,No HTTP caching headers on GET endpoints,TECHNICAL_DEBT.md:142,114,closed,Debt-P2,"priority:medium,area:api-design",Fixed: cache_control_middleware sets Cache-Control on GET responses by path pattern
+M-API2,medium,api-design,No ETag/conditional request support,TECHNICAL_DEBT.md:143,119,closed,Debt-P2,"priority:medium,area:api-design",Fixed: ETag middleware with MD5 body hash + If-None-Match → 304 support
+M-API3,medium,api-design,Pagination responses missing navigation links,TECHNICAL_DEBT.md:144,120,closed,Debt-P2,"priority:medium,area:api-design",Fixed: PaginationLinks (self/next/prev/first/last) on all 8 list schemas
+M-API4,medium,api-design,Offset-based pagination at high offsets,TECHNICAL_DEBT.md:145,121,deferred,Debt-P2,"priority:medium,area:api-design",Deferred: current dataset doesn't exhibit offset perf issues
+M-API5,medium,api-design,No rate limit headers in responses,TECHNICAL_DEBT.md:146,122,closed,Debt-P2,"priority:medium,area:api-design",Fixed: X-RateLimit-Limit header added in access_log_middleware
+M-API6,medium,api-design,No idempotency key support for POST operations,TECHNICAL_DEBT.md:147,123,deferred,Debt-P2,"priority:medium,area:api-design",Deferred: advisory locks prevent duplicate runs; full idempotency requires response caching
+M-API7,medium,api-design,Inconsistent validation error format,TECHNICAL_DEBT.md:148,124,closed,Debt-P2,"priority:medium,area:api-design",Fixed: custom RequestValidationError handler normalizes 422 responses
+M-API8,medium,api-design,No bulk operations support,TECHNICAL_DEBT.md:149,125,deferred,Debt-P2,"priority:medium,area:api-design",Deferred: no bulk operation requirements from current n8n integration
+M-API9,medium,api-design,Filter/sort params undocumented in OpenAPI,TECHNICAL_DEBT.md:150,126,closed,Debt-P2,"priority:medium,area:api-design",Fixed: added description to all Query params + summary/description on list endpoints
+M-API10,medium,api-design,Presigned URL expiry not exposed to clients,TECHNICAL_DEBT.md:151,115,closed,Debt-P2,"priority:medium,area:api-design",Fixed: expires_in field added to ImageFileOut schema
+M-API11,medium,api-design,No RFC 7807 problem detail support,TECHNICAL_DEBT.md:152,116,closed,Debt-P2,"priority:medium,area:api-design",Fixed: all exception handlers return RFC 7807 ProblemDetail (type/title/status/detail/instance)
+M-API12,medium,api-design,Job completion requires manual polling,TECHNICAL_DEBT.md:153,117,deferred,Debt-P2,"priority:medium,area:api-design",Deferred: n8n uses built-in polling; webhook/SSE not blocking any workflow
+M-API13,medium,api-design,Cluster hierarchy pagination inconsistency,TECHNICAL_DEBT.md:154,118,closed,Debt-P2,"priority:medium,area:api-design",Fixed: added .offset(pagination.offset) to unclustered groups query
+M-DO1,medium,devops,No coverage report merging between unit/integration,TECHNICAL_DEBT.md:157,140,closed,Debt-P2,"priority:medium,area:devops",Fixed: coverage-report job downloads and combines unit + integration XML artifacts
+M-DO2,medium,devops,No Docker BuildKit cache mounts,TECHNICAL_DEBT.md:158,143,closed,Debt-P2,"priority:medium,area:devops",Fixed: BuildKit syntax directive + --mount=type=cache for uv in Dockerfile.railway
+M-DO3,medium,devops,Modal dependencies only use >= bounds,TECHNICAL_DEBT.md:159,144,closed,Debt-P2,"priority:medium,area:devops",Fixed: added upper bounds to all Modal dependencies (>=X.Y<Z.0)
+M-DO4,medium,devops,No Dependabot/Renovate automation,TECHNICAL_DEBT.md:160,145,open,Debt-P2,"priority:medium,area:devops",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/145
+M-DO5,medium,devops,Verify CI jobs are actually parallel,TECHNICAL_DEBT.md:161,146,open,Debt-P2,"priority:medium,area:devops",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/146
+M-DO6,medium,devops,No Railway resource limits configured,TECHNICAL_DEBT.md:162,147,closed,Debt-P2,"priority:medium,area:devops",Fixed: healthcheckTimeout + restartPolicyMaxRetries in railway.json + resource docs
+M-DO7,medium,devops,Modal functions have no retry policy,TECHNICAL_DEBT.md:163,148,closed,Debt-P2,"priority:medium,area:devops",Fixed: modal.Retries added to all 5 Modal function decorators
+M-DO8,medium,devops,No Docker image vulnerability scan in CI,TECHNICAL_DEBT.md:164,149,open,Debt-P2,"priority:medium,area:devops",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/149
+M-DO9,medium,devops,Stale job sweep timeout mismatch with Modal timeouts,TECHNICAL_DEBT.md:165,150,closed,Debt-P2,"priority:medium,area:devops",Already fixed: stale_job_timeout_minutes=90 exceeds Modal 60min timeout
+M-DO10,medium,devops,No secrets rotation documentation,TECHNICAL_DEBT.md:166,141,closed,Debt-P2,"priority:medium,area:devops",Fixed: secrets-rotation.md runbook with inventory + rotation procedures + checklist
+M-DO11,medium,devops,Pre-commit mypy deps differ from CI,TECHNICAL_DEBT.md:167,142,closed,Debt-P2,"priority:medium,area:devops",Fixed: pre-commit mypy now uses local hook via uv run matching CI
+M-T1,medium,testing,Overly broad mock defeats test purpose,TECHNICAL_DEBT.md:170,160,closed,Debt-P2,"priority:medium,area:testing",Fixed: separate mocks for batch and retry embed paths; verifies actual retry flow
+M-T2,medium,testing,Seed fixture hardcodes phash causing clustering artifacts,TECHNICAL_DEBT.md:171,164,closed,Debt-P2,"priority:medium,area:testing",Fixed: sample_phash extended to 64 hex chars + sample_phash_alt fixture added
+M-T3,medium,testing,No tests for worker/entrypoint argument parsing,TECHNICAL_DEBT.md:172,165,closed,Debt-P2,"priority:medium,area:testing",Fixed: 6 tests for entrypoint CLI (ingest/cluster commands + missing args)
+M-T4,medium,testing,Insufficient hamming_distance edge-case tests,TECHNICAL_DEBT.md:173,166,closed,Debt-P2,"priority:medium,area:testing",Fixed: added 5 edge-case tests (half-bits/nibble/non-hex/mismatch)
+M-T5,medium,testing,Mock has_embedding type mismatch (bool vs int),TECHNICAL_DEBT.md:174,167,closed,Debt-P2,"priority:medium,area:testing",Fixed: has_embedding=1 in workers + assertions use == 1
+M-T6,medium,testing,No clustering test with missing embeddings,TECHNICAL_DEBT.md:175,168,closed,Debt-P2,"priority:medium,area:testing",Fixed: 5 edge-case tests (NaN/identical embeddings + missing IDs)
+M-T7,medium,testing,No test verifying s3_key fallback when move fails,TECHNICAL_DEBT.md:176,169,closed,Debt-P2,"priority:medium,area:testing",Fixed: assertion verifying s3_key stays original on S3 move failure
+M-T8,medium,testing,Missing product create validation edge-case tests,TECHNICAL_DEBT.md:177,170,closed,Debt-P2,"priority:medium,area:testing",Fixed: 7 validation edge-case tests added (missing l1_group_id/type/tags/representative)
+M-T9,medium,testing,Integration fixture cleanup should fail fast on re-raise,TECHNICAL_DEBT.md:178,171,closed,Debt-P2,"priority:medium,area:testing",Fixed: added raise after cleanup error logging to fail fast
+M-T10,medium,testing,No migration rollback scenario tests,TECHNICAL_DEBT.md:179,161,closed,Debt-P2,"priority:medium,area:testing",Fixed: integration tests for upgrade-to-head and downgrade-one-step-reupgrade
+M-T11,medium,testing,Empty E2E tests directory,TECHNICAL_DEBT.md:180,162,closed,Debt-P2,"priority:medium,area:testing",Fixed: E2E conftest + 3 health check smoke tests (status/cache-control/detailed)
+M-T12,medium,testing,No product-images pagination edge-case tests,TECHNICAL_DEBT.md:181,163,closed,Debt-P2,"priority:medium,area:testing",Fixed: pagination + empty result tests for product-images endpoint
+L-P1,low,performance,Image dimension extraction duplicated with hashing pass,TECHNICAL_DEBT.md:186,201,open,Debt-P3,"priority:low,area:performance",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/201
+L-P2,low,performance,Modal Function.from_name lookup not cached,TECHNICAL_DEBT.md:187,202,open,Debt-P3,"priority:low,area:performance",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/202
+L-P3,low,performance,Statement timeout SET LOCAL fragility,TECHNICAL_DEBT.md:188,203,open,Debt-P3,"priority:low,area:performance",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/203
+L-P4,low,performance,No caching for presigned URL generation,TECHNICAL_DEBT.md:189,204,open,Debt-P3,"priority:low,area:performance",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/204
+L-CQ1,low,code-quality,Hardcoded S3 prefixes scattered across files,TECHNICAL_DEBT.md:192-203,186,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/186
+L-CQ2,low,code-quality,Duplicate retry decorator configuration across services,TECHNICAL_DEBT.md:192-203,190,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/190
+L-CQ3,low,code-quality,S3ClientProtocol not runtime_checkable,TECHNICAL_DEBT.md:192-203,191,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/191
+L-CQ4,low,code-quality,Inconsistent error message formatting across endpoints,TECHNICAL_DEBT.md:192-203,192,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/192
+L-CQ5,low,code-quality,Missing presigned URL expiry clamping logging,TECHNICAL_DEBT.md:192-203,193,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/193
+L-CQ6,low,code-quality,Complex product candidates subquery should be extracted,TECHNICAL_DEBT.md:192-203,194,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/194
+L-CQ7,low,code-quality,Global model cache lifecycle not explicit,TECHNICAL_DEBT.md:192-203,195,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/195
+L-CQ8,low,code-quality,result.rowcount may be None without explicit check,TECHNICAL_DEBT.md:192-203,196,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/196
+L-CQ9,low,code-quality,Missing connection pool metrics initialization at startup,TECHNICAL_DEBT.md:192-203,197,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/197
+L-CQ10,low,code-quality,Inconsistent job_id logging in worker functions,TECHNICAL_DEBT.md:192-203,187,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/187
+L-CQ11,low,code-quality,Mixed logger formatting style (% vs f-string),TECHNICAL_DEBT.md:192-203,188,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/188
+L-CQ12,low,code-quality,Validation messages expose internal field names (acceptable),TECHNICAL_DEBT.md:192-203,189,open,Debt-P3,"priority:low,area:code-quality",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/189
+L-A1,low,architecture,No repository/data-mapper layer,TECHNICAL_DEBT.md:206,172,open,Debt-P3,"priority:low,area:architecture",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/172
+L-A2,low,architecture,main.py mixes app factory/middleware/handlers,TECHNICAL_DEBT.md:207,173,open,Debt-P3,"priority:low,area:architecture",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/173
+L-A3,low,architecture,S3ClientProtocol not used for dependency injection,TECHNICAL_DEBT.md:208,174,open,Debt-P3,"priority:low,area:architecture",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/174
+L-A4,low,architecture,worker/helpers.py mixes multiple concerns,TECHNICAL_DEBT.md:209,175,open,Debt-P3,"priority:low,area:architecture",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/175
+L-A5,low,architecture,No domain events for cross-cutting concerns,TECHNICAL_DEBT.md:210,176,open,Debt-P3,"priority:low,area:architecture",Low section lists extra A6-A8 but severity summary allocates 33 low items | Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/176
+L-D1,low,database,Product.tags should be JSONB instead of TEXT,TECHNICAL_DEBT.md:216,198,open,Debt-P3,"priority:low,area:database",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/198
+L-D2,low,database,L2Cluster viz_x/viz_y missing validation bounds,TECHNICAL_DEBT.md:217,199,open,Debt-P3,"priority:low,area:database",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/199
+L-API1,low,api-design,No HEAD method support for resource existence checks,TECHNICAL_DEBT.md:220-228,177,open,Debt-P3,"priority:low,area:api-design",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/177
+L-API2,low,api-design,No OPTIONS method documentation in OpenAPI,TECHNICAL_DEBT.md:220-228,178,open,Debt-P3,"priority:low,area:api-design",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/178
+L-API3,low,api-design,No partial response support (?fields=),TECHNICAL_DEBT.md:220-228,179,open,Debt-P3,"priority:low,area:api-design",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/179
+L-API4,low,api-design,No OpenAPI operation IDs,TECHNICAL_DEBT.md:220-228,180,open,Debt-P3,"priority:low,area:api-design",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/180
+L-API5,low,api-design,Health endpoints missing tags/descriptions in OpenAPI,TECHNICAL_DEBT.md:220-228,181,open,Debt-P3,"priority:low,area:api-design",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/181
+L-API6,low,api-design,No API deprecation headers,TECHNICAL_DEBT.md:220-228,182,open,Debt-P3,"priority:low,area:api-design",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/182
+L-API7,low,api-design,No content-type validation (415) for request bodies,TECHNICAL_DEBT.md:220-228,183,open,Debt-P3,"priority:low,area:api-design",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/183
+L-API8,low,api-design,No API versioning strategy beyond URL prefix,TECHNICAL_DEBT.md:220-228,184,open,Debt-P3,"priority:low,area:api-design",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/184
+L-API9,low,api-design,Missing expires_at field in presigned URL responses,TECHNICAL_DEBT.md:220-228,185,open,Debt-P3,"priority:low,area:api-design",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/185
+L-DO1,low,devops,No deployment concurrency control,TECHNICAL_DEBT.md:231,200,open,Debt-P3,"priority:low,area:devops",Issue auto-created 2026-02-16: https://github.com/masa-57/NIC/issues/200

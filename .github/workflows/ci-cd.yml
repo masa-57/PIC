@@ -1,0 +1,224 @@
+name: CI/CD
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.x"
+          enable-cache: true
+      - run: uv sync --frozen --extra ml
+      - run: uv run ruff check src/ tests/ scripts/
+      - run: uv run ruff format --check src/ tests/ scripts/
+      - run: uv lock --check
+      - run: uv run mypy src/nic/
+      - run: uv run pip-audit
+
+  debt-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate debt register
+        run: |
+          python3 scripts/debt_sync.py validate --strict --owner masa-57 --repo NIC
+          python3 scripts/debt_sync.py report --out-dir debt-report
+      - uses: actions/upload-artifact@v6
+        with:
+          name: debt-report
+          path: debt-report/
+
+  container-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build Railway image for scan
+        run: docker build -f Dockerfile.railway -t nic-api:scan .
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.34.0
+        with:
+          image-ref: nic-api:scan
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          scanners: vuln
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.x"
+          enable-cache: true
+          prune-cache: false
+      - run: uv sync --frozen --extra ml
+      - run: uv run pytest -m unit --cov=src/nic --cov-report=xml --cov-fail-under=70 -v
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  integration-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: nic_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.x"
+          enable-cache: true
+          prune-cache: false
+      - run: uv sync --frozen --extra ml
+      - name: Ensure pgvector extension exists
+        run: |
+          uv run python - <<'PY'
+          import time
+
+          import psycopg2
+
+          dsn = "postgresql://postgres:test@localhost:5432/nic_test"
+          last_error = None
+          for _ in range(10):
+              try:
+                  conn = psycopg2.connect(dsn)
+                  conn.autocommit = True
+                  with conn.cursor() as cur:
+                      cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+                  conn.close()
+                  break
+              except psycopg2.OperationalError as exc:
+                  last_error = exc
+                  time.sleep(1)
+          else:
+              raise SystemExit(f"Failed to initialize pgvector extension: {last_error}")
+          PY
+      - name: Apply migrations before integration tests
+        run: uv run alembic upgrade head
+        env:
+          NIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/nic_test
+      - name: Run integration tests
+        run: uv run pytest -m integration --cov=src/nic --cov-report=xml:coverage-integration.xml --cov-fail-under=45 -v
+        env:
+          NIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/nic_test
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: coverage-integration-report
+          path: coverage-integration.xml
+
+  coverage-report:
+    if: always()
+    needs: [unit-test, integration-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+      - name: Display coverage files
+        run: ls -la *.xml
+      - uses: actions/upload-artifact@v6
+        with:
+          name: combined-coverage
+          path: "*.xml"
+
+  deploy-modal:
+    if: github.ref == 'refs/heads/main'
+    needs: [lint, unit-test, integration-test, container-scan, debt-integrity]
+    runs-on: ubuntu-latest
+    outputs:
+      rollback_sha: ${{ steps.rollback_sha.outputs.sha }}
+    concurrency:
+      group: deploy-modal-main
+      cancel-in-progress: false
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+      - name: Determine rollback SHA
+        id: rollback_sha
+        shell: bash
+        run: |
+          BEFORE_SHA="${{ github.event.before }}"
+          if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            echo "sha=$BEFORE_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=$(git rev-parse HEAD~1)" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.x"
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run modal deploy src/nic/modal_app.py --tag "${GITHUB_SHA}"
+
+  post-deploy-smoke:
+    if: github.ref == 'refs/heads/main'
+    needs: [deploy-modal]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install httpx
+        run: pip install httpx
+      - name: Run smoke tests
+        env:
+          PRODUCTION_API_URL_SECRET: ${{ secrets.PRODUCTION_API_URL }}
+          PRODUCTION_API_URL_VAR: ${{ vars.PRODUCTION_API_URL }}
+        run: |
+          API_URL="${PRODUCTION_API_URL_SECRET:-$PRODUCTION_API_URL_VAR}"
+          if [ -z "$API_URL" ]; then
+            echo "::warning::Skipping smoke tests because PRODUCTION_API_URL is not configured (set repository secret or variable)."
+            exit 0
+          fi
+          python scripts/smoke_test.py "$API_URL"
+
+  rollback-modal:
+    if: github.ref == 'refs/heads/main' && always() && needs.post-deploy-smoke.result == 'failure'
+    needs: [deploy-modal, post-deploy-smoke]
+    runs-on: ubuntu-latest
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.deploy-modal.outputs.rollback_sha }}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.x"
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run modal deploy src/nic/modal_app.py --tag "rollback-${{ needs.deploy-modal.outputs.rollback_sha }}"
+
+  # Railway auto-deploys from GitHub push — no step needed

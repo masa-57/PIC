@@ -1,0 +1,142 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-commands.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(echo $CLAUDE_TOOL_INPUT | jq -r '.file_path // empty'); if echo \"$FILE\" | grep -qE '\\.(env|env\\..*)$|credentials|secrets'; then echo 'BLOCKED: Cannot edit secrets/env files directly. Modify .env.example instead.' >&2; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(echo $CLAUDE_TOOL_INPUT | jq -r '.file_path // empty'); if echo \"$FILE\" | grep -qE '(uv\\.lock|poetry\\.lock|package-lock\\.json)$'; then echo 'BLOCKED: Lock files should not be edited directly. Use uv sync to update dependencies.' >&2; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__postgres__query",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-schema-changes.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(echo $CLAUDE_TOOL_INPUT | jq -r '.file_path // empty'); if [[ \"$FILE\" == *.py ]]; then cd \"$CLAUDE_PROJECT_DIR\" && uv run ruff check --fix \"$FILE\" 2>&1 | head -20 && uv run ruff format \"$FILE\" 2>&1 | head -5; fi",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(echo $CLAUDE_TOOL_INPUT | jq -r '.file_path // empty'); if [[ \"$FILE\" == src/nic/*.py ]]; then cd \"$CLAUDE_PROJECT_DIR\" && uv run mypy \"$FILE\" --ignore-missing-imports 2>&1 | tail -5; fi",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run-related-tests.sh",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-todo-refs.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(echo $CLAUDE_TOOL_INPUT | jq -r '.file_path // empty'); if [[ \"$FILE\" == *.py ]]; then cd \"$CLAUDE_PROJECT_DIR\" && RESULT=$(uv run ruff check --select C901 --config 'lint.mccabe.max-complexity = 8' \"$FILE\" 2>&1 | grep C901); if [ -n \"$RESULT\" ]; then echo \"WARNING: High complexity (threshold 8, project max 12):\"; echo \"$RESULT\" | head -10; fi; fi",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(echo $CLAUDE_TOOL_INPUT | jq -r '.file_path // empty'); if [[ \"$FILE\" != *.py ]]; then exit 0; fi; NEW_TEXT=$(echo $CLAUDE_TOOL_INPUT | jq -r '.new_string // .content // empty'); if [ -z \"$NEW_TEXT\" ]; then exit 0; fi; MATCHES=$(echo \"$NEW_TEXT\" | grep -nE 'except\\s+Exception(\\s+as\\s+\\w+)?\\s*:' | grep -v '# noqa'); if [ -n \"$MATCHES\" ]; then echo \"WARNING: Broad except Exception in $FILE:\"; echo \"$MATCHES\" | head -5; echo 'Catch specific exceptions instead. See CLAUDE.md.'; fi",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'REMINDER: Always run uv run ruff check && uv run mypy src/nic/ --ignore-missing-imports && uv run pytest -m unit before committing. Use async everywhere. DB has_embedding is integer 0/1 not boolean. Never push Docker images locally.'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claudekit-hooks run create-checkpoint"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claudekit-hooks run create-checkpoint"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": []
+  }
+}

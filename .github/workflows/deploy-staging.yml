@@ -1,0 +1,57 @@
+name: Deploy Staging
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [staging]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.x"
+          enable-cache: true
+      - run: uv sync --frozen --extra ml
+      - run: uv run ruff check src/ tests/ scripts/
+      - run: uv run ruff format --check src/ tests/ scripts/
+      - run: uv run mypy src/nic/
+
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.x"
+          enable-cache: true
+      - run: uv sync --frozen --extra ml
+      - run: uv run pytest -m unit -v
+
+  deploy-modal:
+    needs: [lint, unit-test]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-modal-staging
+      cancel-in-progress: false
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.STAGING_MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.STAGING_MODAL_TOKEN_SECRET }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.x"
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run modal deploy src/nic/modal_app.py
+
+  # Railway auto-deploys staging project from staging branch — no step needed

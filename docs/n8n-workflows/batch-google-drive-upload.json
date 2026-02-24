@@ -1,0 +1,495 @@
+{
+  "name": "Batch Upload from Google Drive",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Upload Images for Clustering",
+        "formDescription": "Paste a Google Drive folder URL containing images. All images will be uploaded and clustered automatically.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Google Drive Folder URL",
+              "fieldType": "text",
+              "requiredField": true,
+              "placeholder": "https://drive.google.com/drive/folders/1ABC..."
+            }
+          ]
+        },
+        "respondWith": "text",
+        "responseText": "Upload complete! Your images are being processed. You will receive a notification when clustering is done."
+      },
+      "id": "form-trigger",
+      "name": "Form Trigger",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Google Drive folder ID from URL\n// Handles formats like:\n//   https://drive.google.com/drive/folders/1ABCxyz123\n//   https://drive.google.com/drive/u/0/folders/1ABCxyz123\n//   1ABCxyz123 (raw folder ID)\n\nconst url = $input.first().json['Google Drive Folder URL'].trim();\nlet folderId;\n\nconst match = url.match(/\\/folders\\/([a-zA-Z0-9_-]+)/);\nif (match) {\n  folderId = match[1];\n} else if (/^[a-zA-Z0-9_-]+$/.test(url)) {\n  folderId = url;\n} else {\n  throw new Error('Could not extract folder ID from the URL. Please paste a Google Drive folder link.');\n}\n\nreturn [{ json: { folderId } }];"
+      },
+      "id": "extract-folder-id",
+      "name": "Extract Folder ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "operation": "search",
+        "queryString": "='{{ $json.folderId }}' in parents and trashed = false and (mimeType contains 'image/')",
+        "returnAll": true
+      },
+      "id": "list-images",
+      "name": "List Images",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [440, 0],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-images-found",
+      "name": "Images Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "id": "loop-over-items",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [880, -60]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        }
+      },
+      "id": "download-image",
+      "name": "Download Image",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1100, -60],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "REPLACE_WITH_YOUR_BUCKET_NAME",
+        "fileName": "=images/{{ $json.name || $binary.data.fileName }}",
+        "binaryPropertyName": "data"
+      },
+      "id": "upload-to-r2",
+      "name": "Upload to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [1320, -60],
+      "credentials": {
+        "s3": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Cloudflare R2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "wait-after-upload",
+      "name": "Wait After Upload",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1100, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://REPLACE_WITH_YOUR_API_URL/api/v1/pipeline/run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "trigger-pipeline",
+      "name": "Trigger Pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 160],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "NIC API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "wait-for-processing",
+      "name": "Wait for Processing",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1540, 160]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://REPLACE_WITH_YOUR_API_URL/api/v1/jobs/{{ $('Trigger Pipeline').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "check-status",
+      "name": "Check Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 160],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "NIC API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "is-done",
+      "name": "Is Done?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1980, 160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "failed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "is-failed",
+      "name": "Is Failed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2200, 260]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "msg-success",
+              "name": "message",
+              "value": "=Image clustering complete!\n\nImages discovered: {{ $('Check Status').item.json.result.total_discovered }}\nDuplicates skipped: {{ $('Check Status').item.json.result.duplicates_skipped }}\nImages processed: {{ $('Check Status').item.json.result.images_ingested }}\nL1 groups (near-duplicates): {{ $('Check Status').item.json.result.l1_groups }}\nL2 clusters (visual similarity): {{ $('Check Status').item.json.result.l2_clusters }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "success-message",
+      "name": "Success Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2200, 60]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "msg-failed",
+              "name": "message",
+              "value": "=Pipeline FAILED!\n\nError: {{ $('Check Status').item.json.error }}\n\nJob ID: {{ $('Trigger Pipeline').item.json.id }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "failure-message",
+      "name": "Failure Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2420, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "msg-empty",
+              "name": "message",
+              "value": "No images found in the specified Google Drive folder. Please check the folder URL and try again.",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "no-images-message",
+      "name": "No Images Found",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, 120]
+    }
+  ],
+  "connections": {
+    "Form Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Folder ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Folder ID": {
+      "main": [
+        [
+          {
+            "node": "List Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Images": {
+      "main": [
+        [
+          {
+            "node": "Images Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Images Found?": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Images Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Wait After Upload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image": {
+      "main": [
+        [
+          {
+            "node": "Upload to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to R2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait After Upload": {
+      "main": [
+        [
+          {
+            "node": "Trigger Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Processing": {
+      "main": [
+        [
+          {
+            "node": "Check Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Status": {
+      "main": [
+        [
+          {
+            "node": "Is Done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Done?": {
+      "main": [
+        [
+          {
+            "node": "Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Failed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Failed?": {
+      "main": [
+        [
+          {
+            "node": "Failure Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "NIC",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-01T00:00:00.000Z",
+  "versionId": "1"
+}
