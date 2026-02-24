@@ -1,7 +1,7 @@
 # Staging Environment
 
 This document describes how to set up and maintain a staging environment
-for the NIC project.
+for the PIC project.
 
 ## Overview
 
@@ -17,8 +17,8 @@ reach users. It consists of:
 
 ### Option A: Separate Railway Project
 
-1. Create a new Railway project named `nic-staging` in the Railway dashboard.
-2. Link the same GitHub repository (`masa-57/NIC`).
+1. Create a new Railway project named `pic-staging` in the Railway dashboard.
+2. Link the same GitHub repository (`masa-57/pic`).
 3. Configure auto-deploy from the `staging` branch instead of `main`.
 4. Set all staging environment variables (see Configuration below).
 
@@ -26,7 +26,7 @@ reach users. It consists of:
 
 Railway supports multiple environments within a single project:
 
-1. Open the NIC project in Railway.
+1. Open the PIC project in Railway.
 2. Create a new environment named `staging`.
 3. Configure the `staging` environment to deploy from the `staging` branch.
 4. Set environment-specific variables for staging.
@@ -35,12 +35,12 @@ Railway supports multiple environments within a single project:
 
 Use Neon branching to create an isolated staging database:
 
-1. Open the Neon console and navigate to the NIC project.
+1. Open the Neon console and navigate to the PIC project.
 2. Create a new branch named `staging` from the production branch.
    - This gives staging a copy of the production schema without production data,
      or with a snapshot of production data for realistic testing.
 3. Note the connection string for the staging branch.
-4. Set `NIC_DATABASE_URL` in the staging Railway environment to the staging branch URL.
+4. Set `PIC_DATABASE_URL` in the staging Railway environment to the staging branch URL.
 
 ### Keeping Staging Schema in Sync
 
@@ -56,7 +56,7 @@ To reset staging data to a clean state:
 
 1. Delete the staging branch in Neon.
 2. Create a new branch from production (or from a seed state).
-3. Update `NIC_DATABASE_URL` if the connection string changed.
+3. Update `PIC_DATABASE_URL` if the connection string changed.
 
 ## Staging-Specific Configuration
 
@@ -64,25 +64,25 @@ Set these environment variables in the staging Railway environment:
 
 ```
 # Database (Neon staging branch)
-NIC_DATABASE_URL=postgresql+asyncpg://<staging-neon-url>/nic_staging?sslmode=require
+PIC_DATABASE_URL=postgresql+asyncpg://<staging-neon-url>/pic_staging?sslmode=require
 
 # API
-NIC_API_KEY=<staging-api-key>
-NIC_LOG_LEVEL=DEBUG
-NIC_CORS_ORIGINS=["http://localhost:3000"]
+PIC_API_KEY=<staging-api-key>
+PIC_LOG_LEVEL=DEBUG
+PIC_CORS_ORIGINS=["http://localhost:3000"]
 
 # Object Storage (separate bucket or prefix)
-NIC_S3_BUCKET=nic-images-staging
-NIC_S3_ENDPOINT_URL=<r2-endpoint>
-NIC_S3_ACCESS_KEY_ID=<staging-r2-key>
-NIC_S3_SECRET_ACCESS_KEY=<staging-r2-secret>
+PIC_S3_BUCKET=pic-images-staging
+PIC_S3_ENDPOINT_URL=<r2-endpoint>
+PIC_S3_ACCESS_KEY_ID=<staging-r2-key>
+PIC_S3_SECRET_ACCESS_KEY=<staging-r2-secret>
 
 # Modal (staging tokens)
 MODAL_TOKEN_ID=<staging-modal-token-id>
 MODAL_TOKEN_SECRET=<staging-modal-token-secret>
 
 # Sentry (optional, separate project)
-NIC_SENTRY_DSN=<staging-sentry-dsn>
+PIC_SENTRY_DSN=<staging-sentry-dsn>
 ```
 
 ## CI Workflow for Staging Deploys

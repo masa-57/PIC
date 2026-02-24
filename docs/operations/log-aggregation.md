@@ -1,12 +1,12 @@
 # Log Aggregation
 
-This document describes the NIC project's logging configuration, Railway's built-in
+This document describes the PIC project's logging configuration, Railway's built-in
 log viewer, and recommended external log aggregation services.
 
 ## Current Logging Configuration
 
-NIC uses Python's standard `logging` module with a custom `JSONFormatter`
-(defined in `src/nic/core/logging.py`). In production, all log output is
+PIC uses Python's standard `logging` module with a custom `JSONFormatter`
+(defined in `src/pic/core/logging.py`). In production, all log output is
 structured JSON written to stdout.
 
 ### Log Format
@@ -17,7 +17,7 @@ Each log entry is a JSON object with the following fields:
 {
   "timestamp": "2025-01-15T10:30:00.123456+00:00",
   "level": "INFO",
-  "logger": "nic.api.routes.images",
+  "logger": "pic.api.routes.images",
   "message": "Image ingested successfully",
   "request_id": "abc-123-def"
 }
@@ -34,8 +34,8 @@ Each log entry is a JSON object with the following fields:
 
 ### Configuration
 
-The log level is controlled by the `NIC_LOG_LEVEL` environment variable
-(default: `INFO`). The `setup_logging()` function in `src/nic/core/logging.py`
+The log level is controlled by the `PIC_LOG_LEVEL` environment variable
+(default: `INFO`). The `setup_logging()` function in `src/pic/core/logging.py`
 configures the root logger and quiets noisy libraries (`httpcore`, `httpx`,
 `transformers`).
 
@@ -91,7 +91,7 @@ Railway supports log drains that forward application logs to external services.
 
 ### Setup Steps
 
-1. Open the Railway dashboard and navigate to the NIC project settings.
+1. Open the Railway dashboard and navigate to the PIC project settings.
 2. Go to **Settings** > **Log Drains** (or configure at the service level).
 3. Add a new log drain with the destination URL provided by your log service:
    - **Datadog**: Use the Datadog HTTP log intake endpoint with your API key.
@@ -107,10 +107,10 @@ log streams separate. Configure the log level per environment:
 
 ```
 # Production
-NIC_LOG_LEVEL=INFO
+PIC_LOG_LEVEL=INFO
 
 # Staging / Development
-NIC_LOG_LEVEL=DEBUG
+PIC_LOG_LEVEL=DEBUG
 ```
 
 ## Log Format Reference
@@ -121,11 +121,11 @@ All application logs follow the JSON format described above. Key log sources:
 
 | Logger | Purpose |
 |--------|---------|
-| `nic.api.*` | API request handling, route-level logging |
-| `nic.services.*` | Business logic (clustering, embedding, ingestion) |
-| `nic.core.database` | Database connection pool events |
-| `nic.core.auth` | Authentication and authorization |
-| `nic.core.rate_limit` | Rate limiting events |
+| `pic.api.*` | API request handling, route-level logging |
+| `pic.services.*` | Business logic (clustering, embedding, ingestion) |
+| `pic.core.database` | Database connection pool events |
+| `pic.core.auth` | Authentication and authorization |
+| `pic.core.rate_limit` | Rate limiting events |
 
 ### Filtering by Request ID
 
@@ -137,5 +137,5 @@ a specific request across all log entries:
 @request_id:abc-123-def
 
 # Example query (Loki / LogQL)
-{app="nic-api"} |= "abc-123-def"
+{app="pic-api"} |= "abc-123-def"
 ```

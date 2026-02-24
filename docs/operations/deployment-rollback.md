@@ -1,12 +1,12 @@
 # Deployment Rollback Procedures
 
-This document covers rollback procedures for all NIC infrastructure components.
+This document covers rollback procedures for all PIC infrastructure components.
 
 ## Railway API Rollback
 
 Railway maintains a history of deployments. To roll back:
 
-1. Open the Railway dashboard and navigate to the NIC project.
+1. Open the Railway dashboard and navigate to the PIC project.
 2. Select the API service.
 3. Go to the **Deployments** tab.
 4. Find the last known-good deployment and click **Redeploy**.
@@ -30,7 +30,7 @@ Modal deployments are triggered by CI/CD on push to `main`. To roll back:
 ```bash
 git checkout <good-commit-sha>
 uv sync --frozen
-uv run modal deploy src/nic/modal_app.py
+uv run modal deploy src/pic/modal_app.py
 ```
 
 Alternatively, revert the offending commit on `main` and let CI/CD redeploy:
@@ -72,19 +72,19 @@ python3 scripts/rollback_check.py
 - Always take a logical backup before running `alembic downgrade` in production.
 - Some migrations may not be fully reversible (e.g., data migrations that drop columns).
   Review the downgrade function before running.
-- Set `NIC_DATABASE_URL` to the target database before running Alembic commands.
+- Set `PIC_DATABASE_URL` to the target database before running Alembic commands.
 
 ## Neon Point-in-Time Recovery
 
 Neon supports branching and point-in-time recovery (PITR):
 
-1. Open the Neon console and select the NIC project.
+1. Open the Neon console and select the PIC project.
 2. Navigate to **Branches**.
 3. Create a new branch from a point in time before the incident:
    - Select the production branch as the parent.
    - Set the restore point timestamp (UTC).
 4. Verify data integrity on the new branch by running smoke tests against it.
-5. Once verified, update `NIC_DATABASE_URL` to point to the restored branch.
+5. Once verified, update `PIC_DATABASE_URL` to point to the restored branch.
 6. Redeploy the API (Railway) and workers (Modal) with the updated URL.
 
 ### Neon Branch Cleanup

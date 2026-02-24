@@ -1,10 +1,10 @@
 # Database Backup and Restore Runbook
 
-This runbook defines the minimum backup and restore process for the NIC PostgreSQL database.
+This runbook defines the minimum backup and restore process for the PIC PostgreSQL database.
 
 ## Scope
 
-- Primary database: Neon PostgreSQL configured via `NIC_POSTGRES_URL`.
+- Primary database: Neon PostgreSQL configured via `PIC_POSTGRES_URL`.
 - Goal: ensure recoverability from operator error, bad deploy, and data corruption.
 
 ## Backup Policy
@@ -20,13 +20,13 @@ This runbook defines the minimum backup and restore process for the NIC PostgreS
 ## Prerequisites
 
 1. `pg_dump` and `psql` are installed locally.
-2. `NIC_POSTGRES_URL` is set to the target database.
+2. `PIC_POSTGRES_URL` is set to the target database.
 3. Use a credential with read access for backup and write access for restore.
 
 ## Create Backup
 
 ```bash
-make backup-db NIC_POSTGRES_URL="$NIC_POSTGRES_URL"
+make backup-db PIC_POSTGRES_URL="$PIC_POSTGRES_URL"
 ```
 
 The command writes a timestamped `.sql` file under `backups/`.
@@ -37,8 +37,8 @@ Important: restore to a staging/temporary database first whenever possible.
 
 ```bash
 make restore-db \
-  NIC_POSTGRES_URL="$NIC_POSTGRES_URL" \
-  BACKUP_FILE=backups/nic_YYYYMMDD_HHMMSS.sql
+  PIC_POSTGRES_URL="$PIC_POSTGRES_URL" \
+  BACKUP_FILE=backups/pic_YYYYMMDD_HHMMSS.sql
 ```
 
 ## Restore Verification Checklist

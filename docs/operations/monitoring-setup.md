@@ -1,10 +1,10 @@
 # Monitoring Setup
 
-This document describes how to monitor the NIC API using Prometheus and Grafana.
+This document describes how to monitor the PIC API using Prometheus and Grafana.
 
 ## Metrics Endpoint
 
-The NIC API exposes a `/metrics` endpoint via `prometheus-fastapi-instrumentator`.
+The PIC API exposes a `/metrics` endpoint via `prometheus-fastapi-instrumentator`.
 This endpoint returns metrics in Prometheus text exposition format.
 
 To verify locally:
@@ -60,11 +60,11 @@ Add the following to your `prometheus.yml`:
 
 ```yaml
 scrape_configs:
-  - job_name: "nic-api"
+  - job_name: "pic-api"
     scrape_interval: 15s
     metrics_path: /metrics
     static_configs:
-      - targets: ["<NIC_API_HOST>:<PORT>"]
+      - targets: ["<PIC_API_HOST>:<PORT>"]
         labels:
           environment: "production"
 ```
