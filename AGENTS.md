@@ -10,7 +10,7 @@ This file provides context and instructions for AI coding agents working with th
 ## Project Overview
 
 PIC is a hierarchical image clustering API for product catalog images. Two-level clustering:
-- **Level 1**: Near-duplicate detection (same product, different angles) via perceptual hashing
+- **Level 1**: Near-duplicate detection (same product, different angles) via HDBSCAN on DINOv2 cosine distance
 - **Level 2**: Semantic similarity (visually similar products) via DINOv2 embeddings + UMAP + HDBSCAN
 
 ## Commands
@@ -80,7 +80,7 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 
 **Google Drive sync flow**: `POST /api/v1/gdrive/sync` or automatic via Modal cron (every 15 min). Tier 1 (CPU cron) checks GDrive for new images -> if found, spawns Tier 2 (GPU worker) that downloads images, computes hashes + embeddings, uploads to S3, moves processed files to GDrive `processed/` subfolder, then runs clustering. Uses same advisory lock as pipeline.
 
-**Key tech choices**: DINOv2 (visual similarity without text bias), pgvector (single DB for metadata + vectors), UMAP + HDBSCAN (60% quality gain over raw high-dim clustering), pHash for L1 (deterministic, fast), Modal (serverless GPU).
+**Key tech choices**: DINOv2 (visual similarity without text bias), pgvector (single DB for metadata + vectors), UMAP + HDBSCAN (60% quality gain over raw high-dim clustering), HDBSCAN on DINOv2 cosine distance for L1 (density-based near-duplicate grouping), pHash for duplicate search API, Modal (serverless GPU).
 
 ## Code Structure
 
