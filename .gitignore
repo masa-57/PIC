@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Data (runtime)
+data/
+
+# CDK
+infra/cdk.out/
+infra/cdk.context.json
+infra/.venv/
+
+# Lambda vendor deps (installed via pip during build)
+infra/lambda/psycopg2/
+infra/lambda/psycopg2_binary*/
+
+# Test images (too large for git — add locally)
+tests/fixtures/images/
+
+# Test / Coverage
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Generated output
+clusters.html
+cluster_visualization.html
+
+# Generated guides and their generators (local only)
+scripts/generate_*_guide.py
+docs/*-guide.docx
+docs/*-guide.md
+
+# Claude Code plugins (cloned third-party repos)
+.claude/plugins/
+
+# Service account credentials
+docs/*service-account*.json
+docs/composite-shard-*.json
+
+# uv
+# uv.lock should be committed for reproducible builds
+docs/~
