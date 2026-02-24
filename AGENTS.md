@@ -1,5 +1,10 @@
 # PIC -- Hierarchical Image Clustering API
 
+> **Note for human contributors:** This file provides structured context for AI
+> coding assistants (Claude Code, Cursor, GitHub Copilot Workspace, etc.). You
+> can safely ignore it -- everything here is also covered in
+> [README.md](README.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the docs.
+
 This file provides context and instructions for AI coding agents working with this repository.
 
 ## Project Overview

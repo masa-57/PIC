@@ -15,29 +15,99 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7
         with:
           version: "0.9.x"
           enable-cache: true
       - run: uv sync --frozen --extra ml
       - run: uv run ruff check src/ tests/ scripts/
       - run: uv run ruff format --check src/ tests/ scripts/
+      - run: uv lock --check
       - run: uv run mypy src/pic/
+      - run: uv run pip-audit
 
   unit-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7
         with:
           version: "0.9.x"
           enable-cache: true
       - run: uv sync --frozen --extra ml
       - run: uv run pytest -m unit -v
 
+  container-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Build Railway image for scan
+        run: docker build -f Dockerfile.railway -t pic-api:scan .
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
+        with:
+          image-ref: pic-api:scan
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          scanners: vuln
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+  integration-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: pic_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7
+        with:
+          version: "0.9.x"
+          enable-cache: true
+      - run: uv sync --frozen --extra ml
+      - name: Ensure pgvector extension exists
+        run: |
+          uv run python - <<'PY'
+          import time
+
+          import psycopg2
+
+          dsn = "postgresql://postgres:test@localhost:5432/pic_test"
+          last_error = None
+          for _ in range(10):
+              try:
+                  conn = psycopg2.connect(dsn)
+                  conn.autocommit = True
+                  with conn.cursor() as cur:
+                      cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+                  conn.close()
+                  break
+              except psycopg2.OperationalError as exc:
+                  last_error = exc
+                  time.sleep(1)
+          else:
+              raise SystemExit(f"Failed to initialize pgvector extension: {last_error}")
+          PY
+      - name: Apply migrations before integration tests
+        run: uv run alembic upgrade head
+        env:
+          PIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/pic_test
+      - name: Run integration tests
+        run: uv run pytest -m integration -v
+        env:
+          PIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/pic_test
+
   deploy-modal:
-    needs: [lint, unit-test]
+    needs: [lint, unit-test, integration-test, container-scan]
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-modal-staging
@@ -46,8 +116,8 @@ jobs:
       MODAL_TOKEN_ID: ${{ secrets.STAGING_MODAL_TOKEN_ID }}
       MODAL_TOKEN_SECRET: ${{ secrets.STAGING_MODAL_TOKEN_SECRET }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7
         with:
           version: "0.9.x"
           enable-cache: true
