@@ -42,14 +42,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Sentry error tracking enabled")
     if settings.cors_origins == ["*"]:
         logger.warning("CORS is set to allow all origins — restrict cors_origins in production")
-    logger.info("NIC starting up")
+    logger.info("PIC starting up")
     yield
     await engine.dispose()
-    logger.info("NIC shut down")
+    logger.info("PIC shut down")
 
 
 app = FastAPI(
-    title="NIC — Image Clustering API",
+    title="PIC — Image Clustering API",
     description="Hierarchical image clustering with near-duplicate detection and semantic similarity",
     version="0.1.0",
     lifespan=lifespan,
