@@ -92,19 +92,17 @@ Neon supports branching and point-in-time recovery (PITR):
 After confirming the restored branch is stable, delete the old (corrupt) branch
 from the Neon console to avoid confusion and unnecessary storage usage.
 
-## Emergency Contacts and Escalation
+## Incident Response
 
-| Level | Action | Contact |
-|-------|--------|---------|
-| L1 | Service degradation detected | On-call engineer via team Slack channel |
-| L2 | Rollback required, data intact | Engineering lead |
-| L3 | Data loss or corruption | Engineering lead + database admin |
+For self-hosted deployments, follow the procedures above and adapt the
+escalation to your team's incident response process.
 
-### Escalation Procedure
+### General Steps
 
 1. Detect the issue (monitoring alerts, user reports, or smoke test failures).
 2. Assess severity: is the service down, degraded, or is data at risk?
 3. If data is at risk, freeze write traffic immediately (disable API key or scale to zero).
 4. Execute the appropriate rollback procedure above.
-5. Notify stakeholders via the team Slack channel.
-6. After resolution, write a postmortem documenting timeline, root cause, and follow-up actions.
+5. After resolution, document the timeline, root cause, and follow-up actions.
+
+If you discover a security-impacting incident, see [SECURITY.md](../../SECURITY.md).

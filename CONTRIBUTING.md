@@ -13,8 +13,8 @@ Thank you for your interest in contributing to PIC (Product Image Clustering).
 
 ```bash
 # Clone and install
-git clone https://github.com/masa-57/pic.git
-cd pic
+git clone https://github.com/masa-57/PIC.git
+cd PIC
 uv sync --extra ml
 
 # Start PostgreSQL with pgvector
@@ -94,6 +94,14 @@ All four must pass.
 ## Reporting Issues
 
 Use [GitHub Issues](https://github.com/masa-57/pic/issues) for bug reports and feature requests. For security vulnerabilities, see [SECURITY.md](SECURITY.md).
+
+## Suggesting Features
+
+Check [ROADMAP.md](ROADMAP.md) first -- items listed there are already planned and contributions are welcome. For new ideas, open a GitHub Issue using the Feature Request template.
+
+## AI Coding Assistants
+
+An `AGENTS.md` file provides structured context for AI coding assistants (Claude Code, Cursor, etc.). Human contributors can ignore it -- everything there is also covered in this guide and the README.
 
 ## Code of Conduct
 

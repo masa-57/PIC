@@ -12,9 +12,5 @@ assignees: ""
 ## Proposed Improvement
 <!-- What should change and why? -->
 
-## Affected Files
-<!-- Which files would need changes? (optional) -->
--
-
-## Severity
-<!-- One of: critical, high, medium, low -->
+## Impact
+<!-- What area does this improve? (performance, code quality, developer experience, etc.) -->

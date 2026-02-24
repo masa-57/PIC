@@ -20,14 +20,11 @@ assignees: ""
 ## Actual Behavior
 <!-- What actually happened? Include error messages or logs if available. -->
 
-## Affected Files
-<!-- Which files are involved? (optional) -->
--
-
-## Severity
-<!-- One of: critical, high, medium, low -->
+## Additional Context
+<!-- Any other information that might be helpful? Screenshots, logs, configuration details... -->
 
 ## Environment
-- Branch:
+- PIC version:
 - Python version:
 - Platform:
+- Deployment (Railway / Docker / local):
