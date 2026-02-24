@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial open-source release of PIC (Product Image Clustering)
-- Two-level hierarchical clustering: pHash (L1) + DINOv2/HDBSCAN (L2)
+- Two-level hierarchical clustering: HDBSCAN on DINOv2 cosine distance (L1) + UMAP/HDBSCAN on DINOv2 embeddings (L2)
 - FastAPI REST API with image, cluster, product, search, and pipeline endpoints
 - Modal serverless GPU workers for embedding generation and clustering
 - Google Drive sync integration for automated image ingestion

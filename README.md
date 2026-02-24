@@ -6,7 +6,7 @@
 
 Hierarchical image clustering API for product catalog images. Two-level clustering automatically organizes thousands of product images into meaningful groups:
 
-- **Level 1**: Groups images of the exact same product (different angles, zoom levels) using perceptual hashing
+- **Level 1**: Groups images of the exact same product (different angles, zoom levels) using HDBSCAN on DINOv2 cosine distance
 - **Level 2**: Groups visually similar products (shared design, style, or category) using DINOv2 embeddings + HDBSCAN
 
 ## Features
@@ -54,7 +54,7 @@ API docs available at http://localhost:8000/docs
 
 PIC uses a two-level clustering approach:
 
-1. **Level 1 (L1)** -- Perceptual hashing groups identical products photographed from different angles. Fast, deterministic, and runs on CPU.
+1. **Level 1 (L1)** -- HDBSCAN on DINOv2 cosine distance groups identical products photographed from different angles. Density-based clustering runs on CPU (embeddings computed on GPU).
 2. **Level 2 (L2)** -- DINOv2 embeddings + UMAP dimensionality reduction + HDBSCAN clustering groups visually similar products. Runs on GPU for embedding computation.
 
 **Components**:
@@ -69,7 +69,7 @@ PIC uses a two-level clustering approach:
 **Flows**:
 
 - **Ingestion**: Upload images to S3 `images/` prefix -> compute pHash + DINOv2 embedding -> store vectors in PostgreSQL -> move to `processed/`
-- **Clustering**: Triggered via API or pipeline. Runs UMAP + HDBSCAN on all embedded images.
+- **Clustering**: Triggered via API or pipeline. L1 runs HDBSCAN on DINOv2 cosine distance; L2 runs UMAP + HDBSCAN on DINOv2 embeddings.
 - **Pipeline**: Single endpoint for n8n/automation -- discovers, deduplicates, ingests, and clusters in one call.
 - **Google Drive sync**: Watches a Drive folder, downloads new images, processes them, and syncs to S3.
 
