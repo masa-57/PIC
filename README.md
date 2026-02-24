@@ -28,7 +28,7 @@ Hierarchical image clustering API for product catalog images. Two-level clusteri
 # Prerequisites: Python 3.12, uv, Docker
 
 # Clone the repository
-git clone https://github.com/your-org/PIC.git
+git clone https://github.com/masa-57/PIC.git
 cd PIC
 
 # Install dependencies

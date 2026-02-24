@@ -13,7 +13,6 @@
 Instead, please report vulnerabilities through one of these channels:
 
 1. **GitHub Security Advisories**: Use the "Report a vulnerability" button on the [Security tab](https://github.com/masa-57/pic/security/advisories)
-2. **Email**: Send details to masoud.ahanchian@gmail.com
 
 ### What to Include
 
