@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Hierarchical image clustering API for product catalog images"
 readme = "README.md"
 authors = [
-    { name = "masa-57", email = "m.ahanchian@outlook.com" }
+    { name = "masa-57", email = "118902016+masa-57@users.noreply.github.com" }
 ]
 requires-python = ">=3.12,<3.13"
 dependencies = [

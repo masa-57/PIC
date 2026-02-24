@@ -85,25 +85,21 @@ For production use, an external log aggregation service is recommended.
 - Good for smaller deployments.
 - Setup: Configure a syslog drain in Railway.
 
-## Configuring Log Forwarding from Railway
+## Forwarding Logs to External Services
 
-Railway supports log drains that forward application logs to external services.
+Railway does not natively support log drains. To forward logs to an external
+aggregation service, use one of these approaches:
 
-### Setup Steps
-
-1. Open the Railway dashboard and navigate to the PIC project settings.
-2. Go to **Settings** > **Log Drains** (or configure at the service level).
-3. Add a new log drain with the destination URL provided by your log service:
-   - **Datadog**: Use the Datadog HTTP log intake endpoint with your API key.
-   - **Grafana Loki**: Use the Loki push API endpoint.
-   - **Papertrail**: Use the syslog endpoint (e.g., `logs.papertrailapp.com:<port>`).
-4. Select the services to forward logs from.
-5. Save and verify that logs appear in the external service.
+- **Railway CLI streaming**: Pipe `railway logs` output to your log service.
+- **Application-level forwarding**: Add a Python logging handler that sends
+  logs directly to your aggregation service (e.g., Datadog's `datadog_logger`,
+  Loki's `python-logging-loki`, or Papertrail's `SysLogHandler`).
+- **Railway Observability Integrations**: Check the Railway dashboard for
+  available third-party integrations under project settings.
 
 ### Environment-Specific Configuration
 
-Use different log drains for production and staging environments to keep
-log streams separate. Configure the log level per environment:
+Configure the log level per environment:
 
 ```
 # Production

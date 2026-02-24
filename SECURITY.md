@@ -10,9 +10,7 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Instead, please report vulnerabilities through one of these channels:
-
-1. **GitHub Security Advisories**: Use the "Report a vulnerability" button on the [Security tab](https://github.com/masa-57/pic/security/advisories)
+Instead, please report vulnerabilities using **GitHub Security Advisories**: use the "Report a vulnerability" button on the [Security tab](https://github.com/masa-57/pic/security/advisories).
 
 ### What to Include
 

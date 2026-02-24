@@ -1111,100 +1111,6 @@ wheels = [
 ]
 
 [[package]]
-name = "nic"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "alembic" },
-    { name = "asyncpg" },
-    { name = "boto3" },
-    { name = "fastapi", extra = ["standard"] },
-    { name = "google-api-python-client" },
-    { name = "google-auth" },
-    { name = "imagehash" },
-    { name = "modal" },
-    { name = "numpy" },
-    { name = "pgvector" },
-    { name = "pillow" },
-    { name = "prometheus-fastapi-instrumentator" },
-    { name = "pydantic-settings" },
-    { name = "python-multipart" },
-    { name = "sentry-sdk", extra = ["fastapi", "sqlalchemy"] },
-    { name = "slowapi" },
-    { name = "sqlalchemy", extra = ["asyncio"] },
-    { name = "tenacity" },
-]
-
-[package.optional-dependencies]
-ml = [
-    { name = "numba" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
-    { name = "torch" },
-    { name = "transformers" },
-    { name = "umap-learn" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "coverage" },
-    { name = "httpx" },
-    { name = "moto", extra = ["s3"] },
-    { name = "mypy" },
-    { name = "pip-audit" },
-    { name = "psycopg2-binary" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "testcontainers" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "alembic", specifier = ">=1.14" },
-    { name = "asyncpg", specifier = ">=0.30" },
-    { name = "boto3", specifier = ">=1.35" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.115" },
-    { name = "google-api-python-client", specifier = ">=2.0" },
-    { name = "google-auth", specifier = ">=2.0" },
-    { name = "imagehash", specifier = ">=4.3" },
-    { name = "modal", specifier = ">=1.3.2" },
-    { name = "numba", marker = "extra == 'ml'", specifier = ">=0.59" },
-    { name = "numpy", specifier = ">=1.26" },
-    { name = "pgvector", specifier = ">=0.3" },
-    { name = "pillow", specifier = ">=10.0" },
-    { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0" },
-    { name = "pydantic-settings", specifier = ">=2.0" },
-    { name = "python-multipart", specifier = ">=0.0.9" },
-    { name = "scikit-learn", marker = "extra == 'ml'", specifier = ">=1.4" },
-    { name = "scipy", marker = "extra == 'ml'", specifier = ">=1.12" },
-    { name = "sentry-sdk", extras = ["fastapi", "sqlalchemy"], specifier = ">=2.0" },
-    { name = "slowapi", specifier = ">=0.1.9" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
-    { name = "tenacity", specifier = ">=8.0" },
-    { name = "torch", marker = "extra == 'ml'", specifier = ">=2.2" },
-    { name = "transformers", marker = "extra == 'ml'", specifier = ">=4.40" },
-    { name = "umap-learn", marker = "extra == 'ml'", specifier = ">=0.5.7" },
-]
-provides-extras = ["ml"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "coverage", specifier = ">=7.0" },
-    { name = "httpx", specifier = ">=0.27" },
-    { name = "moto", extras = ["s3"], specifier = ">=5.0" },
-    { name = "mypy", specifier = ">=1.10" },
-    { name = "pip-audit", specifier = ">=2.7" },
-    { name = "psycopg2-binary", specifier = ">=2.9" },
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "pytest-asyncio", specifier = ">=0.24" },
-    { name = "pytest-cov", specifier = ">=5.0" },
-    { name = "ruff", specifier = ">=0.5" },
-    { name = "testcontainers", extras = ["postgres"], specifier = ">=4.0" },
-]
-
-[[package]]
 name = "numba"
 version = "0.63.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1410,6 +1316,100 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/25/6c/6d8b4b03b958c02fa8687ec6063c49d952a189f8c91ebbe51e877dfab8f7/pgvector-0.4.2.tar.gz", hash = "sha256:322cac0c1dc5d41c9ecf782bd9991b7966685dee3a00bc873631391ed949513a", size = 31354, upload-time = "2025-12-05T01:07:17.87Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5a/26/6cee8a1ce8c43625ec561aff19df07f9776b7525d9002c86bceb3e0ac970/pgvector-0.4.2-py3-none-any.whl", hash = "sha256:549d45f7a18593783d5eec609ea1684a724ba8405c4cb182a0b2b08aeff04e08", size = 27441, upload-time = "2025-12-05T01:07:16.536Z" },
+]
+
+[[package]]
+name = "pic"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "alembic" },
+    { name = "asyncpg" },
+    { name = "boto3" },
+    { name = "fastapi", extra = ["standard"] },
+    { name = "google-api-python-client" },
+    { name = "google-auth" },
+    { name = "imagehash" },
+    { name = "modal" },
+    { name = "numpy" },
+    { name = "pgvector" },
+    { name = "pillow" },
+    { name = "prometheus-fastapi-instrumentator" },
+    { name = "pydantic-settings" },
+    { name = "python-multipart" },
+    { name = "sentry-sdk", extra = ["fastapi", "sqlalchemy"] },
+    { name = "slowapi" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "tenacity" },
+]
+
+[package.optional-dependencies]
+ml = [
+    { name = "numba" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+    { name = "torch" },
+    { name = "transformers" },
+    { name = "umap-learn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "coverage" },
+    { name = "httpx" },
+    { name = "moto", extra = ["s3"] },
+    { name = "mypy" },
+    { name = "pip-audit" },
+    { name = "psycopg2-binary" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "testcontainers" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.14" },
+    { name = "asyncpg", specifier = ">=0.30" },
+    { name = "boto3", specifier = ">=1.35" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.115" },
+    { name = "google-api-python-client", specifier = ">=2.0" },
+    { name = "google-auth", specifier = ">=2.0" },
+    { name = "imagehash", specifier = ">=4.3" },
+    { name = "modal", specifier = ">=1.3.2" },
+    { name = "numba", marker = "extra == 'ml'", specifier = ">=0.59" },
+    { name = "numpy", specifier = ">=1.26" },
+    { name = "pgvector", specifier = ">=0.3" },
+    { name = "pillow", specifier = ">=10.0" },
+    { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0" },
+    { name = "pydantic-settings", specifier = ">=2.0" },
+    { name = "python-multipart", specifier = ">=0.0.9" },
+    { name = "scikit-learn", marker = "extra == 'ml'", specifier = ">=1.4" },
+    { name = "scipy", marker = "extra == 'ml'", specifier = ">=1.12" },
+    { name = "sentry-sdk", extras = ["fastapi", "sqlalchemy"], specifier = ">=2.0" },
+    { name = "slowapi", specifier = ">=0.1.9" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
+    { name = "tenacity", specifier = ">=8.0" },
+    { name = "torch", marker = "extra == 'ml'", specifier = ">=2.2" },
+    { name = "transformers", marker = "extra == 'ml'", specifier = ">=4.40" },
+    { name = "umap-learn", marker = "extra == 'ml'", specifier = ">=0.5.7" },
+]
+provides-extras = ["ml"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "coverage", specifier = ">=7.0" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "moto", extras = ["s3"], specifier = ">=5.0" },
+    { name = "mypy", specifier = ">=1.10" },
+    { name = "pip-audit", specifier = ">=2.7" },
+    { name = "psycopg2-binary", specifier = ">=2.9" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-asyncio", specifier = ">=0.24" },
+    { name = "pytest-cov", specifier = ">=5.0" },
+    { name = "ruff", specifier = ">=0.5" },
+    { name = "testcontainers", extras = ["postgres"], specifier = ">=4.0" },
 ]
 
 [[package]]
@@ -2581,14 +2581,14 @@ wheels = [
 
 [[package]]
 name = "werkzeug"
-version = "3.1.5"
+version = "3.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markupsafe" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/70/1469ef1d3542ae7c2c7b72bd5e3a4e6ee69d7978fa8a3af05a38eca5becf/werkzeug-3.1.5.tar.gz", hash = "sha256:6a548b0e88955dd07ccb25539d7d0cc97417ee9e179677d22c7041c8f078ce67", size = 864754, upload-time = "2026-01-08T17:49:23.247Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/61/f1/ee81806690a87dab5f5653c1f146c92bc066d7f4cebc603ef88eb9e13957/werkzeug-3.1.6.tar.gz", hash = "sha256:210c6bede5a420a913956b4791a7f4d6843a43b6fcee4dfa08a65e93007d0d25", size = 864736, upload-time = "2026-02-19T15:17:18.884Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ad/e4/8d97cca767bcc1be76d16fb76951608305561c6e056811587f36cb1316a8/werkzeug-3.1.5-py3-none-any.whl", hash = "sha256:5111e36e91086ece91f93268bb39b4a35c1e6f1feac762c9c822ded0a4e322dc", size = 225025, upload-time = "2026-01-08T17:49:21.859Z" },
+    { url = "https://files.pythonhosted.org/packages/4d/ec/d58832f89ede95652fd01f4f24236af7d32b70cab2196dfcc2d2fd13c5c2/werkzeug-3.1.6-py3-none-any.whl", hash = "sha256:7ddf3357bb9564e407607f988f683d72038551200c704012bb9a4c523d42f131", size = 225166, upload-time = "2026-02-19T15:17:17.475Z" },
 ]
 
 [[package]]
