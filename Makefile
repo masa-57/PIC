@@ -1,4 +1,4 @@
-.PHONY: dev test lint format migrate seed audit backup-db restore-db help
+.PHONY: dev test test-all test-e2e lint format migrate seed audit backup-db restore-db help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -11,7 +11,10 @@ test: ## Run unit tests with coverage
 	uv run pytest -m unit --cov=src/pic --cov-report=term -v
 
 test-all: ## Run all tests
-	uv run pytest -v
+	uv run pytest -m "unit or integration" -v
+
+test-e2e: ## Run e2e tests against running API (set PIC_E2E_BASE_URL)
+	uv run pytest -m e2e -v
 
 lint: ## Run linting and type checks
 	uv run ruff check src/ tests/ scripts/

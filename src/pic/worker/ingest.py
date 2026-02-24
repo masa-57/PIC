@@ -1,5 +1,6 @@
 """Worker task: Process an uploaded image (compute hashes + DINOv2 embedding)."""
 
+import asyncio
 import logging
 
 from sqlalchemy import select
@@ -28,17 +29,17 @@ async def run_ingest(image_id: str) -> None:
         logger.info("Processing image %s (%s)", image_id, image.s3_key)
 
         # Download from S3
-        image_bytes = download_from_s3(image.s3_key)
+        image_bytes = await asyncio.to_thread(download_from_s3, image.s3_key)
 
         # Compute perceptual hashes
-        phash, dhash = compute_hashes(image_bytes)
+        phash, dhash = await asyncio.to_thread(compute_hashes, image_bytes)
         image.phash = phash
         image.dhash = dhash
         image.phash_bits = hex_to_bitstring(phash)
         logger.info("Computed hashes for %s: phash=%s", image_id, phash[:16])
 
         # Compute DINOv2 embedding
-        embedding = compute_embedding(image_bytes)
+        embedding = await asyncio.to_thread(compute_embedding, image_bytes)
         image.embedding = embedding
         image.has_embedding = 1  # type: ignore[assignment]  # DB column is Integer(0/1)
         logger.info("Computed embedding for %s (dim=%d)", image_id, len(embedding))
@@ -58,7 +59,7 @@ async def _move_to_processed(image: Image, db: AsyncSession) -> None:
 
     dest_key = S3_PREFIX_PROCESSED + source_key.removeprefix(S3_PREFIX_INBOX)
     try:
-        move_s3_object(source_key, dest_key)
+        await asyncio.to_thread(move_s3_object, source_key, dest_key)
         image.s3_key = dest_key
         await db.commit()
         logger.info("Moved %s → %s", source_key, dest_key)

@@ -1,6 +1,7 @@
 import hashlib
 import http
 import logging
+import re
 import time
 import uuid
 from collections.abc import AsyncIterator, Callable
@@ -158,11 +159,19 @@ Instrumentator().instrument(app).expose(app, include_in_schema=False, dependenci
 
 
 _ACCESS_LOG_SKIP_PATHS = {"/health", "/health/detailed", "/metrics"}
+_REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+
+def _sanitize_request_id(request_id: str | None) -> str:
+    """Allow only safe request-id characters to prevent header/log injection."""
+    if request_id and _REQUEST_ID_PATTERN.fullmatch(request_id):
+        return request_id
+    return str(uuid.uuid4())
 
 
 @app.middleware("http")
 async def access_log_middleware(request: Request, call_next: Callable[[Request], Any]) -> Response:
-    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+    request_id = _sanitize_request_id(request.headers.get("X-Request-ID"))
     request.state.request_id = request_id
     start = time.perf_counter()
     response: Response = await call_next(request)
@@ -318,7 +327,8 @@ app.include_router(browser_router)
 
 
 @app.get("/health", response_model=HealthOut)
-async def health_check() -> HealthOut:
+@limiter.limit("30/minute")
+async def health_check(request: Request) -> HealthOut:
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -382,3 +392,10 @@ async def detailed_health_check(request: Request) -> DetailedHealthOut:
         stale_jobs_swept=stale_swept,
         connection_pool=PoolStatusOut(**get_pool_status()),
     )
+
+
+def main() -> None:
+    """Console entrypoint for `pic` command."""
+    import uvicorn
+
+    uvicorn.run("pic.main:app", host="127.0.0.1", port=8000)

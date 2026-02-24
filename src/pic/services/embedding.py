@@ -1,5 +1,6 @@
 import io
 import logging
+import threading
 from typing import Any
 
 import imagehash
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 # Module-level cache for the model
 _model = None
 _processor = None
+_model_lock = threading.Lock()
 
 
 def _get_device() -> str:
@@ -28,12 +30,14 @@ def _get_device() -> str:
 def _load_model() -> tuple[Any, Any]:
     global _model, _processor
     if _model is None:
-        device = _get_device()
-        logger.info("Loading DINOv2 model %s on %s", settings.dinov2_model, device)
-        _processor = AutoImageProcessor.from_pretrained(settings.dinov2_model)  # type: ignore[no-untyped-call]
-        _model = AutoModel.from_pretrained(settings.dinov2_model).to(device)
-        _model.eval()
-        logger.info("DINOv2 model loaded")
+        with _model_lock:
+            if _model is None:
+                device = _get_device()
+                logger.info("Loading DINOv2 model %s on %s", settings.dinov2_model, device)
+                _processor = AutoImageProcessor.from_pretrained(settings.dinov2_model)  # type: ignore[no-untyped-call]
+                _model = AutoModel.from_pretrained(settings.dinov2_model).to(device)
+                _model.eval()
+                logger.info("DINOv2 model loaded")
     return _model, _processor
 
 
@@ -96,17 +100,25 @@ def compute_embeddings_batch(images_bytes: list[bytes]) -> list[list[float]]:
     for i in range(0, len(images_bytes), settings.embedding_batch_size):
         batch_bytes = images_bytes[i : i + settings.embedding_batch_size]
         images: list[PILImage.Image] = []
-        for img_bytes in batch_bytes:
-            img: PILImage.Image = PILImage.open(io.BytesIO(img_bytes))
-            validate_pixel_count(img)
-            if img.mode != "RGB":
-                img = img.convert("RGB")
-            images.append(img)
+        try:
+            for img_bytes in batch_bytes:
+                img: PILImage.Image = PILImage.open(io.BytesIO(img_bytes))
+                try:
+                    validate_pixel_count(img)
+                    if img.mode != "RGB":
+                        converted = img.convert("RGB")
+                        img.close()
+                        img = converted
+                    images.append(img)
+                except Exception:
+                    img.close()
+                    raise
 
-        inputs = processor(images=images, return_tensors="pt", padding=True).to(device)
-        for img in images:
-            img.close()
-        del images
+            inputs = processor(images=images, return_tensors="pt", padding=True).to(device)
+        finally:
+            for img in images:
+                img.close()
+            del images
 
         outputs = model(**inputs)
         embeddings = outputs.last_hidden_state[:, 0, :]

@@ -1,7 +1,6 @@
 """GDrive download, deduplication, and per-batch processing logic."""
 
 import asyncio
-import hashlib
 import logging
 import uuid
 
@@ -28,7 +27,7 @@ async def download_and_dedup(
     batch_files: list[GDriveFile],
     processed_folder_id: str,
     max_bytes: int,
-) -> tuple[list[tuple[GDriveFile, bytes]], int, int]:
+) -> tuple[list[tuple[GDriveFile, bytes, str]], int, int]:
     """Download files in parallel and deduplicate. Returns (valid_files, duplicates, errored)."""
 
     async def _download_one(gf: GDriveFile) -> tuple[GDriveFile, bytes | None]:
@@ -41,7 +40,7 @@ async def download_and_dedup(
 
     download_results = await asyncio.gather(*[_download_one(gf) for gf in batch_files])
 
-    valid_files: list[tuple[GDriveFile, bytes]] = []
+    valid_files: list[tuple[GDriveFile, bytes, str]] = []
     duplicates = 0
     errored = 0
     for gfile, file_bytes in download_results:
@@ -62,7 +61,7 @@ async def download_and_dedup(
             duplicates += 1
             continue
 
-        valid_files.append((gfile, file_bytes))
+        valid_files.append((gfile, file_bytes, content_hash))
 
     return valid_files, duplicates, errored
 
@@ -86,7 +85,7 @@ async def process_batch(
         return {"uploaded": uploaded, "duplicates": duplicates, "errored": errored, "bytes": total_bytes}
 
     # GPU batch embedding
-    batch_bytes_list = [fb for _, fb in valid_files]
+    batch_bytes_list = [fb for _, fb, _ in valid_files]
     try:
         embeddings = compute_embeddings_batch(batch_bytes_list)
         del batch_bytes_list
@@ -96,10 +95,9 @@ async def process_batch(
         return {"uploaded": uploaded, "duplicates": duplicates, "errored": errored, "bytes": total_bytes}
 
     # Process each file (hashes, thumbnail, upload, DB record)
-    for (gfile, file_bytes), embedding in zip(valid_files, embeddings, strict=True):
+    for (gfile, file_bytes, content_hash), embedding in zip(valid_files, embeddings, strict=True):
         try:
             image_id = str(uuid.uuid4())
-            content_hash = hashlib.sha256(file_bytes).hexdigest()
 
             phash, dhash = compute_hashes(file_bytes)
             width, height = get_image_dimensions(file_bytes)

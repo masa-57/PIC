@@ -188,7 +188,7 @@ class SearchRequest(BaseModel):
 
 class DuplicateSearchRequest(BaseModel):
     image_id: str
-    threshold: int | None = Field(None, ge=1, le=256)  # Override L1 hash threshold
+    threshold: int | None = Field(None, ge=0, le=256)  # Override L1 hash threshold
 
 
 class SearchResultsOut(BaseModel):
