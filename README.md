@@ -9,6 +9,10 @@ Hierarchical image clustering API for product catalog images. Two-level clusteri
 - **Level 1**: Groups images of the exact same product (different angles, zoom levels) using HDBSCAN on DINOv2 cosine distance
 - **Level 2**: Groups visually similar products (shared design, style, or category) using DINOv2 embeddings + HDBSCAN
 
+<p align="center">
+  <img src="docs/images/pipeline-demo.svg" alt="PIC Pipeline Demo" width="900"/>
+</p>
+
 ## Features
 
 - Two-level hierarchical clustering (near-duplicate detection + semantic similarity)
@@ -51,6 +55,10 @@ uv run fastapi dev src/pic/main.py
 API docs available at http://localhost:8000/docs
 
 ## Architecture
+
+<p align="center">
+  <img src="docs/images/architecture.svg" alt="PIC Architecture" width="900"/>
+</p>
 
 PIC uses a two-level clustering approach:
 

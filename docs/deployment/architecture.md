@@ -2,6 +2,8 @@
 
 PIC (Product Image Clustering) consists of four main components that can be deployed on any infrastructure.
 
+![Architecture Diagram](../images/architecture.svg)
+
 ## Components
 
 ```

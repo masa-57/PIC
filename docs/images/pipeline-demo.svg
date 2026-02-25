@@ -1,0 +1,267 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes fadeSlideIn {
+      0% { opacity: 0; transform: translateY(10px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    @keyframes drawLine {
+      0% { stroke-dashoffset: 100; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes scatter {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+    @keyframes colorShift {
+      0% { fill: #94a3b8; }
+      100% { fill: #f59e0b; }
+    }
+
+    .step1 { animation: fadeSlideIn 0.6s ease-out 0.5s both; }
+    .step2 { animation: fadeSlideIn 0.6s ease-out 2s both; }
+    .step3 { animation: fadeSlideIn 0.6s ease-out 4s both; }
+    .step4 { animation: fadeSlideIn 0.6s ease-out 6s both; }
+    .step5 { animation: fadeSlideIn 0.6s ease-out 8s both; }
+
+    .arrow1 { animation: fadeSlideIn 0.4s ease-out 1.5s both; }
+    .arrow2 { animation: fadeSlideIn 0.4s ease-out 3.5s both; }
+    .arrow3 { animation: fadeSlideIn 0.4s ease-out 5.5s both; }
+    .arrow4 { animation: fadeSlideIn 0.4s ease-out 7.5s both; }
+
+    .dot-scatter { animation: scatter 0.3s ease-out both; }
+    .cluster-color { animation: colorShift 0.5s ease-out both; }
+  </style>
+
+  <!-- Background -->
+  <rect width="1000" height="500" rx="12" fill="#0f172a"/>
+
+  <!-- Title -->
+  <text x="500" y="38" text-anchor="middle" fill="#f8fafc" font-size="18" font-weight="600">PIC Pipeline — From Raw Images to Organised Catalogue</text>
+  <text x="500" y="56" text-anchor="middle" fill="#64748b" font-size="11">Fully automated · No manual tagging · No human in the loop</text>
+
+  <!-- ===== STEP 1: Raw Images ===== -->
+  <g class="step1">
+    <text x="100" y="100" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="700" letter-spacing="1.5">STEP 1</text>
+    <text x="100" y="116" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">Raw Images</text>
+
+    <!-- Scattered image placeholders -->
+    <rect x="30" y="135" width="48" height="48" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <rect x="34" y="139" width="40" height="28" rx="2" fill="#334155"/>
+    <circle cx="44" cy="150" r="4" fill="#f87171" opacity="0.7"/>
+    <polygon points="40,163 54,148 64,163" fill="#4ade80" opacity="0.5"/>
+
+    <rect x="85" y="145" width="48" height="48" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <rect x="89" y="149" width="40" height="28" rx="2" fill="#334155"/>
+    <circle cx="99" cy="160" r="5" fill="#60a5fa" opacity="0.7"/>
+    <polygon points="95,173 109,158 119,173" fill="#a78bfa" opacity="0.5"/>
+
+    <rect x="42" y="195" width="48" height="48" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <rect x="46" y="199" width="40" height="28" rx="2" fill="#334155"/>
+    <circle cx="56" cy="210" r="4" fill="#fbbf24" opacity="0.7"/>
+
+    <rect x="97" y="205" width="48" height="48" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <rect x="101" y="209" width="40" height="28" rx="2" fill="#334155"/>
+    <polygon points="107,233 121,218 131,233" fill="#f87171" opacity="0.5"/>
+
+    <rect x="55" y="260" width="48" height="48" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <rect x="59" y="264" width="40" height="28" rx="2" fill="#334155"/>
+    <circle cx="69" cy="275" r="5" fill="#34d399" opacity="0.7"/>
+
+    <text x="100" y="330" text-anchor="middle" fill="#64748b" font-size="10">50,000 untagged images</text>
+    <text x="100" y="344" text-anchor="middle" fill="#475569" font-size="9">No structure, no labels</text>
+  </g>
+
+  <!-- Arrow 1 -->
+  <g class="arrow1">
+    <line x1="160" y1="220" x2="195" y2="220" stroke="#f59e0b" stroke-width="2"/>
+    <polygon points="195,215 205,220 195,225" fill="#f59e0b"/>
+  </g>
+
+  <!-- ===== STEP 2: DINOv2 Embeddings ===== -->
+  <g class="step2">
+    <text x="300" y="100" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="700" letter-spacing="1.5">STEP 2</text>
+    <text x="300" y="116" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">DINOv2 Embeddings</text>
+
+    <rect x="215" y="130" width="170" height="205" rx="8" fill="#1e293b" stroke="#7c3aed" stroke-width="1.5" stroke-opacity="0.5"/>
+
+    <!-- Neural network visualization -->
+    <text x="300" y="155" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="500">Vision Transformer</text>
+
+    <!-- Input layer dots -->
+    <circle cx="240" cy="180" r="4" fill="#f87171" opacity="0.8"/>
+    <circle cx="240" cy="200" r="4" fill="#60a5fa" opacity="0.8"/>
+    <circle cx="240" cy="220" r="4" fill="#4ade80" opacity="0.8"/>
+    <circle cx="240" cy="240" r="4" fill="#fbbf24" opacity="0.8"/>
+    <circle cx="240" cy="260" r="4" fill="#f472b6" opacity="0.8"/>
+
+    <!-- Hidden layer -->
+    <circle cx="290" cy="190" r="3.5" fill="#c4b5fd" opacity="0.6"/>
+    <circle cx="290" cy="210" r="3.5" fill="#c4b5fd" opacity="0.6"/>
+    <circle cx="290" cy="230" r="3.5" fill="#c4b5fd" opacity="0.6"/>
+    <circle cx="290" cy="250" r="3.5" fill="#c4b5fd" opacity="0.6"/>
+
+    <!-- Output layer -->
+    <circle cx="340" cy="195" r="3.5" fill="#a78bfa" opacity="0.8"/>
+    <circle cx="340" cy="215" r="3.5" fill="#a78bfa" opacity="0.8"/>
+    <circle cx="340" cy="235" r="3.5" fill="#a78bfa" opacity="0.8"/>
+
+    <!-- Connections (simplified) -->
+    <line x1="244" y1="180" x2="286" y2="190" stroke="#7c3aed" stroke-width="0.5" opacity="0.3"/>
+    <line x1="244" y1="200" x2="286" y2="210" stroke="#7c3aed" stroke-width="0.5" opacity="0.3"/>
+    <line x1="244" y1="220" x2="286" y2="230" stroke="#7c3aed" stroke-width="0.5" opacity="0.3"/>
+    <line x1="244" y1="240" x2="286" y2="250" stroke="#7c3aed" stroke-width="0.5" opacity="0.3"/>
+    <line x1="244" y1="200" x2="286" y2="190" stroke="#7c3aed" stroke-width="0.5" opacity="0.2"/>
+    <line x1="244" y1="220" x2="286" y2="210" stroke="#7c3aed" stroke-width="0.5" opacity="0.2"/>
+    <line x1="294" y1="190" x2="336" y2="195" stroke="#7c3aed" stroke-width="0.5" opacity="0.3"/>
+    <line x1="294" y1="210" x2="336" y2="215" stroke="#7c3aed" stroke-width="0.5" opacity="0.3"/>
+    <line x1="294" y1="230" x2="336" y2="235" stroke="#7c3aed" stroke-width="0.5" opacity="0.3"/>
+    <line x1="294" y1="250" x2="336" y2="235" stroke="#7c3aed" stroke-width="0.5" opacity="0.2"/>
+
+    <!-- Embedding vector -->
+    <rect x="235" y="285" width="130" height="30" rx="4" fill="#2d1b69" stroke="#7c3aed" stroke-width="1"/>
+    <text x="300" y="304" text-anchor="middle" fill="#c4b5fd" font-size="9" font-weight="500">[0.23, 0.87, ..., 0.41]</text>
+    <text x="300" y="330" text-anchor="middle" fill="#64748b" font-size="9.5">768 dimensions per image</text>
+    <text x="300" y="344" text-anchor="middle" fill="#475569" font-size="9">A100 GPU · Modal</text>
+  </g>
+
+  <!-- Arrow 2 -->
+  <g class="arrow2">
+    <line x1="395" y1="220" x2="430" y2="220" stroke="#f59e0b" stroke-width="2"/>
+    <polygon points="430,215 440,220 430,225" fill="#f59e0b"/>
+  </g>
+
+  <!-- ===== STEP 3: Clustering ===== -->
+  <g class="step3">
+    <text x="545" y="100" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="700" letter-spacing="1.5">STEP 3</text>
+    <text x="545" y="116" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">Two-Level Clustering</text>
+
+    <rect x="450" y="130" width="190" height="205" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.5"/>
+
+    <!-- L1 Label -->
+    <text x="545" y="155" text-anchor="middle" fill="#6ee7b7" font-size="10" font-weight="600">L1: Near-Duplicate Detection</text>
+
+    <!-- Cluster 1 (reds) -->
+    <circle cx="485" cy="185" r="5" fill="#f87171"/>
+    <circle cx="496" cy="178" r="5" fill="#ef4444"/>
+    <circle cx="492" cy="192" r="5" fill="#fca5a5"/>
+    <ellipse cx="491" cy="185" rx="18" ry="14" fill="none" stroke="#f87171" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+
+    <!-- Cluster 2 (blues) -->
+    <circle cx="545" cy="182" r="5" fill="#60a5fa"/>
+    <circle cx="556" cy="188" r="5" fill="#3b82f6"/>
+    <circle cx="540" cy="193" r="5" fill="#93c5fd"/>
+    <ellipse cx="547" cy="188" rx="18" ry="14" fill="none" stroke="#60a5fa" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+
+    <!-- Cluster 3 (greens) -->
+    <circle cx="604" cy="180" r="5" fill="#4ade80"/>
+    <circle cx="615" cy="186" r="5" fill="#22c55e"/>
+    <ellipse cx="610" cy="183" rx="16" ry="12" fill="none" stroke="#4ade80" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+
+    <!-- L2 Label -->
+    <text x="545" y="225" text-anchor="middle" fill="#6ee7b7" font-size="10" font-weight="600">L2: Semantic Similarity</text>
+
+    <!-- UMAP reduced space with bigger clusters -->
+    <circle cx="485" cy="260" r="7" fill="#f87171" opacity="0.8"/>
+    <circle cx="505" cy="250" r="7" fill="#fb923c" opacity="0.8"/>
+    <circle cx="495" cy="272" r="7" fill="#fbbf24" opacity="0.8"/>
+    <ellipse cx="495" cy="261" rx="25" ry="20" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.5"/>
+    <text x="495" y="292" text-anchor="middle" fill="#fbbf24" font-size="8">Bags</text>
+
+    <circle cx="570" cy="255" r="7" fill="#60a5fa" opacity="0.8"/>
+    <circle cx="590" cy="262" r="7" fill="#818cf8" opacity="0.8"/>
+    <circle cx="580" cy="275" r="7" fill="#a78bfa" opacity="0.8"/>
+    <ellipse cx="580" cy="264" rx="22" ry="18" fill="none" stroke="#818cf8" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.5"/>
+    <text x="580" y="292" text-anchor="middle" fill="#818cf8" font-size="8">Shoes</text>
+
+    <text x="545" y="318" text-anchor="middle" fill="#64748b" font-size="9.5">HDBSCAN · UMAP</text>
+    <text x="545" y="332" text-anchor="middle" fill="#475569" font-size="9">Atomic transaction rollback</text>
+  </g>
+
+  <!-- Arrow 3 -->
+  <g class="arrow3">
+    <line x1="650" y1="220" x2="685" y2="220" stroke="#f59e0b" stroke-width="2"/>
+    <polygon points="685,215 695,220 685,225" fill="#f59e0b"/>
+  </g>
+
+  <!-- ===== STEP 4: Gemini Tagging ===== -->
+  <g class="step4">
+    <text x="800" y="100" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="700" letter-spacing="1.5">STEP 4</text>
+    <text x="800" y="116" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">AI Tagging &amp; Output</text>
+
+    <rect x="700" y="130" width="195" height="205" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.5"/>
+
+    <text x="798" y="155" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="500">Google Gemini</text>
+
+    <!-- Product card 1 -->
+    <rect x="715" y="165" width="165" height="48" rx="5" fill="#1a1a2e" stroke="#334155" stroke-width="1"/>
+    <rect x="720" y="170" width="30" height="38" rx="3" fill="#334155"/>
+    <circle cx="735" cy="183" r="5" fill="#f87171" opacity="0.6"/>
+    <text x="760" y="183" fill="#e2e8f0" font-size="9" font-weight="500">Leather Crossbody Bag</text>
+    <text x="760" y="196" fill="#64748b" font-size="8">Tags: leather, crossbody, brown</text>
+    <text x="760" y="206" fill="#4ade80" font-size="7.5">Cluster #12 · 8 variants</text>
+
+    <!-- Product card 2 -->
+    <rect x="715" y="220" width="165" height="48" rx="5" fill="#1a1a2e" stroke="#334155" stroke-width="1"/>
+    <rect x="720" y="225" width="30" height="38" rx="3" fill="#334155"/>
+    <circle cx="735" cy="238" r="5" fill="#60a5fa" opacity="0.6"/>
+    <text x="760" y="238" fill="#e2e8f0" font-size="9" font-weight="500">Canvas Sneaker White</text>
+    <text x="760" y="251" fill="#64748b" font-size="8">Tags: canvas, sneaker, white</text>
+    <text x="760" y="261" fill="#4ade80" font-size="7.5">Cluster #7 · 12 variants</text>
+
+    <!-- Product card 3 -->
+    <rect x="715" y="275" width="165" height="48" rx="5" fill="#1a1a2e" stroke="#334155" stroke-width="1"/>
+    <rect x="720" y="280" width="30" height="38" rx="3" fill="#334155"/>
+    <circle cx="735" cy="293" r="5" fill="#4ade80" opacity="0.6"/>
+    <text x="760" y="293" fill="#e2e8f0" font-size="9" font-weight="500">Denim Tote Bag</text>
+    <text x="760" y="306" fill="#64748b" font-size="8">Tags: denim, tote, blue</text>
+    <text x="760" y="316" fill="#4ade80" font-size="7.5">Cluster #3 · 5 variants</text>
+
+    <text x="798" y="344" text-anchor="middle" fill="#64748b" font-size="9">Shopify-ready metadata</text>
+  </g>
+
+  <!-- ===== Bottom bar: Stack ===== -->
+  <g class="step5">
+    <rect x="30" y="380" width="940" height="100" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="500" y="404" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600" letter-spacing="1">TECH STACK</text>
+
+    <!-- Stack items -->
+    <rect x="55" y="418" width="100" height="28" rx="14" fill="#1a1a2e" stroke="#3b82f6" stroke-width="1"/>
+    <text x="105" y="436" text-anchor="middle" fill="#60a5fa" font-size="10">Python 3.12</text>
+
+    <rect x="170" y="418" width="85" height="28" rx="14" fill="#1a1a2e" stroke="#10b981" stroke-width="1"/>
+    <text x="212" y="436" text-anchor="middle" fill="#34d399" font-size="10">FastAPI</text>
+
+    <rect x="270" y="418" width="105" height="28" rx="14" fill="#1a1a2e" stroke="#8b5cf6" stroke-width="1"/>
+    <text x="322" y="436" text-anchor="middle" fill="#a78bfa" font-size="10">pgvector</text>
+
+    <rect x="390" y="418" width="85" height="28" rx="14" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1"/>
+    <text x="432" y="436" text-anchor="middle" fill="#fbbf24" font-size="10">DINOv2</text>
+
+    <rect x="490" y="418" width="95" height="28" rx="14" fill="#1a1a2e" stroke="#ec4899" stroke-width="1"/>
+    <text x="537" y="436" text-anchor="middle" fill="#f472b6" font-size="10">HDBSCAN</text>
+
+    <rect x="600" y="418" width="72" height="28" rx="14" fill="#1a1a2e" stroke="#7c3aed" stroke-width="1"/>
+    <text x="636" y="436" text-anchor="middle" fill="#c4b5fd" font-size="10">Modal</text>
+
+    <rect x="687" y="418" width="82" height="28" rx="14" fill="#1a1a2e" stroke="#06b6d4" stroke-width="1"/>
+    <text x="728" y="436" text-anchor="middle" fill="#22d3ee" font-size="10">Railway</text>
+
+    <rect x="784" y="418" width="80" height="28" rx="14" fill="#1a1a2e" stroke="#f97316" stroke-width="1"/>
+    <text x="824" y="436" text-anchor="middle" fill="#fb923c" font-size="10">Gemini</text>
+
+    <rect x="879" y="418" width="72" height="28" rx="14" fill="#1a1a2e" stroke="#64748b" stroke-width="1"/>
+    <text x="915" y="436" text-anchor="middle" fill="#94a3b8" font-size="10">R2</text>
+
+    <text x="500" y="470" text-anchor="middle" fill="#475569" font-size="9">github.com/masa-57/PIC · Open Source · Built with Claude Code</text>
+  </g>
+</svg>
