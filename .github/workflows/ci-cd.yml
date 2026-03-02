@@ -57,7 +57,7 @@ jobs:
           prune-cache: false
       - run: uv sync --frozen --extra ml
       - run: uv run pytest -m unit --cov=src/pic --cov-report=xml --cov-fail-under=70 -v
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: always()
         with:
           name: coverage-report
@@ -114,7 +114,7 @@ jobs:
         run: uv run pytest -m integration --cov=src/pic --cov-report=xml:coverage-integration.xml --cov-fail-under=45 -v
         env:
           PIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/pic_test
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: always()
         with:
           name: coverage-integration-report
@@ -132,7 +132,7 @@ jobs:
           merge-multiple: true
       - name: Display coverage files
         run: ls -la *.xml
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: combined-coverage
           path: "*.xml"
