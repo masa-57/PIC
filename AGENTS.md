@@ -74,7 +74,7 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 
 **Health checks**: `GET /health` (basic) and `GET /health/detailed` (DB connectivity + recent job failures).
 
-**Rate limiting**: Configured via `PIC_RATE_LIMIT_DEFAULT` and `PIC_RATE_LIMIT_BURST` env vars (slowapi).
+**Rate limiting**: Configured via `PIC_RATE_LIMIT_DEFAULT` and `PIC_RATE_LIMIT_BURST` env vars (slowapi). Supports shared Redis backend via `PIC_RATE_LIMIT_STORAGE_URL` for multi-instance deployments (empty = in-memory).
 
 **R2 lifecycle**: `images/` is an inbox; after successful ingest, objects move to `processed/`. Duplicates (detected by pipeline) move to `rejected/`.
 
@@ -84,8 +84,9 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 
 ## Code Structure
 
-- `src/pic/main.py` -- FastAPI application entry point
+- `src/pic/main.py` -- FastAPI application entry point (lifespan + wiring only)
 - `src/pic/api/` -- FastAPI endpoints (images, clusters, search, jobs, products, gdrive)
+- `src/pic/api/health.py` -- Health check endpoints (`/health`, `/health/detailed`)
 - `src/pic/api/pipeline.py` -- Pipeline endpoint for n8n (batch ingest + dedup + cluster)
 - `src/pic/api/products.py` -- Product CRUD + candidate listing for AI tagging workflow
 - `src/pic/api/deps.py` -- Shared FastAPI dependencies (get_db session)
@@ -102,7 +103,7 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 - `src/pic/worker/helpers.py` -- Advisory lock, job status helpers (`acquire_advisory_lock`, `mark_job_running/failed/completed`)
 - `src/pic/modal_app.py` -- Modal app definition (GPU functions for ingest, clustering, gdrive sync + CPU cron for gdrive check)
 - `src/pic/config.py` -- Pydantic Settings (all `PIC_*` env vars)
-- `src/pic/core/` -- Database engine, structured JSON logging, API key auth
+- `src/pic/core/` -- Database engine, structured JSON logging, API key auth, middleware, exception handlers
 - `src/pic/migrations/` -- Alembic migrations (uses `sync_database_url` from config)
 - `scripts/seed.py` -- Bulk image upload + optional auto-clustering
 - `scripts/visualize.py` -- Generates HTML visualization of cluster results
@@ -116,7 +117,7 @@ Copy `.env.example` to `.env` and fill in values. Key vars: `PIC_DATABASE_URL`, 
 
 Optional observability: `PIC_SENTRY_DSN` (error tracking, empty = disabled). Prometheus metrics are exposed automatically via `prometheus-fastapi-instrumentator`.
 
-Optional Google Drive sync: `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` (service account JSON string), `PIC_GDRIVE_FOLDER_ID` (folder to watch). Both must be set to enable GDrive sync.
+Optional Google Drive sync: `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` (service account JSON string), `PIC_GDRIVE_FOLDER_ID` (folder to watch). Both must be set to enable GDrive sync. OAuth scopes configurable via `PIC_GDRIVE_SCOPES` (default: `["https://www.googleapis.com/auth/drive"]`; use `drive.readonly` if move-to-processed is not needed).
 
 For Modal: run `modal setup` to authenticate, then `modal deploy src/pic/modal_app.py`.
 

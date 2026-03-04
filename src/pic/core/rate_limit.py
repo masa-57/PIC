@@ -21,7 +21,21 @@ def _get_rate_limit_key(request: Request) -> str:
     return get_remote_address(request)
 
 
-limiter = Limiter(
-    key_func=_get_rate_limit_key,
-    default_limits=[settings.rate_limit_default, settings.rate_limit_burst],
-)
+def create_limiter() -> Limiter:
+    """Create a Limiter instance with the configured storage backend.
+
+    When ``rate_limit_storage_url`` is set (e.g. ``redis://localhost:6379``),
+    rate limit counters are stored in the shared backend so all API instances
+    enforce a single set of limits.  When empty, an in-memory store is used
+    (suitable for single-instance deployments and local development).
+    """
+    kwargs: dict[str, object] = {
+        "key_func": _get_rate_limit_key,
+        "default_limits": [settings.rate_limit_default, settings.rate_limit_burst],
+    }
+    if settings.rate_limit_storage_url:
+        kwargs["storage_uri"] = settings.rate_limit_storage_url
+    return Limiter(**kwargs)  # type: ignore[arg-type]
+
+
+limiter = create_limiter()

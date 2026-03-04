@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Support shared rate limit storage for multi-instance deployments (#17)
+- Make Google Drive OAuth scopes configurable (#8)
+
+### Changed
+- Split `main.py` into `core/middleware.py`, `core/exception_handlers.py`, and `api/health.py`
+
 ## [0.1.0] - 2026-02-24
 
 ### Added
