@@ -24,10 +24,24 @@ class GDriveFile:
     parent_id: str
 
 
-def build_drive_service(service_account_json: str) -> Any:  # noqa: ANN401
-    """Initialize Google Drive API client from service account JSON string."""
+def build_drive_service(service_account_json: str, scopes: list[str] | None = None) -> Any:  # noqa: ANN401
+    """Initialize Google Drive API client from service account JSON string.
+
+    Args:
+        service_account_json: JSON string with service account credentials.
+        scopes: OAuth scopes to request.  Defaults to ``settings.gdrive_scopes``
+            (``["https://www.googleapis.com/auth/drive"]``).  The full ``drive``
+            scope is required when move-to-processed is enabled (create folder +
+            move file).  Use ``["https://www.googleapis.com/auth/drive.readonly"]``
+            if you only need read access.
+    """
     from google.oauth2.service_account import Credentials
     from googleapiclient.discovery import build
+
+    if scopes is None:
+        from pic.config import settings
+
+        scopes = settings.gdrive_scopes
 
     try:
         creds_info = json.loads(service_account_json)
@@ -38,7 +52,7 @@ def build_drive_service(service_account_json: str) -> Any:  # noqa: ANN401
     try:
         credentials = Credentials.from_service_account_info(  # type: ignore[no-untyped-call]
             creds_info,
-            scopes=["https://www.googleapis.com/auth/drive"],
+            scopes=scopes,
         )
     except (KeyError, ValueError):
         logger.exception("Service account JSON missing required fields")

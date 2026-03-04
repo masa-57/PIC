@@ -43,10 +43,50 @@ class TestBuildDriveService:
             patch(
                 "google.oauth2.service_account.Credentials.from_service_account_info",
                 return_value=mock_creds,
-            ),
+            ) as mock_from_info,
             patch("googleapiclient.discovery.build", return_value="mock-service") as mock_build,
         ):
             result = build_drive_service('{"type": "service_account", "project_id": "test"}')
 
         assert result == "mock-service"
         mock_build.assert_called_once_with("drive", "v3", credentials=mock_creds)
+        # Verify default scopes from settings are used
+        call_kwargs = mock_from_info.call_args
+        assert "scopes" in call_kwargs.kwargs or len(call_kwargs.args) > 1
+
+    def test_uses_custom_scopes_when_provided(self):
+        """Explicit scopes parameter overrides settings default."""
+        mock_creds = object()
+        custom_scopes = ["https://www.googleapis.com/auth/drive.readonly"]
+        with (
+            patch(
+                "google.oauth2.service_account.Credentials.from_service_account_info",
+                return_value=mock_creds,
+            ) as mock_from_info,
+            patch("googleapiclient.discovery.build", return_value="mock-service"),
+        ):
+            build_drive_service(
+                '{"type": "service_account", "project_id": "test"}',
+                scopes=custom_scopes,
+            )
+
+        mock_from_info.assert_called_once()
+        assert mock_from_info.call_args.kwargs["scopes"] == custom_scopes
+
+    def test_uses_default_scopes_from_settings(self):
+        """When scopes=None, settings.gdrive_scopes is used."""
+        mock_creds = object()
+        default_scopes = ["https://www.googleapis.com/auth/drive"]
+        with (
+            patch(
+                "google.oauth2.service_account.Credentials.from_service_account_info",
+                return_value=mock_creds,
+            ) as mock_from_info,
+            patch("googleapiclient.discovery.build", return_value="mock-service"),
+            patch("pic.config.settings") as mock_settings,
+        ):
+            mock_settings.gdrive_scopes = default_scopes
+            build_drive_service('{"type": "service_account", "project_id": "test"}')
+
+        mock_from_info.assert_called_once()
+        assert mock_from_info.call_args.kwargs["scopes"] == default_scopes
