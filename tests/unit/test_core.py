@@ -95,7 +95,7 @@ class TestSetupLogging:
 @pytest.mark.unit
 class TestRequestIdMiddleware:
     def test_generates_request_id(self, client):
-        with patch("pic.main.engine") as mock_engine:
+        with patch("pic.api.health.engine") as mock_engine:
             mock_conn = AsyncMock()
             mock_conn.execute = AsyncMock()
             mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -105,7 +105,7 @@ class TestRequestIdMiddleware:
             assert "X-Request-ID" in response.headers
 
     def test_preserves_provided_request_id(self, client):
-        with patch("pic.main.engine") as mock_engine:
+        with patch("pic.api.health.engine") as mock_engine:
             mock_conn = AsyncMock()
             mock_conn.execute = AsyncMock()
             mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -115,7 +115,7 @@ class TestRequestIdMiddleware:
             assert response.headers["X-Request-ID"] == "my-custom-id"
 
     def test_rejects_unsafe_request_id(self, client):
-        with patch("pic.main.engine") as mock_engine:
+        with patch("pic.api.health.engine") as mock_engine:
             mock_conn = AsyncMock()
             mock_conn.execute = AsyncMock()
             mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -129,8 +129,8 @@ class TestRequestIdMiddleware:
 class TestDetailedHealthEndpoint:
     def test_detailed_health_ok(self, client):
         with (
-            patch("pic.main.engine") as mock_engine,
-            patch("pic.main.async_session") as mock_session_factory,
+            patch("pic.api.health.engine") as mock_engine,
+            patch("pic.api.health.async_session") as mock_session_factory,
         ):
             mock_conn = AsyncMock()
             mock_conn.execute = AsyncMock()
@@ -152,7 +152,7 @@ class TestDetailedHealthEndpoint:
             assert data["recent_failed_jobs"] == 0
 
     def test_detailed_health_db_error(self, client):
-        with patch("pic.main.engine") as mock_engine:
+        with patch("pic.api.health.engine") as mock_engine:
             # Both engine.connect and async_session will fail, caught by try/except
             mock_engine.connect.side_effect = Exception("connection refused")
 
