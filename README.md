@@ -122,8 +122,10 @@ Copy `.env.example` to `.env` and configure. Key environment variables:
 | `PIC_API_KEY` | API authentication key (required in production unless explicitly disabled) |
 | `PIC_AUTH_DISABLED` | Explicitly allow unauthenticated mode (development only) |
 | `PIC_SENTRY_DSN` | Sentry DSN for error tracking (optional) |
+| `PIC_RATE_LIMIT_STORAGE_URL` | Redis URI for shared rate limiting (optional, empty = in-memory) |
 | `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | Google Drive service account JSON (optional) |
 | `PIC_GDRIVE_FOLDER_ID` | Google Drive folder ID to watch (optional) |
+| `PIC_GDRIVE_SCOPES` | Google Drive OAuth scopes (optional, default: full drive access) |
 
 See `.env.example` for the full list including clustering parameters, embedding settings, and CORS configuration.
 

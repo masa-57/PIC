@@ -21,7 +21,6 @@ For the full list of open issues, see:
 ### Architecture
 
 - API layer contains direct `db.execute()` calls that could be extracted into a service layer
-- `main.py` is overloaded (~380 lines) and could be split into smaller modules
 
 ### Testing
 
