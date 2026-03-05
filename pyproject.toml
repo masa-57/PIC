@@ -36,6 +36,10 @@ dependencies = [
     # Google Drive Sync
     "google-api-python-client>=2.0",
     "google-auth>=2.0",
+    # Google Cloud Storage
+    "google-cloud-storage>=2.0",
+    # HTTP client (URL ingestion)
+    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
