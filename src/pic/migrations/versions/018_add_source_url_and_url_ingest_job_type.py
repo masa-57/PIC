@@ -3,7 +3,7 @@
 - Add nullable source_url VARCHAR(2048) to images table
 - Add URL_INGEST to jobtype enum
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: 06d7586a44c8
 Revises: 9a1210135365
 Create Date: 2026-03-05 10:00:00.000000
 
@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a1b2c3d4e5f6"
+revision: str = "06d7586a44c8"
 down_revision: str | None = "9a1210135365"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

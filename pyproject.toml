@@ -94,7 +94,7 @@ ignore = [
 max-complexity = 12
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101"]           # assert in tests is fine
+"tests/**/*.py" = ["S101", "S105", "S106"]  # assert + hardcoded test secrets are fine
 "scripts/**/*.py" = ["S310", "S603"] # scripts use urllib + subprocess legitimately
 
 [tool.ruff.lint.isort]

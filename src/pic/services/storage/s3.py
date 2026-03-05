@@ -7,7 +7,7 @@ from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError, ConnectionError as BotoConnectionError, EndpointConnectionError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from pic.services.storage.base import StorageBackend, validate_storage_key
+from pic.services.storage.base import validate_storage_key
 
 logger = logging.getLogger(__name__)
 
@@ -102,8 +102,9 @@ class S3StorageBackend:
     def exists(self, key: str) -> bool:
         try:
             self._client.head_object(Bucket=self._bucket, Key=key)
-            return True
         except ClientError as e:
             if e.response["Error"]["Code"] in ("404", "NoSuchKey"):
                 return False
             raise
+        else:
+            return True
