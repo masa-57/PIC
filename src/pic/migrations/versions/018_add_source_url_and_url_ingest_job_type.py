@@ -26,7 +26,7 @@ def upgrade() -> None:
     op.add_column("images", sa.Column("source_url", sa.String(2048), nullable=True))
 
     # Add URL_INGEST to jobtype enum
-    op.execute("ALTER TYPE jobtype ADD VALUE IF NOT EXISTS 'url_ingest'")
+    op.execute("ALTER TYPE jobtype ADD VALUE IF NOT EXISTS 'URL_INGEST'")
 
 
 def downgrade() -> None:

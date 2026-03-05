@@ -1,6 +1,6 @@
 """StorageBackend protocol and shared utilities."""
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from pic.core.constants import S3_PREFIX_INBOX, S3_PREFIX_PROCESSED, S3_PREFIX_REJECTED, S3_PREFIX_THUMBNAILS
 

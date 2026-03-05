@@ -4,7 +4,8 @@ import logging
 
 import boto3
 from botocore.config import Config as BotoConfig
-from botocore.exceptions import ClientError, ConnectionError as BotoConnectionError, EndpointConnectionError
+from botocore.exceptions import ClientError, EndpointConnectionError
+from botocore.exceptions import ConnectionError as BotoConnectionError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from pic.services.storage.base import validate_storage_key
