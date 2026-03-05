@@ -29,9 +29,7 @@ async def download_from_url(url: str) -> bytes:
 
         content_length = response.headers.get("content-length")
         if content_length and int(content_length) > max_bytes:
-            raise ValueError(
-                f"Image exceeds size limit ({int(content_length)} > {max_bytes} bytes)"
-            )
+            raise ValueError(f"Image exceeds size limit ({int(content_length)} > {max_bytes} bytes)")
 
         data = response.content
         if len(data) > max_bytes:
@@ -61,9 +59,7 @@ async def run_url_ingest(job_id: str, urls: list[str], auto_pipeline: bool = Fal
     from pic.worker.image_processing import check_content_duplicate, compute_content_hash, insert_image_record
 
     async with async_session() as db:
-        await db.execute(
-            update(Job).where(Job.id == job_id).values(status=JobStatus.RUNNING)
-        )
+        await db.execute(update(Job).where(Job.id == job_id).values(status=JobStatus.RUNNING))
         await db.commit()
 
         succeeded = 0
@@ -114,9 +110,7 @@ async def run_url_ingest(job_id: str, urls: list[str], auto_pipeline: bool = Fal
                 )
                 if image_id:
                     # Update source_url on the newly created record
-                    await db.execute(
-                        update(Image).where(Image.id == image_id).values(source_url=url)
-                    )
+                    await db.execute(update(Image).where(Image.id == image_id).values(source_url=url))
                     new_image_ids.append(image_id)
                     succeeded += 1
                 else:

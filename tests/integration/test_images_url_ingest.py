@@ -10,7 +10,7 @@ class TestUrlIngestEndpoint:
     async def test_ingest_returns_202_with_job_id(self, client):
         """POST /images/ingest should accept URLs and return a job ID."""
         with patch(
-            "pic.services.modal_dispatch.submit_url_ingest_job",
+            "pic.api.images.submit_url_ingest_job",
             new_callable=AsyncMock,
             return_value="mock-call-id",
         ):
@@ -48,7 +48,7 @@ class TestUrlIngestEndpoint:
     async def test_ingest_multiple_urls(self, client):
         """POST /images/ingest with multiple valid URLs."""
         with patch(
-            "pic.services.modal_dispatch.submit_url_ingest_job",
+            "pic.api.images.submit_url_ingest_job",
             new_callable=AsyncMock,
             return_value="mock-call-id",
         ):

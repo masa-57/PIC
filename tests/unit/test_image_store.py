@@ -132,9 +132,7 @@ class TestPresignedUrl:
 
         mock_s3.get_url.return_value = "https://example.com/signed"
         generate_presigned_url("processed/photo.jpg", expires_in=settings.presigned_url_max_expiry + 9999)
-        mock_s3.get_url.assert_called_once_with(
-            "processed/photo.jpg", expires_in=settings.presigned_url_max_expiry
-        )
+        mock_s3.get_url.assert_called_once_with("processed/photo.jpg", expires_in=settings.presigned_url_max_expiry)
 
     def test_reuses_cached_url_before_ttl_expiry(self, mock_s3):
         mock_s3.get_url.return_value = "https://example.com/signed-1"
