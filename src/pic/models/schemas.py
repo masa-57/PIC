@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TypedDict
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 from pic.models.db import JobStatus, JobType
 
@@ -36,6 +36,7 @@ class ImageOut(BaseModel):
     width: int | None = None
     height: int | None = None
     file_size: int | None = None
+    source_url: str | None = None
     l1_group_id: int | None = None
     product_id: int | None = None
     created_at: datetime
@@ -218,6 +219,19 @@ class JobListOut(BaseModel):
     offset: int = 0
     limit: int = 50
     links: PaginationLinks | None = None
+
+
+# --- URL Ingest ---
+
+
+class UrlIngestRequest(BaseModel):
+    urls: list[HttpUrl] = Field(..., min_length=1, max_length=100)
+    auto_pipeline: bool = False
+
+
+class UrlIngestOut(BaseModel):
+    job_id: str
+    urls_submitted: int
 
 
 # --- Clustering Request ---

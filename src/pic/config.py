@@ -18,11 +18,23 @@ class Settings(BaseSettings):
     db_pool_timeout: int = 30
     db_ssl_ca: str = ""  # Path to custom CA cert for DB TLS verification
 
+    # Storage backend selection
+    storage_backend: str = "s3"  # "s3" | "gcs" | "local"
+
     # Object Storage (Cloudflare R2, S3-compatible)
     s3_bucket: str = "pic-images"
     s3_endpoint_url: str = ""  # R2 endpoint URL
     s3_access_key_id: str = ""  # R2 API token access key
     s3_secret_access_key: str = ""  # R2 API token secret key
+
+    # Google Cloud Storage (required when storage_backend=gcs)
+    gcs_bucket: str = ""
+    gcs_project_id: str = ""
+    gcs_credentials_json: str = ""  # Service account JSON
+
+    # Local filesystem storage (required when storage_backend=local)
+    local_storage_path: Path = Path("data/storage")
+    local_storage_base_url: str = ""  # e.g., http://localhost:8000/files
 
     # Embedding
     dinov2_model: str = "facebook/dinov2-base"
@@ -100,6 +112,14 @@ class Settings(BaseSettings):
             raise ValueError("env must be one of: development, staging, production, test")
         return env
 
+    @field_validator("storage_backend")
+    @classmethod
+    def validate_storage_backend(cls, v: str) -> str:
+        v = v.lower().strip()
+        if v not in {"s3", "gcs", "local"}:
+            raise ValueError("storage_backend must be one of: s3, gcs, local")
+        return v
+
     @field_validator(
         "db_pool_size",
         "db_pool_max_overflow",
@@ -167,6 +187,21 @@ class Settings(BaseSettings):
                     raise ValueError("GDrive JSON must contain 'type' field")
             except json.JSONDecodeError as e:
                 raise ValueError(f"PIC_GDRIVE_SERVICE_ACCOUNT_JSON is not valid JSON: {e}") from e
+        return self
+
+    @model_validator(mode="after")
+    def validate_gcs_credentials(self) -> "Settings":
+        if self.storage_backend == "gcs":
+            if not self.gcs_bucket:
+                raise ValueError("PIC_GCS_BUCKET is required when PIC_STORAGE_BACKEND=gcs")
+            if not self.gcs_credentials_json:
+                raise ValueError("PIC_GCS_CREDENTIALS_JSON is required when PIC_STORAGE_BACKEND=gcs")
+        return self
+
+    @model_validator(mode="after")
+    def validate_local_storage_not_in_production(self) -> "Settings":
+        if self.storage_backend == "local" and self.env == "production":
+            raise ValueError("Local storage backend is not allowed in production")
         return self
 
     @property

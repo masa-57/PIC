@@ -106,22 +106,12 @@ class TestImageDimensions:
 
 @pytest.mark.unit
 class TestMoveS3Object:
-    def test_copies_then_deletes(self, mock_s3):
-        from pic.config import settings
+    def test_delegates_to_backend(self, mock_s3):
         from pic.services.image_store import move_s3_object
 
         move_s3_object("images/photo.jpg", "processed/photo.jpg")
 
-        bucket = settings.s3_bucket
-        mock_s3.copy_object.assert_called_once_with(
-            Bucket=bucket,
-            CopySource={"Bucket": bucket, "Key": "images/photo.jpg"},
-            Key="processed/photo.jpg",
-        )
-        mock_s3.delete_object.assert_called_once_with(
-            Bucket=bucket,
-            Key="images/photo.jpg",
-        )
+        mock_s3.move.assert_called_once_with("images/photo.jpg", "processed/photo.jpg")
 
 
 @pytest.mark.unit
@@ -133,34 +123,31 @@ class TestPresignedUrl:
         _clear_presigned_url_cache()
 
     def test_clamps_negative_expiry(self, mock_s3):
-        from pic.config import settings
-
-        mock_s3.generate_presigned_url.return_value = "https://example.com/signed"
+        mock_s3.get_url.return_value = "https://example.com/signed"
         generate_presigned_url("processed/photo.jpg", expires_in=-30)
-        assert mock_s3.generate_presigned_url.call_args.kwargs["ExpiresIn"] == 1
-        assert settings.presigned_url_max_expiry >= 1
+        mock_s3.get_url.assert_called_once_with("processed/photo.jpg", expires_in=1)
 
     def test_clamps_huge_expiry(self, mock_s3):
         from pic.config import settings
 
-        mock_s3.generate_presigned_url.return_value = "https://example.com/signed"
+        mock_s3.get_url.return_value = "https://example.com/signed"
         generate_presigned_url("processed/photo.jpg", expires_in=settings.presigned_url_max_expiry + 9999)
-        assert mock_s3.generate_presigned_url.call_args.kwargs["ExpiresIn"] == settings.presigned_url_max_expiry
+        mock_s3.get_url.assert_called_once_with("processed/photo.jpg", expires_in=settings.presigned_url_max_expiry)
 
     def test_reuses_cached_url_before_ttl_expiry(self, mock_s3):
-        mock_s3.generate_presigned_url.return_value = "https://example.com/signed-1"
+        mock_s3.get_url.return_value = "https://example.com/signed-1"
         first = generate_presigned_url("processed/photo.jpg", expires_in=120)
 
         # Should return cache hit, not call signer again.
-        mock_s3.generate_presigned_url.return_value = "https://example.com/signed-2"
+        mock_s3.get_url.return_value = "https://example.com/signed-2"
         second = generate_presigned_url("processed/photo.jpg", expires_in=120)
 
         assert first == "https://example.com/signed-1"
         assert second == "https://example.com/signed-1"
-        assert mock_s3.generate_presigned_url.call_count == 1
+        assert mock_s3.get_url.call_count == 1
 
     def test_regenerates_url_after_ttl_window(self, mock_s3):
-        mock_s3.generate_presigned_url.side_effect = [
+        mock_s3.get_url.side_effect = [
             "https://example.com/signed-1",
             "https://example.com/signed-2",
         ]
@@ -172,4 +159,4 @@ class TestPresignedUrl:
 
         assert first == "https://example.com/signed-1"
         assert second == "https://example.com/signed-2"
-        assert mock_s3.generate_presigned_url.call_count == 2
+        assert mock_s3.get_url.call_count == 2
