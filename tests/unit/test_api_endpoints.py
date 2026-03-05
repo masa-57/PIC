@@ -20,6 +20,7 @@ def _make_image(**overrides):
     img.height = overrides.get("height", 600)
     img.file_size = overrides.get("file_size", 102400)
     img.l1_group_id = overrides.get("l1_group_id")
+    img.source_url = overrides.get("source_url")
     img.created_at = overrides.get("created_at", datetime(2026, 1, 1))
     return img
 
