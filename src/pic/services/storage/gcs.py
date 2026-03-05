@@ -25,7 +25,7 @@ class GCSStorageBackend:
 
     def __init__(self, bucket_name: str, project_id: str, credentials_json: str) -> None:
         creds_data = json.loads(credentials_json)
-        credentials = service_account.Credentials.from_service_account_info(creds_data)
+        credentials = service_account.Credentials.from_service_account_info(creds_data)  # type: ignore[no-untyped-call]
         client = storage.Client(project=project_id, credentials=credentials)
         self._bucket = client.bucket(bucket_name)
         self._credentials = credentials
@@ -39,7 +39,7 @@ class GCSStorageBackend:
     @_gcs_retry
     def download(self, key: str) -> bytes:
         blob = self._bucket.blob(key)
-        return blob.download_as_bytes()
+        return bytes(blob.download_as_bytes())
 
     @_gcs_retry
     def delete(self, key: str) -> None:
@@ -64,12 +64,14 @@ class GCSStorageBackend:
 
     def get_url(self, key: str, expires_in: int = 900) -> str:
         blob = self._bucket.blob(key)
-        return blob.generate_signed_url(
+        url: str = blob.generate_signed_url(
             expiration=timedelta(seconds=expires_in),
             credentials=self._credentials,
             version="v4",
         )
+        return url
 
     def exists(self, key: str) -> bool:
         blob = self._bucket.blob(key)
-        return blob.exists()
+        result: bool = blob.exists()
+        return result
