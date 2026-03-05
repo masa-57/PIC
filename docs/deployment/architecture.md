@@ -55,12 +55,19 @@ Stores image metadata, cluster assignments, job state, and 768-dimensional DINOv
 - **Resources**: 1GB+ RAM (scales with dataset size)
 - **Key indexes**: HNSW on embedding column, composite indexes on frequently queried columns
 
-### Object Storage (S3-compatible)
+### Object Storage (Pluggable Backend)
 
-Stores image files. Any S3-compatible service works (tested with Cloudflare R2).
+Stores image files via a pluggable `StorageBackend` protocol. Three implementations are provided:
 
-- **Buckets**: One bucket with `images/`, `processed/`, and `rejected/` prefixes
+| Backend | Config Value | Use Case |
+|---------|-------------|----------|
+| **S3** (default) | `PIC_STORAGE_BACKEND=s3` | Production (Cloudflare R2, MinIO, AWS S3) |
+| **GCS** | `PIC_STORAGE_BACKEND=gcs` | Google Cloud deployments |
+| **Local** | `PIC_STORAGE_BACKEND=local` | Development & testing (serves files at `/files`) |
+
+- **Prefixes**: `images/`, `processed/`, and `rejected/`
 - **Lifecycle**: Images move from `images/` to `processed/` after ingestion, or `rejected/` if duplicate
+- **Local backend**: Not allowed in production environments (validated at startup)
 
 ## Reference Deployments
 
@@ -87,7 +94,7 @@ Any combination of:
 - API: Docker container or direct `uvicorn` process
 - Workers: GPU server with PyTorch + cron/supervisor
 - Database: Any PostgreSQL 16+ with pgvector
-- Storage: MinIO, AWS S3, GCS (via S3 compatibility), or any S3-compatible service
+- Storage: MinIO, AWS S3, Google Cloud Storage (native), or local filesystem for development
 
 ## Environment Variables
 
@@ -97,11 +104,17 @@ All configuration is via environment variables with the `PIC_` prefix.
 |----------|----------|-------------|
 | `PIC_DATABASE_URL` | Yes | PostgreSQL connection string (asyncpg) |
 | `PIC_API_KEY` | Production | API authentication key |
-| `PIC_S3_ENDPOINT_URL` | Yes | S3-compatible endpoint |
-| `PIC_S3_ACCESS_KEY_ID` | Yes | S3 access key |
-| `PIC_S3_SECRET_ACCESS_KEY` | Yes | S3 secret key |
-| `PIC_S3_BUCKET` | Yes | Bucket name (default: `pic-images`) |
+| `PIC_STORAGE_BACKEND` | No | Storage backend: `s3` (default), `gcs`, `local` |
+| `PIC_S3_ENDPOINT_URL` | S3 only | S3-compatible endpoint |
+| `PIC_S3_ACCESS_KEY_ID` | S3 only | S3 access key |
+| `PIC_S3_SECRET_ACCESS_KEY` | S3 only | S3 secret key |
+| `PIC_S3_BUCKET` | S3 only | Bucket name (default: `pic-images`) |
 | `PIC_S3_REGION` | No | Region (default: `auto` for R2) |
+| `PIC_GCS_BUCKET` | GCS only | GCS bucket name |
+| `PIC_GCS_PROJECT_ID` | GCS only | GCS project ID |
+| `PIC_GCS_CREDENTIALS_JSON` | GCS only | Service account JSON |
+| `PIC_LOCAL_STORAGE_PATH` | Local only | Filesystem path (default: `data/storage`) |
+| `PIC_LOCAL_STORAGE_BASE_URL` | Local only | Base URL for file serving |
 | `PIC_CORS_ORIGINS` | No | Allowed CORS origins (comma-separated) |
 | `PIC_LOG_LEVEL` | No | Log level (default: `INFO`) |
 | `PIC_LOG_FORMAT` | No | `json` for structured logging |
