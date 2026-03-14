@@ -1,5 +1,8 @@
 """Modal app definition for PIC GPU workers (ingest + clustering)."""
 
+import uuid
+from datetime import UTC, datetime
+
 import modal
 
 app = modal.App("pic")
@@ -68,6 +71,43 @@ async def _has_inflight_gdrive_sync_job() -> bool:
         return result.scalar_one() > 0
 
 
+async def _create_gdrive_sync_job_if_capacity() -> str | None:
+    """Create a pending GDRIVE_SYNC job if queue depth allows it."""
+    from sqlalchemy import func, select
+
+    from pic.config import settings
+    from pic.core.database import async_session
+    from pic.models.db import Job, JobStatus, JobType
+
+    async with async_session() as db:
+        pending_result = await db.execute(
+            select(func.count()).select_from(Job).where(Job.status.in_([JobStatus.PENDING, JobStatus.RUNNING]))
+        )
+        pending_count = int(pending_result.scalar_one())
+        if pending_count >= settings.job_queue_max_pending:
+            return None
+
+        job_id = str(uuid.uuid4())
+        db.add(Job(id=job_id, type=JobType.GDRIVE_SYNC, status=JobStatus.PENDING))
+        await db.commit()
+        return job_id
+
+
+async def _mark_job_failed(job_id: str, error: str) -> None:
+    from sqlalchemy import update
+
+    from pic.core.database import async_session
+    from pic.models.db import Job, JobStatus
+
+    async with async_session() as db:
+        await db.execute(
+            update(Job)
+            .where(Job.id == job_id)
+            .values(status=JobStatus.FAILED, error=error, completed_at=datetime.now(UTC))
+        )
+        await db.commit()
+
+
 async def _check_gdrive_for_new_files_impl() -> None:
     import logging
 
@@ -89,13 +129,19 @@ async def _check_gdrive_for_new_files_impl() -> None:
         logger.info("GDrive sync already pending/running, skipping GPU worker spawn")
         return
 
-    logger.info("Found %d new files in Google Drive, spawning GPU worker", len(files))
+    job_id = await _create_gdrive_sync_job_if_capacity()
+    if job_id is None:
+        logger.warning("GDrive sync queue is full, skipping GPU worker spawn")
+        return
+
+    logger.info("Found %d new files in Google Drive, spawning GPU worker (job_id=%s)", len(files), job_id)
 
     try:
         fn = modal.Function.from_name("pic", "sync_gdrive_to_r2")
-        fn.spawn()
+        fn.spawn(job_id, None)
     except Exception:
         logger.exception("Failed to spawn GPU worker for GDrive sync")
+        await _mark_job_failed(job_id, "Failed to spawn GPU worker from cron checker")
 
 
 @app.function(
@@ -168,23 +214,12 @@ async def check_gdrive_for_new_files() -> None:
     retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
     secrets=[modal.Secret.from_name("pic-env")],
 )
-async def sync_gdrive_to_r2(job_id: str | None = None, params_json: str | None = None) -> None:
+async def sync_gdrive_to_r2(job_id: str, params_json: str | None = None) -> None:
     """Tier 2 (GPU): Download from GDrive, process, upload to R2, cluster."""
     from pic.config import settings
 
     if not settings.gdrive_folder_id or not settings.gdrive_service_account_json:
         return
-
-    import uuid
-
-    from pic.core.database import async_session
-    from pic.models.db import Job, JobStatus, JobType
-
-    if job_id is None:
-        job_id = str(uuid.uuid4())
-        async with async_session() as db:
-            db.add(Job(id=job_id, type=JobType.GDRIVE_SYNC, status=JobStatus.PENDING))
-            await db.commit()
 
     from pic.worker.gdrive_sync import run_gdrive_sync as _run
 

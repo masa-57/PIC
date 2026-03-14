@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pic.core.constants import ADVISORY_LOCK_ID
 from pic.models.db import Job
 from pic.services.clustering_pipeline import run_full_clustering
-from pic.worker.helpers import mark_job_completed, worker_lifecycle
+from pic.worker.helpers import LockNotAcquiredError, mark_job_completed, worker_lifecycle
 from pic.worker.pipeline_discover import phase_discover_and_dedup
 from pic.worker.pipeline_ingest import phase_batch_ingest
 
@@ -26,10 +26,11 @@ async def run_pipeline(job_id: str, params_json: str | None = None) -> None:
     """Full pipeline: discover → deduplicate → ingest → cluster."""
     params = json.loads(params_json) if params_json else {}
 
-    async with worker_lifecycle(ADVISORY_LOCK_ID, job_id, "Pipeline") as db:
-        if db is None:
-            return
-        await _run_full_pipeline(db, job_id, params)
+    try:
+        async with worker_lifecycle(ADVISORY_LOCK_ID, job_id, "Pipeline") as db:
+            await _run_full_pipeline(db, job_id, params)
+    except LockNotAcquiredError:
+        return
 
 
 async def _run_full_pipeline(db: AsyncSession, job_id: str, params: dict[str, int]) -> None:

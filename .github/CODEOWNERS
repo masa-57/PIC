@@ -1,0 +1,12 @@
+# Default ownership for all files in this repository.
+* @masa-57
+
+# CI/CD workflows
+/.github/workflows/ @masa-57
+
+# API and worker code
+/src/ @masa-57
+
+# Tests and docs
+/tests/ @masa-57
+/docs/ @masa-57

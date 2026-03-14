@@ -21,7 +21,6 @@ For the full list of open issues, see:
 ### Architecture
 
 - API layer contains direct `db.execute()` calls that could be extracted into a service layer
-- `main.py` is overloaded (~380 lines) and could be split into smaller modules
 
 ### Testing
 
@@ -34,7 +33,7 @@ For the full list of open issues, see:
 
 ## Previously Resolved
 
-Multiple audit waves (Waves 1-5) identified and resolved 150+ issues including:
+Multiple reviews identified and resolved 150+ issues including:
 
 - Transaction safety in clustering pipeline
 - Memory optimization for large image sets
@@ -43,5 +42,3 @@ Multiple audit waves (Waves 1-5) identified and resolved 150+ issues including:
 - CI/CD hardening (permissions, rollback mechanism, container scanning)
 - Error response consistency (RFC 7807 ProblemDetail)
 - Presigned URL cache TTL
-
-See the git history for details on resolved items.

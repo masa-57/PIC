@@ -11,40 +11,26 @@ class TestListS3Objects:
     def test_lists_objects_single_page(self, mock_s3):
         from pic.services.image_store import list_s3_objects
 
-        mock_s3.list_objects_v2.return_value = {
-            "Contents": [
-                {"Key": "images/a.jpg"},
-                {"Key": "images/b.png"},
-            ],
-            "IsTruncated": False,
-        }
+        mock_s3.list_objects.return_value = ["images/a.jpg", "images/b.png"]
 
         keys = list_s3_objects("images/")
         assert keys == ["images/a.jpg", "images/b.png"]
+        mock_s3.list_objects.assert_called_once_with("images/")
 
     def test_handles_pagination(self, mock_s3):
+        """Pagination is now handled internally by the storage backend."""
         from pic.services.image_store import list_s3_objects
 
-        mock_s3.list_objects_v2.side_effect = [
-            {
-                "Contents": [{"Key": "images/a.jpg"}],
-                "IsTruncated": True,
-                "NextContinuationToken": "token1",
-            },
-            {
-                "Contents": [{"Key": "images/b.jpg"}],
-                "IsTruncated": False,
-            },
-        ]
+        mock_s3.list_objects.return_value = ["images/a.jpg", "images/b.jpg"]
 
         keys = list_s3_objects("images/")
         assert keys == ["images/a.jpg", "images/b.jpg"]
-        assert mock_s3.list_objects_v2.call_count == 2
+        mock_s3.list_objects.assert_called_once_with("images/")
 
     def test_empty_bucket(self, mock_s3):
         from pic.services.image_store import list_s3_objects
 
-        mock_s3.list_objects_v2.return_value = {"IsTruncated": False}
+        mock_s3.list_objects.return_value = []
 
         keys = list_s3_objects("images/")
         assert keys == []
@@ -53,15 +39,11 @@ class TestListS3Objects:
 @pytest.mark.unit
 class TestDeleteS3Object:
     def test_deletes_object(self, mock_s3):
-        from pic.config import settings
         from pic.services.image_store import delete_s3_object
 
         delete_s3_object("images/photo.jpg")
 
-        mock_s3.delete_object.assert_called_once_with(
-            Bucket=settings.s3_bucket,
-            Key="images/photo.jpg",
-        )
+        mock_s3.delete.assert_called_once_with("images/photo.jpg")
 
 
 @pytest.mark.unit

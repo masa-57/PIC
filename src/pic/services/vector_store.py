@@ -24,7 +24,8 @@ async def find_similar_images(
 ) -> list[SearchResult]:
     """Find similar images using pgvector cosine distance (k-NN)."""
     # Tune HNSW ef_search for recall/speed trade-off (default 40; higher = better recall)
-    await db.execute(text(f"SET LOCAL hnsw.ef_search = {settings.hnsw_ef_search}"))
+    ef_search = max(1, min(int(settings.hnsw_ef_search), 1000))
+    await db.execute(text(f"SET LOCAL hnsw.ef_search = {ef_search}"))  # noqa: S608 - ef_search is clamped int
 
     # Get the query image embedding
     query_result = await db.execute(select(Image).where(Image.id == image_id))

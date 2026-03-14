@@ -48,8 +48,8 @@ class TestGdriveApi:
         assert response.status_code == 202
 
     @pytest.mark.asyncio
-    async def test_trigger_sync_not_configured_returns_503(self) -> None:
-        """POST /gdrive/sync returns 503 when GDrive is not configured."""
+    async def test_trigger_sync_not_configured_returns_400(self) -> None:
+        """POST /gdrive/sync returns 400 when GDrive is not configured."""
         app = _build_app()
 
         with (
@@ -63,5 +63,5 @@ class TestGdriveApi:
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post("/api/v1/gdrive/sync")
 
-        assert response.status_code == 503
+        assert response.status_code == 400
         assert "not configured" in response.json()["detail"]

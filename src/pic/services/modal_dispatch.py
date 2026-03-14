@@ -16,6 +16,7 @@ MODAL_FN_INGEST = "run_ingest"
 MODAL_FN_CLUSTER = "run_cluster"
 MODAL_FN_PIPELINE = "run_pipeline"
 MODAL_FN_GDRIVE_SYNC = "sync_gdrive_to_r2"
+MODAL_FN_URL_INGEST = "run_url_ingest"
 
 _retry = default_retry
 
@@ -59,3 +60,10 @@ async def submit_gdrive_sync_job(job_id: str, params: dict[str, int] | None = No
     """Trigger Modal function to sync from Google Drive. Returns the Modal call ID."""
     params_json = json.dumps(params) if params else None
     return _spawn_modal_job(MODAL_FN_GDRIVE_SYNC, job_id, params_json)
+
+
+@_retry
+async def submit_url_ingest_job(job_id: str, params: dict[str, object] | None = None) -> str:
+    """Trigger Modal function for URL-based image ingest. Returns Modal call ID."""
+    params_json = json.dumps(params) if params else None
+    return _spawn_modal_job(MODAL_FN_URL_INGEST, job_id, params_json)

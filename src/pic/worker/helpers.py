@@ -15,6 +15,10 @@ from pic.models.db import Job, JobStatus
 logger = logging.getLogger(__name__)
 
 
+class LockNotAcquiredError(RuntimeError):
+    """Raised when a worker cannot acquire the global advisory lock."""
+
+
 async def check_modal_job_status(db: AsyncSession) -> int:
     """Check Modal for failed jobs that still appear PENDING/RUNNING in our DB.
 
@@ -174,24 +178,23 @@ async def worker_lifecycle(
     job_id: str,
     worker_name: str,
     statement_timeout: str = "1800s",
-) -> AsyncIterator[AsyncSession | None]:
+) -> AsyncIterator[AsyncSession]:
     """Context manager combining advisory lock, job status, error handling, and statement timeout.
 
     Eliminates boilerplate shared across pipeline, cluster, and gdrive-sync workers:
     1. Opens a DB session
-    2. Acquires an advisory lock (fails job if lock unavailable → yields None)
+    2. Acquires an advisory lock (fails job if lock unavailable → raises LockNotAcquiredError)
     3. Marks job RUNNING
     4. Sets session statement timeout
     5. Yields the session for the caller to do work
     6. On error: rolls back, marks job FAILED, re-raises
     7. Finally: releases advisory lock
 
-    Callers must check for None: ``async with worker_lifecycle(...) as db: if db is None: return``
+    Callers should handle LockNotAcquiredError and exit gracefully.
     """
     async with async_session() as db:
         if not await acquire_advisory_lock(db, lock_id, job_id):
-            yield None
-            return
+            raise LockNotAcquiredError(f"Advisory lock {hex(lock_id)} not acquired for job {job_id}")
 
         try:
             await mark_job_running(db, job_id)

@@ -61,8 +61,11 @@ uv run pytest -m unit -v
 # Integration tests (requires Docker for PostgreSQL)
 uv run pytest -m integration -v
 
-# All tests
-uv run pytest -v
+# Unit + integration tests
+uv run pytest -m "unit or integration" -v
+
+# E2E tests (requires a running API instance)
+PIC_E2E_BASE_URL=http://localhost:8000 uv run pytest -m e2e -v
 ```
 
 Test markers:

@@ -156,3 +156,25 @@ async def test_worker_lifecycle_sets_session_statement_timeout() -> None:
     assert "set local statement_timeout" not in sql_text
     assert db.execute.await_args.args[1]["timeout"] == "30s"
     mock_release.assert_awaited_once_with(db, 0x4E494301)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_worker_lifecycle_raises_when_lock_not_acquired() -> None:
+    from pic.worker.helpers import LockNotAcquiredError, worker_lifecycle
+
+    db = AsyncMock()
+
+    with (
+        patch("pic.worker.helpers.async_session") as mock_session,
+        patch("pic.worker.helpers.acquire_advisory_lock", new_callable=AsyncMock, return_value=False),
+        patch("pic.worker.helpers.release_advisory_lock", new_callable=AsyncMock) as mock_release,
+    ):
+        mock_session.return_value.__aenter__ = AsyncMock(return_value=db)
+        mock_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        with pytest.raises(LockNotAcquiredError):
+            async with worker_lifecycle(0x4E494301, "job-1", "worker"):
+                pass
+
+    mock_release.assert_not_awaited()

@@ -27,6 +27,7 @@ class JobType(enum.StrEnum):
     CLUSTER_FULL = "cluster_full"
     PIPELINE = "pipeline"
     GDRIVE_SYNC = "gdrive_sync"
+    URL_INGEST = "url_ingest"
 
 
 class Image(Base):
@@ -49,6 +50,7 @@ class Image(Base):
     width: Mapped[int | None] = mapped_column(Integer, nullable=True)
     height: Mapped[int | None] = mapped_column(Integer, nullable=True)
     file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     l1_group_id: Mapped[int | None] = mapped_column(ForeignKey("l1_groups.id"), index=True, nullable=True)
     product_id: Mapped[int | None] = mapped_column(
         ForeignKey("products.id", ondelete="SET NULL"), index=True, nullable=True

@@ -17,7 +17,7 @@ from pic.models.db import Job
 from pic.services.clustering_pipeline import run_full_clustering
 from pic.services.gdrive import build_drive_service, get_or_create_processed_folder, list_image_files
 from pic.worker.gdrive_download import process_batch
-from pic.worker.helpers import mark_job_completed, worker_lifecycle
+from pic.worker.helpers import LockNotAcquiredError, mark_job_completed, worker_lifecycle
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +26,11 @@ async def run_gdrive_sync(job_id: str, params_json: str | None = None) -> None:
     """Run the full GDrive → R2 sync + process + cluster pipeline."""
     params = json.loads(params_json) if params_json else {}
 
-    async with worker_lifecycle(ADVISORY_LOCK_ID, job_id, "GDrive sync") as db:
-        if db is None:
-            return
-        await _sync_process_and_cluster(db, job_id, params)
+    try:
+        async with worker_lifecycle(ADVISORY_LOCK_ID, job_id, "GDrive sync") as db:
+            await _sync_process_and_cluster(db, job_id, params)
+    except LockNotAcquiredError:
+        return
 
 
 async def _sync_process_and_cluster(

@@ -25,7 +25,7 @@ async def trigger_gdrive_sync(
 ) -> JobOut:
     """Manually trigger a Google Drive → R2 sync job."""
     if not settings.gdrive_folder_id or not settings.gdrive_service_account_json:
-        raise HTTPException(status_code=503, detail="Google Drive sync not configured")
+        raise HTTPException(status_code=400, detail="Google Drive sync not configured")
 
     job = await create_and_dispatch_job(db, JobType.GDRIVE_SYNC, submit_gdrive_sync_job, None)
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"

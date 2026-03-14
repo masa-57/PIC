@@ -3,12 +3,15 @@ import logging
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 
-from pic.api.deps import PaginationParams, build_pagination_links, get_db, get_or_404
+from pic.api.deps import PaginationParams, build_pagination_links, create_and_dispatch_job, get_db, get_or_404
 from pic.config import settings
-from pic.models.db import Image
-from pic.models.schemas import ImageFileOut, ImageListOut, ImageOut, ProblemDetail
+from pic.core.rate_limit import limiter
+from pic.models.db import Image, JobType
+from pic.models.schemas import ImageFileOut, ImageListOut, ImageOut, ProblemDetail, UrlIngestOut, UrlIngestRequest
 from pic.services.image_store import generate_presigned_url
+from pic.services.modal_dispatch import submit_url_ingest_job
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/images", tags=["images"])
@@ -51,6 +54,31 @@ async def list_images(
         limit=pagination.limit,
         links=build_pagination_links("/api/v1/images", total, pagination.offset, pagination.limit),
     )
+
+
+@router.post(
+    "/ingest",
+    response_model=UrlIngestOut,
+    status_code=202,
+    summary="Ingest images from URLs",
+    description="Download images from provided URLs, deduplicate, and store. Returns a job ID for tracking.",
+)
+@limiter.limit(settings.job_trigger_rate_limit)
+async def ingest_from_urls(
+    request: Request,
+    body: UrlIngestRequest,
+    db: AsyncSession = Depends(get_db),
+) -> UrlIngestOut:
+    urls = [str(u) for u in body.urls]
+    params = {"urls": urls, "auto_pipeline": body.auto_pipeline}
+
+    job = await create_and_dispatch_job(
+        db,
+        job_type=JobType.URL_INGEST,
+        dispatch_fn=submit_url_ingest_job,
+        params=params,
+    )
+    return UrlIngestOut(job_id=job.id, urls_submitted=len(urls))
 
 
 @router.get(

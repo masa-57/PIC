@@ -20,6 +20,7 @@ def _make_image(**overrides):
     img.height = overrides.get("height", 600)
     img.file_size = overrides.get("file_size", 102400)
     img.l1_group_id = overrides.get("l1_group_id")
+    img.source_url = overrides.get("source_url")
     img.created_at = overrides.get("created_at", datetime(2026, 1, 1))
     return img
 
@@ -684,6 +685,23 @@ class TestSearchEndpoint:
         response = client.post(
             "/api/v1/search/duplicates",
             json={"image_id": "img-1"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["results"] == []
+
+    def test_search_duplicates_accepts_zero_threshold(self, client, override_db):
+        query_img = _make_image(id="img-1", phash="f0e1d2c3b4a59687f0e1d2c3b4a59687f0e1d2c3b4a59687f0e1d2c3b4a59687")
+
+        mock_query_result = MagicMock()
+        mock_query_result.scalar_one_or_none.return_value = query_img
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = []
+        override_db.execute = AsyncMock(side_effect=[mock_query_result, mock_sql_result])
+
+        response = client.post(
+            "/api/v1/search/duplicates",
+            json={"image_id": "img-1", "threshold": 0},
         )
 
         assert response.status_code == 200

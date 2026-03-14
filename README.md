@@ -6,8 +6,12 @@
 
 Hierarchical image clustering API for product catalog images. Two-level clustering automatically organizes thousands of product images into meaningful groups:
 
-- **Level 1**: Groups images of the exact same product (different angles, zoom levels) using perceptual hashing
+- **Level 1**: Groups images of the exact same product (different angles, zoom levels) using HDBSCAN on DINOv2 cosine distance
 - **Level 2**: Groups visually similar products (shared design, style, or category) using DINOv2 embeddings + HDBSCAN
+
+<p align="center">
+  <img src="docs/images/pipeline-demo.svg" alt="PIC Pipeline Demo" width="900"/>
+</p>
 
 ## Features
 
@@ -17,7 +21,8 @@ Hierarchical image clustering API for product catalog images. Two-level clusteri
 - Full pipeline API for batch ingestion, deduplication, and clustering
 - Product management with AI-ready candidate extraction
 - Google Drive sync for automated image ingestion
-- S3-compatible storage (Cloudflare R2, MinIO, AWS S3)
+- Pluggable storage backends: S3-compatible (Cloudflare R2, MinIO, AWS S3), Google Cloud Storage, or local filesystem
+- URL-based image ingestion (download, deduplicate, and store images from URLs)
 - API key authentication with timing-safe comparison
 - Structured JSON logging with request ID tracking
 - Prometheus metrics and Sentry error tracking
@@ -52,9 +57,13 @@ API docs available at http://localhost:8000/docs
 
 ## Architecture
 
+<p align="center">
+  <img src="docs/images/architecture.svg" alt="PIC Architecture" width="900"/>
+</p>
+
 PIC uses a two-level clustering approach:
 
-1. **Level 1 (L1)** -- Perceptual hashing groups identical products photographed from different angles. Fast, deterministic, and runs on CPU.
+1. **Level 1 (L1)** -- HDBSCAN on DINOv2 cosine distance groups identical products photographed from different angles. Density-based clustering runs on CPU (embeddings computed on GPU).
 2. **Level 2 (L2)** -- DINOv2 embeddings + UMAP dimensionality reduction + HDBSCAN clustering groups visually similar products. Runs on GPU for embedding computation.
 
 **Components**:
@@ -64,22 +73,23 @@ PIC uses a two-level clustering approach:
 | **FastAPI** | REST API for images, clusters, search, products, pipeline |
 | **Modal** | Serverless GPU workers for embedding computation and clustering |
 | **PostgreSQL + pgvector** | Metadata storage + vector similarity search (HNSW index) |
-| **S3-compatible storage** | Image storage with inbox/processed/rejected lifecycle |
+| **Object Storage** | Pluggable storage backend (S3, GCS, or local filesystem) with inbox/processed/rejected lifecycle |
 
 **Flows**:
 
-- **Ingestion**: Upload images to S3 `images/` prefix -> compute pHash + DINOv2 embedding -> store vectors in PostgreSQL -> move to `processed/`
-- **Clustering**: Triggered via API or pipeline. Runs UMAP + HDBSCAN on all embedded images.
+- **Ingestion**: Upload images to storage `images/` prefix -> compute pHash + DINOv2 embedding -> store vectors in PostgreSQL -> move to `processed/`
+- **URL Ingestion**: Submit image URLs via API -> download, deduplicate, and store with configurable concurrency
+- **Clustering**: Triggered via API or pipeline. L1 runs HDBSCAN on DINOv2 cosine distance; L2 runs UMAP + HDBSCAN on DINOv2 embeddings.
 - **Pipeline**: Single endpoint for n8n/automation -- discovers, deduplicates, ingests, and clusters in one call.
-- **Google Drive sync**: Watches a Drive folder, downloads new images, processes them, and syncs to S3.
+- **Google Drive sync**: Watches a Drive folder, downloads new images, processes them, and syncs to storage.
 
 ## API Overview
 
-All endpoints are under `/api/v1/` and require an API key via `X-API-Key` header (disabled in dev mode).
+All endpoints are under `/api/v1/` and require an API key via `X-API-Key` header. For local development only, set `PIC_AUTH_DISABLED=true` to run without auth.
 
 | Endpoint Group | Description |
 |----------------|-------------|
-| `/images` | Upload, list, get, delete images |
+| `/images` | Upload, list, get, delete images; ingest from URLs |
 | `/clusters` | Trigger clustering, list L1 groups and L2 clusters |
 | `/search` | Find similar images (vector search) and near-duplicates (pHash) |
 | `/products` | CRUD for products created from L1 groups, candidate listing |
@@ -95,7 +105,7 @@ PIC is designed for deployment with:
 - **API server**: Any container platform (Railway, Fly.io, Cloud Run, etc.) using `Dockerfile.railway`
 - **GPU workers**: Modal serverless functions (`modal deploy src/pic/modal_app.py`)
 - **Database**: PostgreSQL with pgvector extension (Neon, Supabase, self-hosted)
-- **Object storage**: Any S3-compatible service (Cloudflare R2, MinIO, AWS S3)
+- **Object storage**: S3-compatible (Cloudflare R2, MinIO, AWS S3), Google Cloud Storage, or local filesystem
 
 See `docs/deployment/` for detailed deployment guides.
 
@@ -106,14 +116,24 @@ Copy `.env.example` to `.env` and configure. Key environment variables:
 | Variable | Description |
 |----------|-------------|
 | `PIC_DATABASE_URL` | PostgreSQL connection string (asyncpg format) |
+| `PIC_STORAGE_BACKEND` | Storage backend: `s3` (default), `gcs`, or `local` |
 | `PIC_S3_BUCKET` | S3 bucket name for image storage |
 | `PIC_S3_ENDPOINT_URL` | S3-compatible endpoint URL |
 | `PIC_S3_ACCESS_KEY_ID` | S3 access key |
 | `PIC_S3_SECRET_ACCESS_KEY` | S3 secret key |
-| `PIC_API_KEY` | API authentication key (empty = auth disabled) |
+| `PIC_GCS_BUCKET` | GCS bucket name (required when `storage_backend=gcs`) |
+| `PIC_GCS_PROJECT_ID` | GCS project ID |
+| `PIC_GCS_CREDENTIALS_JSON` | GCS service account JSON (required when `storage_backend=gcs`) |
+| `PIC_LOCAL_STORAGE_PATH` | Local filesystem path (default: `data/storage`) |
+| `PIC_LOCAL_STORAGE_BASE_URL` | Base URL for local file serving (e.g., `http://localhost:8000/files`) |
+| `PIC_ENV` | Runtime environment (`development`, `staging`, `production`, `test`) |
+| `PIC_API_KEY` | API authentication key (required in production unless explicitly disabled) |
+| `PIC_AUTH_DISABLED` | Explicitly allow unauthenticated mode (development only) |
 | `PIC_SENTRY_DSN` | Sentry DSN for error tracking (optional) |
+| `PIC_RATE_LIMIT_STORAGE_URL` | Redis URI for shared rate limiting (optional, empty = in-memory) |
 | `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | Google Drive service account JSON (optional) |
 | `PIC_GDRIVE_FOLDER_ID` | Google Drive folder ID to watch (optional) |
+| `PIC_GDRIVE_SCOPES` | Google Drive OAuth scopes (optional, default: full drive access) |
 
 See `.env.example` for the full list including clustering parameters, embedding settings, and CORS configuration.
 
@@ -135,8 +155,11 @@ uv run pytest -m unit
 # Run integration tests (requires Docker)
 uv run pytest -m integration
 
-# Run all tests
-uv run pytest
+# Run unit + integration tests
+uv run pytest -m "unit or integration"
+
+# Run e2e tests (requires a running API; defaults to http://localhost:8000)
+PIC_E2E_BASE_URL=http://localhost:8000 uv run pytest -m e2e
 
 # Security audit
 uv run pip-audit

@@ -96,8 +96,6 @@ async def phase_batch_ingest(db: AsyncSession, job_id: str, image_ids: list[str]
                 else:
                     failed_image_ids.append(img.id)
 
-        await db.commit()
-
         # Update progress (0.1 to 0.5 range for ingest phase)
         progress = 0.1 + 0.4 * min((batch_start + len(batch_images)) / len(images), 1.0)
         await db.execute(update(Job).where(Job.id == job_id).values(progress=progress))

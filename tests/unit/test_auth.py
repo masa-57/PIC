@@ -51,11 +51,25 @@ class TestVerifyApiKey:
         """When api_key is empty, all requests pass (dev mode)."""
         with patch("pic.core.auth.settings") as mock_settings:
             mock_settings.api_key = ""
+            mock_settings.env = "development"
+            mock_settings.auth_disabled = False
             from pic.core.auth import verify_api_key
 
             await verify_api_key(None)
             await verify_api_key("")
             await verify_api_key("any-random-key")
+
+    @pytest.mark.asyncio
+    async def test_no_key_in_production_raises_503(self):
+        with patch("pic.core.auth.settings") as mock_settings:
+            mock_settings.api_key = ""
+            mock_settings.env = "production"
+            mock_settings.auth_disabled = False
+            from pic.core.auth import verify_api_key
+
+            with pytest.raises(HTTPException) as exc_info:
+                await verify_api_key(None)
+            assert exc_info.value.status_code == 503
 
     @pytest.mark.asyncio
     async def test_timing_safe_comparison(self):

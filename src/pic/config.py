@@ -2,23 +2,39 @@ import json
 import logging
 from pathlib import Path
 
-from pydantic import ValidationInfo, field_validator, model_validator
+from pydantic import ValidationError, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # Runtime environment
+    env: str = "development"  # development, staging, production, test
+
     # Database (Neon PostgreSQL)
     database_url: str = "postgresql+asyncpg://localhost:5432/pic"
+    postgres_url: str = ""  # Optional sync URL for CLI tools (backup/restore)
     db_pool_size: int = 10
     db_pool_max_overflow: int = 20
     db_pool_timeout: int = 30
     db_ssl_ca: str = ""  # Path to custom CA cert for DB TLS verification
+
+    # Storage backend selection
+    storage_backend: str = "s3"  # "s3" | "gcs" | "local"
 
     # Object Storage (Cloudflare R2, S3-compatible)
     s3_bucket: str = "pic-images"
     s3_endpoint_url: str = ""  # R2 endpoint URL
     s3_access_key_id: str = ""  # R2 API token access key
     s3_secret_access_key: str = ""  # R2 API token secret key
+
+    # Google Cloud Storage (required when storage_backend=gcs)
+    gcs_bucket: str = ""
+    gcs_project_id: str = ""
+    gcs_credentials_json: str = ""  # Service account JSON
+
+    # Local filesystem storage (required when storage_backend=local)
+    local_storage_path: Path = Path("data/storage")
+    local_storage_base_url: str = ""  # e.g., http://localhost:8000/files
 
     # Embedding
     dinov2_model: str = "facebook/dinov2-base"
@@ -40,6 +56,7 @@ class Settings(BaseSettings):
 
     # API
     api_key: str = ""  # If empty, auth is disabled (dev mode)
+    auth_disabled: bool = False  # Explicit acknowledgment for unauthenticated development mode
     cors_origins: list[str] = []  # Empty = no CORS; set explicitly in production
     cors_allow_credentials: bool = False  # Set True only with specific origins, not "*"
     max_upload_size_mb: int = 20
@@ -51,6 +68,7 @@ class Settings(BaseSettings):
     presigned_url_max_expiry: int = 86_400  # Clamp presigned URLs to <= 24h
     rate_limit_default: str = "60/minute"
     rate_limit_burst: str = "10/second"
+    rate_limit_storage_url: str = ""  # Redis URI for shared rate limiting (e.g., redis://localhost:6379)
     job_trigger_rate_limit: str = "5/minute"
     job_queue_max_pending: int = 100
     max_pagination_offset: int = 10_000
@@ -63,6 +81,8 @@ class Settings(BaseSettings):
     # Google Drive Sync (optional — empty = disabled)
     gdrive_service_account_json: str = ""  # Service account JSON credentials as string
     gdrive_folder_id: str = ""  # Shared folder ID to sync from
+    # Use drive.readonly if move-to-processed not needed
+    gdrive_scopes: list[str] = ["https://www.googleapis.com/auth/drive"]
 
     # Paths (local dev)
     data_dir: Path = Path("data")
@@ -84,6 +104,22 @@ class Settings(BaseSettings):
             raise ValueError("phash_size must be between 4 and 32")
         return v
 
+    @field_validator("env")
+    @classmethod
+    def validate_env(cls, v: str) -> str:
+        env = v.lower().strip()
+        if env not in {"development", "staging", "production", "test"}:
+            raise ValueError("env must be one of: development, staging, production, test")
+        return env
+
+    @field_validator("storage_backend")
+    @classmethod
+    def validate_storage_backend(cls, v: str) -> str:
+        v = v.lower().strip()
+        if v not in {"s3", "gcs", "local"}:
+            raise ValueError("storage_backend must be one of: s3, gcs, local")
+        return v
+
     @field_validator(
         "db_pool_size",
         "db_pool_max_overflow",
@@ -91,11 +127,19 @@ class Settings(BaseSettings):
         "job_queue_max_pending",
         "max_pagination_offset",
         "presigned_url_max_expiry",
+        "hnsw_ef_search",
     )
     @classmethod
     def validate_positive_ints(cls, v: int) -> int:
         if v < 1:
             raise ValueError("value must be >= 1")
+        return v
+
+    @field_validator("hnsw_ef_search")
+    @classmethod
+    def validate_hnsw_ef_search(cls, v: int) -> int:
+        if v > 1000:
+            raise ValueError("hnsw_ef_search must be <= 1000")
         return v
 
     @field_validator("cors_allow_credentials")
@@ -125,6 +169,16 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def validate_auth_configuration(self) -> "Settings":
+        """Prevent accidental unauthenticated production deployments."""
+        if self.env == "production" and not self.api_key and not self.auth_disabled:
+            raise ValueError(
+                "PIC_API_KEY is required when PIC_ENV=production. "
+                "Set PIC_AUTH_DISABLED=true only if you explicitly intend unauthenticated mode."
+            )
+        return self
+
+    @model_validator(mode="after")
     def validate_gdrive_json(self) -> "Settings":
         if self.gdrive_service_account_json:
             try:
@@ -135,10 +189,30 @@ class Settings(BaseSettings):
                 raise ValueError(f"PIC_GDRIVE_SERVICE_ACCOUNT_JSON is not valid JSON: {e}") from e
         return self
 
+    @model_validator(mode="after")
+    def validate_gcs_credentials(self) -> "Settings":
+        if self.storage_backend == "gcs":
+            if not self.gcs_bucket:
+                raise ValueError("PIC_GCS_BUCKET is required when PIC_STORAGE_BACKEND=gcs")
+            if not self.gcs_credentials_json:
+                raise ValueError("PIC_GCS_CREDENTIALS_JSON is required when PIC_STORAGE_BACKEND=gcs")
+        return self
+
+    @model_validator(mode="after")
+    def validate_local_storage_not_in_production(self) -> "Settings":
+        if self.storage_backend == "local" and self.env == "production":
+            raise ValueError("Local storage backend is not allowed in production")
+        return self
+
     @property
     def sync_database_url(self) -> str:
         """Synchronous DB URL for Alembic migrations."""
         return self.database_url.replace("asyncpg", "psycopg2").replace("+asyncpg", "")
 
 
-settings = Settings()
+try:
+    settings = Settings()
+except ValidationError as exc:
+    raise RuntimeError(
+        "Invalid PIC configuration. Review PIC_* environment variables in your shell/.env and retry startup."
+    ) from exc
