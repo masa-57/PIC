@@ -90,6 +90,17 @@ app.include_router(api_router)
 app.include_router(browser_router)
 app.include_router(health_router)
 
+# Serve local storage files when using local backend
+if settings.storage_backend == "local":
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount(
+        "/files",
+        StaticFiles(directory=str(settings.local_storage_path)),
+        name="local_storage",
+    )
+    logger.info("Mounted local storage at /files -> %s", settings.local_storage_path)
+
 
 def main() -> None:
     """Console entrypoint for `pic` command."""

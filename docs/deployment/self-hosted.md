@@ -10,6 +10,7 @@ PIC's GPU workers are defined as Modal functions in `src/pic/modal_app.py`, but 
 - `src/pic/worker/cluster.py` -- Clustering logic
 - `src/pic/worker/pipeline.py` -- Pipeline orchestration
 - `src/pic/worker/gdrive_sync.py` -- Google Drive sync
+- `src/pic/worker/url_ingest.py` -- URL-based image ingestion (download, deduplicate, store)
 
 ## Running Workers Directly
 
