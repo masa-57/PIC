@@ -14,7 +14,30 @@ on:
   workflow_dispatch:
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'tests/**'
+              - 'scripts/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'Dockerfile*'
+              - 'alembic/**'
+              - 'alembic.ini'
+              - '.github/workflows/**'
+
   lint:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -30,6 +53,8 @@ jobs:
       - run: uv run pip-audit
 
   container-scan:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -47,6 +72,8 @@ jobs:
           severity: CRITICAL,HIGH
 
   unit-test:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -64,6 +91,8 @@ jobs:
           path: coverage.xml
 
   integration-test:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -121,8 +150,8 @@ jobs:
           path: coverage-integration.xml
 
   coverage-report:
-    if: always()
-    needs: [unit-test, integration-test]
+    if: always() && needs.changes.outputs.code == 'true'
+    needs: [changes, unit-test, integration-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -137,9 +166,32 @@ jobs:
           name: combined-coverage
           path: "*.xml"
 
-  deploy-modal:
-    if: github.ref == 'refs/heads/main'
+  ci-gate:
+    # Single required check for branch protection. Passes when all CI
+    # jobs succeed OR when they are skipped (docs-only changes).
+    if: always()
     needs: [lint, unit-test, integration-test, container-scan]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify CI results
+        run: |
+          results=("$LINT" "$UNIT" "$INTEGRATION" "$SCAN")
+          for r in "${results[@]}"; do
+            if [[ "$r" != "success" && "$r" != "skipped" ]]; then
+              echo "CI failed: one or more jobs did not pass ($r)"
+              exit 1
+            fi
+          done
+          echo "All CI checks passed or were skipped (docs-only change)"
+        env:
+          LINT: ${{ needs.lint.result }}
+          UNIT: ${{ needs.unit-test.result }}
+          INTEGRATION: ${{ needs.integration-test.result }}
+          SCAN: ${{ needs.container-scan.result }}
+
+  deploy-modal:
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true'
+    needs: [changes, lint, unit-test, integration-test, container-scan]
     runs-on: ubuntu-latest
     outputs:
       rollback_sha: ${{ steps.rollback_sha.outputs.sha }}
