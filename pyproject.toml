@@ -1,6 +1,6 @@
 [project]
 name = "pic"
-version = "0.1.0"
+version = "0.2.0"
 description = "Hierarchical image clustering API for product catalog images"
 readme = "README.md"
 authors = [
