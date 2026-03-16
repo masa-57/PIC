@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-03-16
+
+### Added
+- Background job lifecycle metrics for ingest, clustering, pipeline, and Google Drive sync workers
+
+### Fixed
+- Restore URL-ingest Modal dispatch and follow-up job chaining (#54)
+- Block SSRF-style URL-ingest targets across direct requests, DNS resolution, and redirect hops (#49)
+- Require explicit auth opt-out instead of silently disabling auth when `PIC_API_KEY` is unset (#50)
+
+### Changed
+- Document authenticated `/metrics` behavior and align monitoring docs with the live Prometheus metric set (#52)
+- Reconcile README, deployment guides, Google Drive setup docs, and contributor guidance with the current runtime behavior (#53)
+- Skip docs-only CI runs and skip Modal deployment when Modal secrets are not configured (#45)
+
 ## [0.2.0] - 2026-03-15
 
 ### Added
@@ -21,11 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Support shared rate limit storage for multi-instance deployments (#17)
 - Make Google Drive OAuth scopes configurable (#8)
-- Restore URL-ingest Modal dispatch by exporting the `run_url_ingest` worker entrypoint
-- Track `auto_pipeline` follow-up work as a separate pipeline job instead of reusing the URL-ingest job
-- Refactor URL-ingest worker to avoid concurrent reuse of a single async DB session
-- Block SSRF-style URL-ingest targets across direct requests and redirect hops (#49)
-- Require explicit auth opt-out instead of silently disabling auth when `PIC_API_KEY` is unset (#50)
 
 ### Changed
 - Split `main.py` into `core/middleware.py`, `core/exception_handlers.py`, and `api/health.py`
@@ -48,5 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker Compose for local development
 - CI/CD pipeline with GitHub Actions
 
+[0.2.1]: https://github.com/masa-57/pic/releases/tag/v0.2.1
 [0.2.0]: https://github.com/masa-57/pic/releases/tag/v0.2.0
 [0.1.0]: https://github.com/masa-57/pic/releases/tag/v0.1.0
