@@ -293,6 +293,15 @@ class TestAuthGlobal:
                 response = c.post("/api/v1/search/similar", json={"image_id": "x"})
                 assert response.status_code == 401
 
+    def test_metrics_requires_auth(self):
+        with patch("pic.core.auth.settings") as mock_settings:
+            mock_settings.api_key = "secret-key"
+            from pic.main import app
+
+            with TestClient(app) as c:
+                response = c.get("/metrics")
+                assert response.status_code == 401
+
     def test_valid_key_passes(self, mock_db):
         with patch("pic.core.auth.settings") as mock_settings:
             mock_settings.api_key = "secret-key"

@@ -104,12 +104,12 @@ All configuration is via environment variables with the `PIC_` prefix.
 |----------|----------|-------------|
 | `PIC_DATABASE_URL` | Yes | PostgreSQL connection string (asyncpg) |
 | `PIC_API_KEY` | Production | API authentication key |
+| `PIC_AUTH_DISABLED` | No | Explicit opt-out for unauthenticated mode |
 | `PIC_STORAGE_BACKEND` | No | Storage backend: `s3` (default), `gcs`, `local` |
 | `PIC_S3_ENDPOINT_URL` | S3 only | S3-compatible endpoint |
 | `PIC_S3_ACCESS_KEY_ID` | S3 only | S3 access key |
 | `PIC_S3_SECRET_ACCESS_KEY` | S3 only | S3 secret key |
 | `PIC_S3_BUCKET` | S3 only | Bucket name (default: `pic-images`) |
-| `PIC_S3_REGION` | No | Region (default: `auto` for R2) |
 | `PIC_GCS_BUCKET` | GCS only | GCS bucket name |
 | `PIC_GCS_PROJECT_ID` | GCS only | GCS project ID |
 | `PIC_GCS_CREDENTIALS_JSON` | GCS only | Service account JSON |
@@ -117,9 +117,10 @@ All configuration is via environment variables with the `PIC_` prefix.
 | `PIC_LOCAL_STORAGE_BASE_URL` | Local only | Base URL for file serving |
 | `PIC_CORS_ORIGINS` | No | Allowed CORS origins (comma-separated) |
 | `PIC_LOG_LEVEL` | No | Log level (default: `INFO`) |
-| `PIC_LOG_FORMAT` | No | `json` for structured logging |
-| `PIC_MODAL_ENVIRONMENT` | No | Modal environment name |
+| `PIC_SENTRY_DSN` | No | Sentry DSN for error tracking |
+| `PIC_RATE_LIMIT_STORAGE_URL` | No | Shared Redis backend for rate limiting |
 | `PIC_GDRIVE_FOLDER_ID` | No | Google Drive folder for sync |
 | `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | No | GDrive service account credentials |
+| `PIC_GDRIVE_SCOPES` | No | OAuth scopes for Google Drive sync |
 
 See `.env.example` for a complete reference.

@@ -58,7 +58,7 @@ uv run fastapi run src/pic/main.py --host 0.0.0.0 --port 8000
 uv run python -c "
 import asyncio
 from pic.worker.cluster import run_cluster
-asyncio.run(run_cluster(job_id=1, params_json='{}'))
+asyncio.run(run_cluster(job_id='job-id-123', params_json='{}'))
 "
 ```
 
@@ -77,6 +77,5 @@ For production without Modal, consider:
 For GPU-accelerated embedding generation, ensure:
 - NVIDIA drivers and CUDA toolkit installed
 - PyTorch installed with CUDA support: `pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121`
-- The `PIC_DEVICE` environment variable is set (defaults to auto-detect)
 
 Workers will automatically use GPU if available via PyTorch's device detection.

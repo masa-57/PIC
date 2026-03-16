@@ -87,6 +87,8 @@ PIC uses a two-level clustering approach:
 
 All endpoints are under `/api/v1/` and require an API key via `X-API-Key` header by default. To run without auth, set `PIC_AUTH_DISABLED=true` explicitly. If `PIC_API_KEY` is unset and `PIC_AUTH_DISABLED=false`, protected endpoints return `503` so misconfigured non-production deployments do not silently run unauthenticated.
 
+The Prometheus scrape target is `GET /metrics` at the app root. It uses the same auth dependency as the API unless you explicitly run with `PIC_AUTH_DISABLED=true`.
+
 | Endpoint Group | Description |
 |----------------|-------------|
 | `/images` | Upload, list, get, delete images; ingest from URLs |
@@ -110,6 +112,7 @@ PIC is designed for deployment with:
 - **Object storage**: S3-compatible (Cloudflare R2, MinIO, AWS S3), Google Cloud Storage, or local filesystem
 
 See `docs/deployment/` for detailed deployment guides.
+See [monitoring setup](docs/operations/monitoring-setup.md) for Prometheus/Grafana notes, including the authenticated `/metrics` scrape path.
 
 ## Configuration
 
