@@ -71,6 +71,7 @@ async def client(db):
 
     with patch("pic.core.auth.settings") as mock_auth:
         mock_auth.api_key = ""
+        mock_auth.auth_disabled = True
         from pic.api.deps import get_db
         from pic.main import app
 

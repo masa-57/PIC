@@ -108,6 +108,14 @@ class TestAuthConfiguration:
         with pytest.raises(ValueError, match="PIC_API_KEY is required when PIC_ENV=production"):
             Settings(env="production", api_key="", auth_disabled=False)
 
+    def test_non_production_can_start_without_api_key(self):
+        from pic.config import Settings
+
+        s = Settings(env="staging", api_key="", auth_disabled=False)
+        assert s.env == "staging"
+        assert s.api_key == ""
+        assert s.auth_disabled is False
+
     def test_production_allows_explicit_auth_disable(self):
         from pic.config import Settings
 

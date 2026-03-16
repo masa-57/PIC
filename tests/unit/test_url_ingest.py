@@ -24,9 +24,11 @@ class TestDownloadFromUrl:
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client.get = AsyncMock(return_value=mock_response)
             mock_client_cls.return_value = mock_client
+            with patch("pic.worker.url_ingest.resolve_public_ips", new_callable=AsyncMock) as mock_resolve:
+                result = await download_from_url("https://example.com/photo.jpg")
 
-            result = await download_from_url("https://example.com/photo.jpg")
             assert result == b"fake-image-data"
+            mock_resolve.assert_awaited_once_with("https://example.com/photo.jpg")
 
     @pytest.mark.asyncio
     async def test_rejects_non_image_content_type(self):
@@ -43,8 +45,10 @@ class TestDownloadFromUrl:
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client.get = AsyncMock(return_value=mock_response)
             mock_client_cls.return_value = mock_client
-
-            with pytest.raises(ValueError, match="not an image"):
+            with (
+                patch("pic.worker.url_ingest.resolve_public_ips", new_callable=AsyncMock),
+                pytest.raises(ValueError, match="not an image"),
+            ):
                 await download_from_url("https://example.com/page.html")
 
     @pytest.mark.asyncio
@@ -62,9 +66,50 @@ class TestDownloadFromUrl:
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client.get = AsyncMock(return_value=mock_response)
             mock_client_cls.return_value = mock_client
-
-            with pytest.raises(ValueError, match="exceeds size limit"):
+            with (
+                patch("pic.worker.url_ingest.resolve_public_ips", new_callable=AsyncMock),
+                pytest.raises(ValueError, match="exceeds size limit"),
+            ):
                 await download_from_url("https://example.com/huge.jpg")
+
+    @pytest.mark.asyncio
+    async def test_rejects_private_ip_literal_without_fetching(self):
+        from pic.worker.url_ingest import download_from_url
+
+        with (
+            patch("pic.worker.url_ingest.httpx.AsyncClient") as mock_client_cls,
+            pytest.raises(ValueError, match="not allowed"),
+        ):
+            await download_from_url("http://127.0.0.1/private.jpg")
+
+        mock_client_cls.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rejects_redirect_to_private_host(self):
+        from pic.worker.url_ingest import download_from_url
+
+        redirect_response = MagicMock()
+        redirect_response.status_code = 302
+        redirect_response.headers = {"location": "http://127.0.0.1/private.jpg"}
+
+        with patch("pic.worker.url_ingest.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.get = AsyncMock(return_value=redirect_response)
+            mock_client_cls.return_value = mock_client
+
+            with (
+                patch(
+                    "pic.worker.url_ingest.resolve_public_ips",
+                    new_callable=AsyncMock,
+                    side_effect=[("93.184.216.34",), ValueError("URL host '127.0.0.1' is not allowed")],
+                ),
+                pytest.raises(ValueError, match="not allowed"),
+            ):
+                await download_from_url("https://example.com/photo.jpg")
+
+        assert mock_client.get.await_count == 1
 
 
 @pytest.mark.unit

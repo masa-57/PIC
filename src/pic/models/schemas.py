@@ -4,6 +4,7 @@ from typing import TypedDict
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 from pic.models.db import JobStatus, JobType
+from pic.services.url_safety import validate_url_target
 
 
 class PaginationLinks(BaseModel):
@@ -227,6 +228,13 @@ class JobListOut(BaseModel):
 class UrlIngestRequest(BaseModel):
     urls: list[HttpUrl] = Field(..., min_length=1, max_length=100)
     auto_pipeline: bool = False
+
+    @field_validator("urls")
+    @classmethod
+    def validate_urls_are_public_targets(cls, urls: list[HttpUrl]) -> list[HttpUrl]:
+        for url in urls:
+            validate_url_target(str(url))
+        return urls
 
 
 class UrlIngestOut(BaseModel):

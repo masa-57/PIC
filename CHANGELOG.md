@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restore URL-ingest Modal dispatch by exporting the `run_url_ingest` worker entrypoint
 - Track `auto_pipeline` follow-up work as a separate pipeline job instead of reusing the URL-ingest job
 - Refactor URL-ingest worker to avoid concurrent reuse of a single async DB session
+- Block SSRF-style URL-ingest targets across direct requests and redirect hops (#49)
+- Require explicit auth opt-out instead of silently disabling auth when `PIC_API_KEY` is unset (#50)
 
 ### Changed
 - Split `main.py` into `core/middleware.py`, `core/exception_handlers.py`, and `api/health.py`

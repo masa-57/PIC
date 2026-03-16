@@ -7,17 +7,19 @@ import os
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pic.config import settings
+from pic.services.url_safety import resolve_public_ips, validate_url_target
 
 logger = logging.getLogger(__name__)
 
 _URL_DOWNLOAD_TIMEOUT = 30  # seconds per URL
+_MAX_REDIRECTS = 5
 
 
 @dataclass(frozen=True)
@@ -30,24 +32,41 @@ class DownloadResult:
 async def download_from_url(url: str) -> bytes:
     """Download an image from a URL with validation."""
     max_bytes = settings.max_image_download_mb * 1024 * 1024
+    current_url = url
+    validate_url_target(current_url)
+    await resolve_public_ips(current_url)
 
-    async with httpx.AsyncClient(follow_redirects=True, timeout=_URL_DOWNLOAD_TIMEOUT) as client:
-        response = await client.get(url)
-        response.raise_for_status()
+    async with httpx.AsyncClient(follow_redirects=False, timeout=_URL_DOWNLOAD_TIMEOUT, trust_env=False) as client:
+        for redirect_count in range(_MAX_REDIRECTS + 1):
+            response = await client.get(current_url)
 
-        content_type = response.headers.get("content-type", "")
-        if not content_type.startswith("image/"):
-            raise ValueError(f"URL content is not an image (content-type: {content_type})")
+            if 300 <= response.status_code < 400:
+                redirect_location = response.headers.get("location")
+                if not redirect_location:
+                    raise ValueError("Redirect response missing Location header")
+                if redirect_count >= _MAX_REDIRECTS:
+                    raise ValueError(f"URL exceeded redirect limit ({_MAX_REDIRECTS})")
+                current_url = urljoin(current_url, redirect_location)
+                validate_url_target(current_url)
+                await resolve_public_ips(current_url)
+                continue
 
-        content_length = response.headers.get("content-length")
-        if content_length and int(content_length) > max_bytes:
-            raise ValueError(f"Image exceeds size limit ({int(content_length)} > {max_bytes} bytes)")
+            response.raise_for_status()
+            content_type = response.headers.get("content-type", "")
+            if not content_type.startswith("image/"):
+                raise ValueError(f"URL content is not an image (content-type: {content_type})")
 
-        data = response.content
-        if len(data) > max_bytes:
-            raise ValueError(f"Image exceeds size limit ({len(data)} > {max_bytes} bytes)")
+            content_length = response.headers.get("content-length")
+            if content_length and int(content_length) > max_bytes:
+                raise ValueError(f"Image exceeds size limit ({int(content_length)} > {max_bytes} bytes)")
 
-        return data
+            data = response.content
+            if len(data) > max_bytes:
+                raise ValueError(f"Image exceeds size limit ({len(data)} > {max_bytes} bytes)")
+
+            return data
+
+    raise ValueError(f"URL exceeded redirect limit ({_MAX_REDIRECTS})")
 
 
 def _filename_from_url(url: str) -> str:
