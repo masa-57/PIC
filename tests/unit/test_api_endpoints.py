@@ -73,6 +73,7 @@ def client():
     """Create a test client with mocked DB dependency and auth disabled."""
     with patch("pic.core.auth.settings") as mock_auth_settings:
         mock_auth_settings.api_key = ""  # Disable auth for most tests
+        mock_auth_settings.auth_disabled = True
         from pic.main import app
 
         with TestClient(app) as c:

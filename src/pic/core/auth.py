@@ -2,6 +2,7 @@
 
 import hmac
 import logging
+from enum import StrEnum
 
 from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
@@ -11,6 +12,12 @@ from pic.config import settings
 logger = logging.getLogger(__name__)
 
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+class AuthMode(StrEnum):
+    ENABLED = "enabled"
+    DISABLED = "disabled"
+    MISCONFIGURED = "misconfigured"
 
 
 def _is_auth_disabled() -> bool:
@@ -23,23 +30,39 @@ def _env_name() -> str:
     return value.lower() if isinstance(value, str) else "development"
 
 
-_env = _env_name()
-_auth_disabled = _is_auth_disabled()
+def get_auth_mode() -> AuthMode:
+    if settings.api_key:
+        return AuthMode.ENABLED
+    if _is_auth_disabled():
+        return AuthMode.DISABLED
+    return AuthMode.MISCONFIGURED
 
-if not settings.api_key and (_auth_disabled or _env != "production"):
-    logger.warning(
-        "PIC_API_KEY not set. Authentication is disabled for non-production usage. "
-        "Set PIC_AUTH_DISABLED=true to acknowledge unauthenticated mode explicitly."
+
+def log_auth_mode() -> None:
+    """Log the effective authentication mode during startup."""
+    env = _env_name()
+    auth_mode = get_auth_mode()
+
+    if auth_mode == AuthMode.ENABLED:
+        logger.info("Authentication enabled with PIC_API_KEY (env=%s)", env)
+        return
+    if auth_mode == AuthMode.DISABLED:
+        logger.warning("Authentication disabled explicitly via PIC_AUTH_DISABLED=true (env=%s)", env)
+        return
+
+    logger.error(
+        "Authentication is not configured (env=%s): set PIC_API_KEY or PIC_AUTH_DISABLED=true. "
+        "Protected endpoints will return 503 until auth is configured.",
+        env,
     )
 
 
 async def verify_api_key(api_key: str | None = Security(_api_key_header)) -> None:
-    """Validate the API key. If no key is configured, auth is disabled (dev mode)."""
-    env = _env_name()
-    auth_disabled = _is_auth_disabled()
-    if not settings.api_key:
-        if auth_disabled or env != "production":
-            return
+    """Validate the API key using the explicit opt-out auth model."""
+    auth_mode = get_auth_mode()
+    if auth_mode == AuthMode.DISABLED:
+        return
+    if auth_mode == AuthMode.MISCONFIGURED:
         raise HTTPException(status_code=503, detail="Authentication is not configured")
     if not api_key or not hmac.compare_digest(api_key, settings.api_key):
         raise HTTPException(status_code=401, detail="Invalid or missing API key")

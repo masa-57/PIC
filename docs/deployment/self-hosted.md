@@ -10,7 +10,7 @@ PIC's GPU workers are defined as Modal functions in `src/pic/modal_app.py`, but 
 - `src/pic/worker/cluster.py` -- Clustering logic
 - `src/pic/worker/pipeline.py` -- Pipeline orchestration
 - `src/pic/worker/gdrive_sync.py` -- Google Drive sync
-- `src/pic/worker/url_ingest.py` -- URL-based image ingestion (download, deduplicate, store)
+- `src/pic/worker/url_ingest.py` -- URL-based image ingestion (download, deduplicate, store; public `http(s)` targets only)
 
 ## Running Workers Directly
 
@@ -62,7 +62,7 @@ asyncio.run(run_cluster(job_id=1, params_json='{}'))
 "
 ```
 
-When `auto_pipeline=True` is used with `run_url_ingest`, the worker creates a separate `PIPELINE` job record rather than reusing the original URL-ingest job.
+When `auto_pipeline=True` is used with `run_url_ingest`, the worker creates a separate `PIPELINE` job record rather than reusing the original URL-ingest job. URL ingest rejects localhost, private-network, link-local, and redirected internal targets even in self-hosted deployments.
 
 ## Background Processing
 
