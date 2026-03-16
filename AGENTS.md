@@ -70,7 +70,7 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 
 **Product flow** (post-clustering): After clustering, L1 groups become product candidates. `GET /api/v1/products/candidates` lists unprocessed L1 groups. AI (via n8n) generates title/description/tags, then `POST /api/v1/products` creates a product from an L1 group, linking all member images. Full CRUD on `/api/v1/products`.
 
-**Auth**: API key via `X-API-Key` header on all `/api/v1/*` routes. Set `PIC_API_KEY` env var; if empty/unset, auth is disabled (dev mode). Uses timing-safe comparison.
+**Auth**: API key via `X-API-Key` header on all `/api/v1/*` routes. Set `PIC_API_KEY` for protected mode; if it is unset, routes return 503 unless `PIC_AUTH_DISABLED=true` explicitly opts into unauthenticated mode. Uses timing-safe comparison.
 
 **Health checks**: `GET /health` (basic) and `GET /health/detailed` (DB connectivity + recent job failures).
 
@@ -115,7 +115,7 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 
 Copy `.env.example` to `.env` and fill in values. Key vars: `PIC_DATABASE_URL`, `PIC_S3_BUCKET`, `PIC_S3_ENDPOINT_URL`, `PIC_S3_ACCESS_KEY_ID`, `PIC_S3_SECRET_ACCESS_KEY`.
 
-Optional observability: `PIC_SENTRY_DSN` (error tracking, empty = disabled). Prometheus metrics are exposed automatically via `prometheus-fastapi-instrumentator`.
+Optional observability: `PIC_SENTRY_DSN` (error tracking, empty = disabled). Prometheus metrics are exposed at `/metrics` via `prometheus-fastapi-instrumentator`; that endpoint uses the same auth dependency unless `PIC_AUTH_DISABLED=true`.
 
 Optional Google Drive sync: `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` (service account JSON string), `PIC_GDRIVE_FOLDER_ID` (folder to watch). Both must be set to enable GDrive sync. OAuth scopes configurable via `PIC_GDRIVE_SCOPES` (default: `["https://www.googleapis.com/auth/drive"]`; use `drive.readonly` if move-to-processed is not needed).
 
@@ -162,7 +162,7 @@ For Modal: run `modal setup` to authenticate, then `modal deploy src/pic/modal_a
 - `images.content_hash` column (SHA256) has a unique index -- duplicate content is rejected
 - HNSW vector index exists on `embedding` column -- fast k-NN search, no need for brute-force scans
 - Structured JSON logging in production -- request IDs tracked via `X-Request-ID` header
-- `Product.tags` is stored as JSON text (not a native JSON column) -- serialize with `json.dumps()`, deserialize with `json.loads()`
+- `Product.tags` is stored as native PostgreSQL JSONB -- treat it as structured JSON, not serialized text
 - GDrive sync worker shares the same advisory lock (`0x50494301`) as pipeline -- they cannot run concurrently
 - Modal cron `check_gdrive_for_new_files` runs every 15 min on a lightweight CPU image (no ML deps)
 - GDrive sync requires both `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` and `PIC_GDRIVE_FOLDER_ID` -- endpoint returns 400 if missing

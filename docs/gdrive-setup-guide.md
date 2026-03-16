@@ -32,7 +32,7 @@ Set the following in your deployment environment:
 
 | Variable | Value |
 |---|---|
-| `PIC_GDRIVE_CREDENTIALS_JSON` | Contents of the JSON key file from step 1.4 |
+| `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | Contents of the JSON key file from step 1.4 |
 | `PIC_GDRIVE_FOLDER_ID` | Folder ID copied from the URL in step 2.3 |
 
 > **Security:** The JSON key file contains sensitive credentials. Never commit it to version control or share it over unencrypted channels.

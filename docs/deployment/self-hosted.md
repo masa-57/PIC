@@ -10,7 +10,7 @@ PIC's GPU workers are defined as Modal functions in `src/pic/modal_app.py`, but 
 - `src/pic/worker/cluster.py` -- Clustering logic
 - `src/pic/worker/pipeline.py` -- Pipeline orchestration
 - `src/pic/worker/gdrive_sync.py` -- Google Drive sync
-- `src/pic/worker/url_ingest.py` -- URL-based image ingestion (download, deduplicate, store)
+- `src/pic/worker/url_ingest.py` -- URL-based image ingestion (download, deduplicate, store; public `http(s)` targets only)
 
 ## Running Workers Directly
 
@@ -58,11 +58,11 @@ uv run fastapi run src/pic/main.py --host 0.0.0.0 --port 8000
 uv run python -c "
 import asyncio
 from pic.worker.cluster import run_cluster
-asyncio.run(run_cluster(job_id=1, params_json='{}'))
+asyncio.run(run_cluster(job_id='job-id-123', params_json='{}'))
 "
 ```
 
-When `auto_pipeline=True` is used with `run_url_ingest`, the worker creates a separate `PIPELINE` job record rather than reusing the original URL-ingest job.
+When `auto_pipeline=True` is used with `run_url_ingest`, the worker creates a separate `PIPELINE` job record rather than reusing the original URL-ingest job. URL ingest rejects localhost, private-network, link-local, and redirected internal targets even in self-hosted deployments.
 
 ## Background Processing
 
@@ -77,6 +77,5 @@ For production without Modal, consider:
 For GPU-accelerated embedding generation, ensure:
 - NVIDIA drivers and CUDA toolkit installed
 - PyTorch installed with CUDA support: `pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121`
-- The `PIC_DEVICE` environment variable is set (defaults to auto-detect)
 
 Workers will automatically use GPU if available via PyTorch's device detection.

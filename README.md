@@ -78,14 +78,16 @@ PIC uses a two-level clustering approach:
 **Flows**:
 
 - **Ingestion**: Upload images to storage `images/` prefix -> compute pHash + DINOv2 embedding -> store vectors in PostgreSQL -> move to `processed/`
-- **URL Ingestion**: Submit image URLs via API -> download, deduplicate, and store with configurable concurrency. When `auto_pipeline=true`, PIC creates and tracks a separate pipeline job after ingestion succeeds.
+- **URL Ingestion**: Submit public image URLs via API -> download, deduplicate, and store with configurable concurrency. PIC rejects localhost, private-network, link-local, and redirected internal targets. When `auto_pipeline=true`, PIC creates and tracks a separate pipeline job after ingestion succeeds.
 - **Clustering**: Triggered via API or pipeline. L1 runs HDBSCAN on DINOv2 cosine distance; L2 runs UMAP + HDBSCAN on DINOv2 embeddings.
 - **Pipeline**: Single endpoint for n8n/automation -- discovers, deduplicates, ingests, and clusters in one call.
 - **Google Drive sync**: Watches a Drive folder, downloads new images, processes them, and syncs to storage.
 
 ## API Overview
 
-All endpoints are under `/api/v1/` and require an API key via `X-API-Key` header. For local development only, set `PIC_AUTH_DISABLED=true` to run without auth.
+All endpoints are under `/api/v1/` and require an API key via `X-API-Key` header by default. To run without auth, set `PIC_AUTH_DISABLED=true` explicitly. If `PIC_API_KEY` is unset and `PIC_AUTH_DISABLED=false`, protected endpoints return `503` so misconfigured non-production deployments do not silently run unauthenticated.
+
+The Prometheus scrape target is `GET /metrics` at the app root. It uses the same auth dependency as the API unless you explicitly run with `PIC_AUTH_DISABLED=true`.
 
 | Endpoint Group | Description |
 |----------------|-------------|
@@ -98,7 +100,7 @@ All endpoints are under `/api/v1/` and require an API key via `X-API-Key` header
 | `/jobs` | List and inspect background job status |
 | `/health` | Basic and detailed health checks |
 
-`POST /api/v1/images/ingest` returns a URL-ingest job immediately. If `auto_pipeline=true`, the URL-ingest worker records the spawned pipeline job ID in the URL-ingest job result instead of reusing the original job record.
+`POST /api/v1/images/ingest` returns a URL-ingest job immediately. It accepts only public `http(s)` image URLs; localhost, RFC1918/link-local targets, and unsafe redirect hops are rejected. If `auto_pipeline=true`, the URL-ingest worker records the spawned pipeline job ID in the URL-ingest job result instead of reusing the original job record.
 
 ## Deployment
 
@@ -110,6 +112,7 @@ PIC is designed for deployment with:
 - **Object storage**: S3-compatible (Cloudflare R2, MinIO, AWS S3), Google Cloud Storage, or local filesystem
 
 See `docs/deployment/` for detailed deployment guides.
+See [monitoring setup](docs/operations/monitoring-setup.md) for Prometheus/Grafana notes, including the authenticated `/metrics` scrape path.
 
 ## Configuration
 
@@ -130,7 +133,7 @@ Copy `.env.example` to `.env` and configure. Key environment variables:
 | `PIC_LOCAL_STORAGE_BASE_URL` | Base URL for local file serving (e.g., `http://localhost:8000/files`) |
 | `PIC_ENV` | Runtime environment (`development`, `staging`, `production`, `test`) |
 | `PIC_API_KEY` | API authentication key (required in production unless explicitly disabled) |
-| `PIC_AUTH_DISABLED` | Explicitly allow unauthenticated mode (development only) |
+| `PIC_AUTH_DISABLED` | Explicitly allow unauthenticated mode when no `PIC_API_KEY` is set |
 | `PIC_SENTRY_DSN` | Sentry DSN for error tracking (optional) |
 | `PIC_RATE_LIMIT_STORAGE_URL` | Redis URI for shared rate limiting (optional, empty = in-memory) |
 | `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | Google Drive service account JSON (optional) |

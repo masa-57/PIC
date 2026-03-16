@@ -45,6 +45,20 @@ class TestUrlIngestEndpoint:
         )
         assert response.status_code == 422
 
+    async def test_ingest_rejects_localhost_targets(self, client):
+        response = await client.post(
+            "/api/v1/images/ingest",
+            json={"urls": ["http://localhost/photo.jpg"]},
+        )
+        assert response.status_code == 422
+
+    async def test_ingest_rejects_private_ip_targets(self, client):
+        response = await client.post(
+            "/api/v1/images/ingest",
+            json={"urls": ["http://127.0.0.1/photo.jpg"]},
+        )
+        assert response.status_code == 422
+
     async def test_ingest_multiple_urls(self, client):
         """POST /images/ingest with multiple valid URLs."""
         with patch(

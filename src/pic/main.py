@@ -14,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from pic.api.health import router as health_router
 from pic.api.router import api_router, browser_router
 from pic.config import settings
-from pic.core.auth import verify_api_key
+from pic.core.auth import log_auth_mode, verify_api_key
 from pic.core.database import engine
 from pic.core.exception_handlers import (
     http_exception_handler,
@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Sentry error tracking enabled")
     if settings.cors_origins == ["*"]:
         logger.warning("CORS is set to allow all origins — restrict cors_origins in production")
+    log_auth_mode()
     logger.info("PIC starting up")
     yield
     await engine.dispose()

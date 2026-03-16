@@ -14,11 +14,14 @@ class TestSweepStaleJobs:
         return AsyncMock()
 
     async def test_sweeps_stale_running_jobs(self, mock_db):
+        from pic.models.db import JobType
         from pic.worker.helpers import sweep_stale_jobs
 
+        stale_jobs = MagicMock()
+        stale_jobs.all.return_value = [("job-1", JobType.PIPELINE), ("job-2", JobType.CLUSTER_FULL)]
         mock_result = MagicMock()
         mock_result.rowcount = 2
-        mock_db.execute = AsyncMock(return_value=mock_result)
+        mock_db.execute = AsyncMock(side_effect=[stale_jobs, mock_result])
 
         swept = await sweep_stale_jobs(mock_db, max_age_minutes=60)
 
@@ -28,34 +31,36 @@ class TestSweepStaleJobs:
     async def test_no_stale_jobs_returns_zero(self, mock_db):
         from pic.worker.helpers import sweep_stale_jobs
 
-        mock_result = MagicMock()
-        mock_result.rowcount = 0
-        mock_db.execute = AsyncMock(return_value=mock_result)
+        stale_jobs = MagicMock()
+        stale_jobs.all.return_value = []
+        mock_db.execute = AsyncMock(return_value=stale_jobs)
 
         swept = await sweep_stale_jobs(mock_db, max_age_minutes=60)
 
         assert swept == 0
-        mock_db.commit.assert_awaited_once()
+        mock_db.commit.assert_not_awaited()
 
     async def test_custom_max_age(self, mock_db):
+        from pic.models.db import JobType
         from pic.worker.helpers import sweep_stale_jobs
 
+        stale_jobs = MagicMock()
+        stale_jobs.all.return_value = [("job-1", JobType.PIPELINE)]
         mock_result = MagicMock()
         mock_result.rowcount = 1
-        mock_db.execute = AsyncMock(return_value=mock_result)
+        mock_db.execute = AsyncMock(side_effect=[stale_jobs, mock_result])
 
         swept = await sweep_stale_jobs(mock_db, max_age_minutes=30)
 
         assert swept == 1
-        # Verify the update was called (SQL includes the custom timeout message)
-        mock_db.execute.assert_awaited_once()
+        assert mock_db.execute.await_count == 2
 
     async def test_default_max_age_is_60(self, mock_db):
         from pic.worker.helpers import sweep_stale_jobs
 
-        mock_result = MagicMock()
-        mock_result.rowcount = 0
-        mock_db.execute = AsyncMock(return_value=mock_result)
+        stale_jobs = MagicMock()
+        stale_jobs.all.return_value = []
+        mock_db.execute = AsyncMock(return_value=stale_jobs)
 
         swept = await sweep_stale_jobs(mock_db)
 
@@ -79,19 +84,29 @@ class TestMarkJobHelpers:
         mock_db.commit.assert_awaited_once()
 
     async def test_mark_job_failed(self, mock_db):
+        from pic.models.db import JobType
         from pic.worker.helpers import mark_job_failed
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = JobType.PIPELINE
+        mock_db.execute = AsyncMock(side_effect=[mock_result, MagicMock()])
 
         await mark_job_failed(mock_db, "job-1", "something went wrong")
 
-        mock_db.execute.assert_awaited_once()
+        assert mock_db.execute.await_count == 2
         mock_db.commit.assert_awaited_once()
 
     async def test_mark_job_completed(self, mock_db):
+        from pic.models.db import JobType
         from pic.worker.helpers import mark_job_completed
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = JobType.PIPELINE
+        mock_db.execute = AsyncMock(side_effect=[mock_result, MagicMock()])
 
         await mark_job_completed(mock_db, "job-1", {"images_processed": 10})
 
-        mock_db.execute.assert_awaited_once()
+        assert mock_db.execute.await_count == 2
         mock_db.commit.assert_awaited_once()
 
 
@@ -115,17 +130,19 @@ class TestAcquireAdvisoryLock:
         assert acquired is True
 
     async def test_lock_not_acquired_marks_job_failed(self, mock_db):
+        from pic.models.db import JobType
         from pic.worker.helpers import acquire_advisory_lock
 
         mock_result = MagicMock()
         mock_result.scalar.return_value = False
-        mock_db.execute = AsyncMock(return_value=mock_result)
+        mock_job_type_result = MagicMock()
+        mock_job_type_result.scalar_one_or_none.return_value = JobType.PIPELINE
+        mock_db.execute = AsyncMock(side_effect=[mock_result, mock_job_type_result, MagicMock()])
 
         acquired = await acquire_advisory_lock(mock_db, 0x4E494301, "job-1")
 
         assert acquired is False
-        # Should have called execute twice: once for lock, once for marking failed
-        assert mock_db.execute.await_count == 2
+        assert mock_db.execute.await_count == 3
 
 
 @pytest.mark.unit

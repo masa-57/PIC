@@ -92,6 +92,7 @@ async def _create_gdrive_sync_job_if_capacity() -> str | None:
 
     from pic.config import settings
     from pic.core.database import async_session
+    from pic.core.metrics import record_job_created
     from pic.models.db import Job, JobStatus, JobType
 
     async with async_session() as db:
@@ -105,6 +106,7 @@ async def _create_gdrive_sync_job_if_capacity() -> str | None:
         job_id = str(uuid.uuid4())
         db.add(Job(id=job_id, type=JobType.GDRIVE_SYNC, status=JobStatus.PENDING))
         await db.commit()
+        record_job_created(JobType.GDRIVE_SYNC)
         return job_id
 
 
@@ -112,6 +114,7 @@ async def _mark_job_failed(job_id: str, error: str) -> None:
     from sqlalchemy import update
 
     from pic.core.database import async_session
+    from pic.core.metrics import record_job_finished
     from pic.models.db import Job, JobStatus
 
     async with async_session() as db:
@@ -121,6 +124,7 @@ async def _mark_job_failed(job_id: str, error: str) -> None:
             .values(status=JobStatus.FAILED, error=error, completed_at=datetime.now(UTC))
         )
         await db.commit()
+    record_job_finished("GDRIVE_SYNC", JobStatus.FAILED)
 
 
 async def _check_gdrive_for_new_files_impl() -> None:
