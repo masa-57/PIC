@@ -55,8 +55,8 @@ class Settings(BaseSettings):
     hnsw_ef_search: int = 100  # HNSW ef_search for recall/speed trade-off (higher = better recall)
 
     # API
-    api_key: str = ""  # If empty, auth is disabled (dev mode)
-    auth_disabled: bool = False  # Explicit acknowledgment for unauthenticated development mode
+    api_key: str = ""  # Protected routes require this unless auth is explicitly disabled
+    auth_disabled: bool = False  # Explicit acknowledgment for unauthenticated mode
     cors_origins: list[str] = []  # Empty = no CORS; set explicitly in production
     cors_allow_credentials: bool = False  # Set True only with specific origins, not "*"
     max_upload_size_mb: int = 20

@@ -10,7 +10,8 @@ from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pic.core.database import async_session
-from pic.models.db import Job, JobStatus
+from pic.core.metrics import record_job_finished
+from pic.models.db import Job, JobStatus, JobType
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ async def check_modal_job_status(db: AsyncSession) -> int:
                         completed_at=datetime.now(UTC),
                     )
                 )
+                record_job_finished(job.type, JobStatus.FAILED)
                 updated += 1
         except Exception:
             logger.warning("Failed to check Modal status for job %s", job.id, exc_info=True)
@@ -118,6 +120,7 @@ async def mark_job_running(db: AsyncSession, job_id: str) -> None:
 
 async def mark_job_failed(db: AsyncSession, job_id: str, error: str) -> None:
     """Set job status to FAILED with error message and timestamp."""
+    job_type = await _load_job_type(db, job_id)
     await db.execute(
         update(Job)
         .where(Job.id == job_id)
@@ -128,6 +131,8 @@ async def mark_job_failed(db: AsyncSession, job_id: str, error: str) -> None:
         )
     )
     await db.commit()
+    if job_type is not None:
+        record_job_finished(job_type, JobStatus.FAILED)
 
 
 async def sweep_stale_jobs(db: AsyncSession, max_age_minutes: int | None = None) -> int:
@@ -141,9 +146,16 @@ async def sweep_stale_jobs(db: AsyncSession, max_age_minutes: int | None = None)
 
         max_age_minutes = settings.stale_job_timeout_minutes
     cutoff = datetime.now(UTC) - timedelta(minutes=max_age_minutes)
+    stale_jobs_result = await db.execute(
+        select(Job.id, Job.type).where(Job.status == JobStatus.RUNNING, Job.created_at < cutoff)
+    )
+    stale_jobs = stale_jobs_result.all()
+    if not stale_jobs:
+        return 0
+
     result = await db.execute(
         update(Job)
-        .where(Job.status == JobStatus.RUNNING, Job.created_at < cutoff)
+        .where(Job.id.in_([job_id for job_id, _ in stale_jobs]))
         .values(
             status=JobStatus.FAILED,
             error=f"Job timed out after {max_age_minutes} minutes",
@@ -153,12 +165,15 @@ async def sweep_stale_jobs(db: AsyncSession, max_age_minutes: int | None = None)
     await db.commit()
     swept: int = result.rowcount or 0  # type: ignore[attr-defined]
     if swept:
+        for _, job_type in stale_jobs:
+            record_job_finished(job_type, JobStatus.FAILED)
         logger.warning("Swept %d stale RUNNING jobs (older than %d min)", swept, max_age_minutes)
     return swept
 
 
 async def mark_job_completed(db: AsyncSession, job_id: str, result: dict[str, object]) -> None:
     """Set job status to COMPLETED with result JSON and timestamp."""
+    job_type = await _load_job_type(db, job_id)
     await db.execute(
         update(Job)
         .where(Job.id == job_id)
@@ -170,6 +185,15 @@ async def mark_job_completed(db: AsyncSession, job_id: str, result: dict[str, ob
         )
     )
     await db.commit()
+    if job_type is not None:
+        record_job_finished(job_type, JobStatus.COMPLETED)
+
+
+async def _load_job_type(db: AsyncSession, job_id: str) -> JobType | None:
+    """Load a job's type if it still exists."""
+    result = await db.execute(select(Job.type).where(Job.id == job_id))
+    job_type = result.scalar_one_or_none()
+    return job_type if isinstance(job_type, JobType) else None
 
 
 @asynccontextmanager

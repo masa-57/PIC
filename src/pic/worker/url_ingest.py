@@ -14,6 +14,8 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pic.config import settings
+from pic.core.metrics import record_job_created, record_job_finished
+from pic.models.db import JobStatus, JobType
 from pic.services.url_safety import resolve_public_ips, validate_url_target
 
 logger = logging.getLogger(__name__)
@@ -94,12 +96,13 @@ async def _download_urls(urls: list[str]) -> list[DownloadResult]:
 
 async def _queue_auto_pipeline_job(db: AsyncSession) -> tuple[str | None, str | None]:
     """Create and dispatch a separate pipeline job for auto-pipeline mode."""
-    from pic.models.db import Job, JobStatus, JobType
+    from pic.models.db import Job
     from pic.services.modal_dispatch import submit_pipeline_job
 
     pipeline_job_id = str(uuid.uuid4())
     db.add(Job(id=pipeline_job_id, type=JobType.PIPELINE, status=JobStatus.PENDING))
     await db.commit()
+    record_job_created(JobType.PIPELINE)
 
     try:
         modal_call_id = await submit_pipeline_job(pipeline_job_id)
@@ -115,6 +118,7 @@ async def _queue_auto_pipeline_job(db: AsyncSession) -> tuple[str | None, str | 
             )
         )
         await db.commit()
+        record_job_finished(JobType.PIPELINE, JobStatus.FAILED)
         return None, "Failed to dispatch auto-pipeline job"
 
     if modal_call_id:
@@ -128,7 +132,7 @@ async def run_url_ingest(job_id: str, urls: list[str], auto_pipeline: bool = Fal
     """Download images from URLs, deduplicate, and store."""
     from pic.core.constants import S3_PREFIX_INBOX
     from pic.core.database import async_session
-    from pic.models.db import Image, Job, JobStatus
+    from pic.models.db import Image, Job
     from pic.services.image_store import upload_to_s3
     from pic.worker.image_processing import check_content_duplicate, compute_content_hash, insert_image_record
 
@@ -226,6 +230,7 @@ async def run_url_ingest(job_id: str, urls: list[str], auto_pipeline: bool = Fal
                 )
             )
             await db.commit()
+            record_job_finished(JobType.URL_INGEST, JobStatus.COMPLETED)
             logger.info("URL ingest job %s complete: %s", job_id, result)
     except Exception as exc:
         logger.exception("URL ingest job %s failed", job_id)
@@ -240,4 +245,5 @@ async def run_url_ingest(job_id: str, urls: list[str], auto_pipeline: bool = Fal
                 )
             )
             await db.commit()
+        record_job_finished(JobType.URL_INGEST, JobStatus.FAILED)
         raise

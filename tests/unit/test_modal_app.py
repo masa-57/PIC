@@ -143,3 +143,48 @@ def test_parse_url_ingest_params_rejects_non_boolean_auto_pipeline() -> None:
 
     with pytest.raises(TypeError, match="must be a boolean"):
         _parse_url_ingest_params(json.dumps({"urls": ["https://example.com/a.jpg"], "auto_pipeline": "yes"}))
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_gdrive_sync_job_records_created_metric() -> None:
+    mock_db = AsyncMock()
+    mock_db.add = MagicMock()
+    mock_pending_result = MagicMock()
+    mock_pending_result.scalar_one.return_value = 0
+    mock_db.execute = AsyncMock(return_value=mock_pending_result)
+
+    with (
+        patch("pic.core.database.async_session") as mock_session,
+        patch("pic.core.metrics.record_job_created") as mock_record,
+        patch("pic.config.settings") as mock_settings,
+    ):
+        mock_settings.job_queue_max_pending = 100
+        mock_session.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        from pic.modal_app import _create_gdrive_sync_job_if_capacity
+
+        job_id = await _create_gdrive_sync_job_if_capacity()
+
+    assert job_id is not None
+    mock_record.assert_called_once()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_mark_job_failed_records_failed_metric() -> None:
+    mock_db = AsyncMock()
+
+    with (
+        patch("pic.core.database.async_session") as mock_session,
+        patch("pic.core.metrics.record_job_finished") as mock_record,
+    ):
+        mock_session.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        from pic.modal_app import _mark_job_failed
+
+        await _mark_job_failed("job-123", "boom")
+
+    mock_record.assert_called_once()
