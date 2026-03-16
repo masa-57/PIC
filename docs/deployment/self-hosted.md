@@ -14,13 +14,28 @@ PIC's GPU workers are defined as Modal functions in `src/pic/modal_app.py`, but 
 
 ## Running Workers Directly
 
-The worker modules can be imported and called as regular async Python functions. Each worker function accepts a `job_id` and `params_json` string:
+The worker modules can be imported and called as regular async Python functions. Signatures match the underlying worker module, not the Modal wrapper:
 
 ```python
 import asyncio
 from pic.worker.ingest import run_ingest
 
-asyncio.run(run_ingest(job_id=1, params_json='{}'))
+asyncio.run(run_ingest("image-id-123"))
+```
+
+For URL ingest:
+
+```python
+import asyncio
+from pic.worker.url_ingest import run_url_ingest
+
+asyncio.run(
+    run_url_ingest(
+        "job-id-123",
+        ["https://example.com/a.jpg", "https://example.com/b.png"],
+        auto_pipeline=True,
+    )
+)
 ```
 
 Note: You'll need all PIC environment variables set and the ML dependencies installed (`uv sync --extra ml`).
@@ -46,6 +61,8 @@ from pic.worker.cluster import run_cluster
 asyncio.run(run_cluster(job_id=1, params_json='{}'))
 "
 ```
+
+When `auto_pipeline=True` is used with `run_url_ingest`, the worker creates a separate `PIPELINE` job record rather than reusing the original URL-ingest job.
 
 ## Background Processing
 

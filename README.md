@@ -78,7 +78,7 @@ PIC uses a two-level clustering approach:
 **Flows**:
 
 - **Ingestion**: Upload images to storage `images/` prefix -> compute pHash + DINOv2 embedding -> store vectors in PostgreSQL -> move to `processed/`
-- **URL Ingestion**: Submit image URLs via API -> download, deduplicate, and store with configurable concurrency
+- **URL Ingestion**: Submit image URLs via API -> download, deduplicate, and store with configurable concurrency. When `auto_pipeline=true`, PIC creates and tracks a separate pipeline job after ingestion succeeds.
 - **Clustering**: Triggered via API or pipeline. L1 runs HDBSCAN on DINOv2 cosine distance; L2 runs UMAP + HDBSCAN on DINOv2 embeddings.
 - **Pipeline**: Single endpoint for n8n/automation -- discovers, deduplicates, ingests, and clusters in one call.
 - **Google Drive sync**: Watches a Drive folder, downloads new images, processes them, and syncs to storage.
@@ -97,6 +97,8 @@ All endpoints are under `/api/v1/` and require an API key via `X-API-Key` header
 | `/gdrive` | Trigger Google Drive sync |
 | `/jobs` | List and inspect background job status |
 | `/health` | Basic and detailed health checks |
+
+`POST /api/v1/images/ingest` returns a URL-ingest job immediately. If `auto_pipeline=true`, the URL-ingest worker records the spawned pipeline job ID in the URL-ingest job result instead of reusing the original job record.
 
 ## Deployment
 

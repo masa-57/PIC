@@ -53,6 +53,20 @@ pic_check_image = (
 )
 
 
+def _parse_url_ingest_params(params_json: str | None) -> tuple[list[str], bool]:
+    """Validate URL-ingest params passed through Modal."""
+    params = json.loads(params_json) if params_json else {}
+    urls = params.get("urls")
+    if not isinstance(urls, list) or not all(isinstance(url, str) for url in urls):
+        raise TypeError("params_json must include a string list under 'urls'")
+
+    auto_pipeline = params.get("auto_pipeline", False)
+    if not isinstance(auto_pipeline, bool):
+        raise TypeError("params_json field 'auto_pipeline' must be a boolean when provided")
+
+    return urls, auto_pipeline
+
+
 async def _has_inflight_gdrive_sync_job() -> bool:
     """Return True if a GDRIVE_SYNC job is already pending or running."""
     from sqlalchemy import func, select
@@ -205,15 +219,7 @@ async def run_url_ingest(job_id: str, params_json: str | None = None) -> None:
     """Download images from URLs, store them, and optionally queue a pipeline job."""
     from pic.worker.url_ingest import run_url_ingest as _run_url_ingest
 
-    params = json.loads(params_json) if params_json else {}
-    urls = params.get("urls")
-    if not isinstance(urls, list) or not all(isinstance(url, str) for url in urls):
-        raise TypeError("params_json must include a string list under 'urls'")
-
-    auto_pipeline = params.get("auto_pipeline", False)
-    if not isinstance(auto_pipeline, bool):
-        raise TypeError("params_json field 'auto_pipeline' must be a boolean when provided")
-
+    urls, auto_pipeline = _parse_url_ingest_params(params_json)
     await _run_url_ingest(job_id, urls, auto_pipeline=auto_pipeline)
 
 

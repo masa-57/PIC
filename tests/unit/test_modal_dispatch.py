@@ -143,3 +143,25 @@ class TestModalDispatch:
             pytest.raises(Exception, match="Modal timeout"),
         ):
             await submit_pipeline_job("job-timeout", None)
+
+    @pytest.mark.asyncio
+    async def test_submit_url_ingest_job_success_with_params(self):
+        """Test successful URL-ingest job submission with payload."""
+        from pic.services.modal_dispatch import submit_url_ingest_job
+
+        mock_call = MagicMock()
+        mock_call.object_id = "modal-call-url-1"
+
+        mock_fn = MagicMock()
+        mock_fn.spawn.return_value = mock_call
+
+        with patch("modal.Function.from_name", return_value=mock_fn) as mock_from_name:
+            params = {"urls": ["https://example.com/a.jpg"], "auto_pipeline": True}
+            result = await submit_url_ingest_job("job-url-1", params)
+
+            mock_from_name.assert_called_once_with("pic", "run_url_ingest")
+            call_args = mock_fn.spawn.call_args[0]
+            assert call_args[0] == "job-url-1"
+            assert '"urls": ["https://example.com/a.jpg"]' in call_args[1]
+            assert '"auto_pipeline": true' in call_args[1]
+            assert result == "modal-call-url-1"

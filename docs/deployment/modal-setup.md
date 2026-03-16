@@ -35,11 +35,12 @@ modal deploy src/pic/modal_app.py --tag "v0.1.0"
 ```
 
 This deploys:
-- `run_ingest_job` -- Processes uploaded images (download, hash, store metadata)
-- `run_cluster_job` -- Runs hierarchical clustering (L1 HDBSCAN on cosine distance + L2 UMAP/HDBSCAN on DINOv2 embeddings)
-- `run_pipeline_job` -- End-to-end pipeline (discover, dedup, ingest, cluster)
-- `run_gdrive_sync_job` -- Syncs images from Google Drive
-- `check_modal_job_status` -- Health check endpoint
+- `run_ingest` -- Processes uploaded images (download, hash, store metadata)
+- `run_cluster` -- Runs hierarchical clustering (L1 HDBSCAN on cosine distance + L2 UMAP/HDBSCAN on DINOv2 embeddings)
+- `run_pipeline` -- End-to-end pipeline (discover, dedup, ingest, cluster)
+- `run_url_ingest` -- Downloads images from URLs, stores them, and can queue a separate pipeline job
+- `sync_gdrive_to_r2` -- Syncs images from Google Drive
+- `check_gdrive_for_new_files` -- Cron checker that spawns GDrive sync work when needed
 
 ## Cron Jobs
 
