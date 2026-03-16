@@ -14,7 +14,60 @@ on:
   workflow_dispatch:
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+      - name: Detect docs-only changes
+        id: filter
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          mapfile -t changed_files < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+
+          if [ "${#changed_files[@]}" -eq 0 ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          docs_only=true
+          for path in "${changed_files[@]}"; do
+            case "$path" in
+              *.md) ;;
+              *) docs_only=false; break ;;
+            esac
+          done
+
+          if [ "$docs_only" = "true" ]; then
+            echo "::notice::Docs-only change detected; skipping lint, test, and deploy jobs."
+          fi
+
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+
   lint:
+    if: needs.changes.outputs.docs_only != 'true'
+    needs: [changes]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -30,6 +83,8 @@ jobs:
       - run: uv run pip-audit
 
   container-scan:
+    if: needs.changes.outputs.docs_only != 'true'
+    needs: [changes]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -47,6 +102,8 @@ jobs:
           severity: CRITICAL,HIGH
 
   unit-test:
+    if: needs.changes.outputs.docs_only != 'true'
+    needs: [changes]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -64,6 +121,8 @@ jobs:
           path: coverage.xml
 
   integration-test:
+    if: needs.changes.outputs.docs_only != 'true'
+    needs: [changes]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -121,8 +180,8 @@ jobs:
           path: coverage-integration.xml
 
   coverage-report:
-    if: always()
-    needs: [unit-test, integration-test]
+    if: needs.changes.outputs.docs_only != 'true' && always()
+    needs: [changes, unit-test, integration-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -137,9 +196,30 @@ jobs:
           name: combined-coverage
           path: "*.xml"
 
+  deploy-readiness:
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.docs_only != 'true'
+    needs: [changes]
+    runs-on: ubuntu-latest
+    outputs:
+      modal_enabled: ${{ steps.modal.outputs.enabled }}
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+    steps:
+      - name: Check Modal deploy configuration
+        id: modal
+        shell: bash
+        run: |
+          if [ -n "$MODAL_TOKEN_ID" ] && [ -n "$MODAL_TOKEN_SECRET" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Skipping Modal deploy because MODAL_TOKEN_ID and MODAL_TOKEN_SECRET are not configured."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy-modal:
-    if: github.ref == 'refs/heads/main'
-    needs: [lint, unit-test, integration-test, container-scan]
+    if: github.ref == 'refs/heads/main' && needs.deploy-readiness.outputs.modal_enabled == 'true'
+    needs: [lint, unit-test, integration-test, container-scan, deploy-readiness]
     runs-on: ubuntu-latest
     outputs:
       rollback_sha: ${{ steps.rollback_sha.outputs.sha }}
@@ -171,7 +251,7 @@ jobs:
       - run: uv run modal deploy src/pic/modal_app.py --tag "${GITHUB_SHA}"
 
   post-deploy-smoke:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && needs.deploy-modal.result == 'success'
     needs: [deploy-modal]
     runs-on: ubuntu-latest
     steps:
@@ -191,8 +271,8 @@ jobs:
           python scripts/smoke_test.py "$API_URL"
 
   rollback-modal:
-    if: github.ref == 'refs/heads/main' && always() && needs.post-deploy-smoke.result == 'failure'
-    needs: [deploy-modal, post-deploy-smoke]
+    if: github.ref == 'refs/heads/main' && always() && needs.deploy-readiness.outputs.modal_enabled == 'true' && needs.post-deploy-smoke.result == 'failure'
+    needs: [deploy-readiness, deploy-modal, post-deploy-smoke]
     runs-on: ubuntu-latest
     env:
       MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
