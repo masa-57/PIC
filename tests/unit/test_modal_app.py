@@ -102,3 +102,10 @@ async def test_check_gdrive_spawns_worker_when_files_present_and_no_inflight_job
 
     mock_from_name.assert_called_once_with("pic", "sync_gdrive_to_r2")
     mock_fn.spawn.assert_called_once_with("job-123", None)
+
+
+@pytest.mark.unit
+def test_modal_app_exports_run_url_ingest() -> None:
+    import pic.modal_app as modal_app
+
+    assert hasattr(modal_app, "run_url_ingest")

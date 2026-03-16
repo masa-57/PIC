@@ -1,5 +1,6 @@
 """Modal app definition for PIC GPU workers (ingest + clustering)."""
 
+import json
 import uuid
 from datetime import UTC, datetime
 
@@ -190,6 +191,30 @@ async def run_pipeline(job_id: str, params_json: str | None = None) -> None:
     from pic.worker.pipeline import run_pipeline as _run_pipeline
 
     await _run_pipeline(job_id, params_json)
+
+
+@app.function(
+    image=pic_image,
+    memory=2048,
+    timeout=1800,
+    max_containers=5,
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=5.0),
+    secrets=[modal.Secret.from_name("pic-env")],
+)
+async def run_url_ingest(job_id: str, params_json: str | None = None) -> None:
+    """Download images from URLs, store them, and optionally queue a pipeline job."""
+    from pic.worker.url_ingest import run_url_ingest as _run_url_ingest
+
+    params = json.loads(params_json) if params_json else {}
+    urls = params.get("urls")
+    if not isinstance(urls, list) or not all(isinstance(url, str) for url in urls):
+        raise TypeError("params_json must include a string list under 'urls'")
+
+    auto_pipeline = params.get("auto_pipeline", False)
+    if not isinstance(auto_pipeline, bool):
+        raise TypeError("params_json field 'auto_pipeline' must be a boolean when provided")
+
+    await _run_url_ingest(job_id, urls, auto_pipeline=auto_pipeline)
 
 
 @app.function(
