@@ -1,5 +1,6 @@
 """Unit tests for modal_app helpers."""
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -102,3 +103,43 @@ async def test_check_gdrive_spawns_worker_when_files_present_and_no_inflight_job
 
     mock_from_name.assert_called_once_with("pic", "sync_gdrive_to_r2")
     mock_fn.spawn.assert_called_once_with("job-123", None)
+
+
+@pytest.mark.unit
+def test_modal_app_exports_run_url_ingest() -> None:
+    import pic.modal_app as modal_app
+
+    assert hasattr(modal_app, "run_url_ingest")
+
+
+@pytest.mark.unit
+def test_parse_url_ingest_params_accepts_urls_and_auto_pipeline() -> None:
+    from pic.modal_app import _parse_url_ingest_params
+
+    urls, auto_pipeline = _parse_url_ingest_params(
+        json.dumps(
+            {
+                "urls": ["https://example.com/a.jpg", "https://example.com/b.png"],
+                "auto_pipeline": True,
+            }
+        )
+    )
+
+    assert urls == ["https://example.com/a.jpg", "https://example.com/b.png"]
+    assert auto_pipeline is True
+
+
+@pytest.mark.unit
+def test_parse_url_ingest_params_rejects_missing_urls() -> None:
+    from pic.modal_app import _parse_url_ingest_params
+
+    with pytest.raises(TypeError, match="string list under 'urls'"):
+        _parse_url_ingest_params(json.dumps({"auto_pipeline": False}))
+
+
+@pytest.mark.unit
+def test_parse_url_ingest_params_rejects_non_boolean_auto_pipeline() -> None:
+    from pic.modal_app import _parse_url_ingest_params
+
+    with pytest.raises(TypeError, match="must be a boolean"):
+        _parse_url_ingest_params(json.dumps({"urls": ["https://example.com/a.jpg"], "auto_pipeline": "yes"}))
