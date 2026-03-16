@@ -1,6 +1,10 @@
 # Roadmap
 
-This document outlines planned improvements for PIC. Contributions are welcome for any of these items.
+This document outlines likely next improvements for PIC. Contributions are
+welcome for any of these items.
+
+There are currently no open roadmap issues. The items below are prospective
+next investments rather than committed milestones.
 
 ## High Priority
 
@@ -49,3 +53,21 @@ Support for S3 (existing), Google Cloud Storage, and local filesystem via `PIC_S
 ### URL-Based Image Ingestion
 
 `POST /api/v1/images/ingest` endpoint accepts image URLs for batch download and ingestion. See [design doc](docs/plans/2026-03-04-storage-backends-and-url-ingestion-design.md).
+
+### URL Ingest Hardening And Worker Reliability
+
+`POST /api/v1/images/ingest` now blocks private and local-network targets,
+revalidates redirect hops, and restores correct Modal dispatch and follow-up job
+chaining.
+
+### Explicit Auth Opt-Out And Metrics Alignment
+
+Auth now requires an explicit `PIC_AUTH_DISABLED=true` opt-out, and the
+documented `/metrics` behavior matches the live authenticated endpoint and
+background job metrics.
+
+### Documentation Reconciliation
+
+README, deployment guides, Google Drive setup docs, changelog entries, and
+contributor guidance were brought back in sync with the deployed system after
+the `v0.2.1` release.
