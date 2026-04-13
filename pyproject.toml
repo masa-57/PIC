@@ -73,7 +73,7 @@ dev = [
     "testcontainers[postgres]>=4.0",
     "moto[s3]>=5.0",
     "psycopg2-binary>=2.9",
-    "pip-audit>=2.7",
+    "pip-audit>=2.10.0",
 ]
 
 [tool.ruff]
