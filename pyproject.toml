@@ -14,7 +14,7 @@ dependencies = [
     # Hashing / image utilities (lightweight, used by API search + worker)
     "imagehash>=4.3",
     "Pillow>=10.0",
-    "numpy>=1.26",
+    "numpy>=2.4.4",
     # Vector Store (pgvector)
     "pgvector>=0.3",
     # Database
