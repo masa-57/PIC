@@ -71,7 +71,7 @@ dev = [
     "pytest-cov>=5.0",
     "coverage>=7.0",
     "testcontainers[postgres]>=4.0",
-    "moto[s3]>=5.0",
+    "moto[s3]>=5.1.22",
     "psycopg2-binary>=2.9",
     "pip-audit>=2.7",
 ]
