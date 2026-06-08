@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v7
         with:
           version: "0.9.x"
           enable-cache: true
@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v7
         with:
           version: "0.9.x"
           enable-cache: true
@@ -136,7 +136,7 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v7
         with:
           version: "0.9.x"
           enable-cache: true
@@ -243,7 +243,7 @@ jobs:
           else
             echo "sha=$(git rev-parse HEAD~1)" >> "$GITHUB_OUTPUT"
           fi
-      - uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v7
         with:
           version: "0.9.x"
           enable-cache: true
@@ -281,7 +281,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ needs.deploy-modal.outputs.rollback_sha }}
-      - uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v7
         with:
           version: "0.9.x"
           enable-cache: true
