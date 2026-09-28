@@ -173,3 +173,15 @@ class TestComputeEmbeddingsBatch:
             results = compute_embeddings_batch([])
 
         assert results == []
+
+
+@pytest.mark.unit
+def test_auto_image_processor_loads_dinov2_config_offline(tmp_path) -> None:  # noqa: ANN001
+    """_load_model uses AutoImageProcessor; in transformers 5 it needs torchvision, whose absence broke every ingest."""
+    from PIL import Image as PILImage
+    from transformers import AutoImageProcessor, BitImageProcessor
+
+    BitImageProcessor(crop_size={"height": 224, "width": 224}).save_pretrained(tmp_path)
+    processor = AutoImageProcessor.from_pretrained(tmp_path)
+    inputs = processor(images=PILImage.new("RGB", (320, 240), "red"), return_tensors="pt")
+    assert tuple(inputs["pixel_values"].shape) == (1, 3, 224, 224)

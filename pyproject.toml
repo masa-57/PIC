@@ -47,6 +47,7 @@ dependencies = [
 ml = [
     # ML / Embeddings (worker-only, ~2GB)
     "torch>=2.2",
+    "torchvision>=0.17",  # transformers 5 AutoImageProcessor requires it
     "transformers>=4.40",
     # Clustering
     "scikit-learn>=1.4",
@@ -123,6 +124,7 @@ plugins = ["pydantic.mypy"]
 # Modal GPU images install their own CUDA torch in modal_app.py and are unaffected.
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
