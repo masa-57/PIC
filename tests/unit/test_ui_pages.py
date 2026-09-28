@@ -315,7 +315,7 @@ class TestAddImagesPanel:
         text = response.text
         assert "Storage: <strong>Local filesystem</strong>" in text
         assert "/data/images/" in text
-        for label in ("Storage inbox", "Google Drive", "URLs"):
+        for label in ("Local folder", "Already in storage", "Google Drive", "URLs"):
             assert label in text
         assert "PIC_GDRIVE_FOLDER_ID" in text  # not configured: tab explains what to set
         assert 'hx-post="/ui/jobs/run/gdrive"' not in text
@@ -432,3 +432,29 @@ def test_pending_job_row_says_usual_duration(ui_client):
     ):
         response = ui_client.get("/ui/jobs/table", headers=HX)
     assert "usually takes ~7s" in response.text
+
+
+@pytest.mark.unit
+class TestFolderUpload:
+    def test_runs_page_has_folder_picker_and_script(self, ui_client):
+        with patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[]):
+            text = ui_client.get("/ui/jobs").text
+        assert "Local folder" in text
+        assert "webkitdirectory" in text
+        assert "/ui/static/upload.js?v=" in text
+
+    def test_upload_requires_htmx_header(self, ui_client):
+        response = ui_client.post("/ui/upload", files=[("files", ("a.jpg", b"x", "image/jpeg"))])
+        assert response.status_code == 400
+
+    def test_upload_returns_counts(self, ui_client):
+        from pic.services.uploads import UploadResult
+
+        with patch(
+            "pic.ui.routes.store_uploads",
+            new_callable=AsyncMock,
+            return_value=UploadResult(stored=["images/k_a.jpg"]),
+        ):
+            response = ui_client.post("/ui/upload", files=[("files", ("sub/a.jpg", b"x", "image/jpeg"))], headers=HX)
+        assert response.status_code == 200
+        assert response.json()["stored"] == 1

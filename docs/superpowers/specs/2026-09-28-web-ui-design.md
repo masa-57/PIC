@@ -28,7 +28,7 @@ the API, to browse clusters, run the pipeline, and curate results into products.
 | How curation survives re-clustering | Products are the durable, human-owned grouping. L1 groups and L2 clusters stay machine suggestions, rebuilt on every run. No schema or clustering change. |
 | UI technology | Server-rendered Jinja2 templates plus htmx (vendored, no CDN). No build step. |
 | UI auth | Login page sets a signed `HttpOnly` cookie. The JSON API stays header-only. |
-| Image upload | Out of scope; stays a roadmap item. Images arrive via the storage inbox or URL ingest. |
+| Image upload | In scope (changed 2026-09-28 at user request): the Runs page has a browser folder picker that uploads a local folder's images to the storage inbox in batches, then runs the pipeline. Also `POST /api/v1/images/upload`. |
 
 ## Design
 
@@ -181,5 +181,5 @@ Three PRs, each shippable alone:
 
 ## Out of scope
 
-Image upload, undo, drag-and-drop, editing L1/L2 membership by hand,
+Undo, drag-and-drop, editing L1/L2 membership by hand,
 multi-user accounts, mobile-specific layouts.

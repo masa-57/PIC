@@ -242,6 +242,20 @@ class UrlIngestOut(BaseModel):
     urls_submitted: int
 
 
+# --- Upload ---
+
+
+class UploadSkippedOut(BaseModel):
+    name: str
+    reason: str
+
+
+class UploadOut(BaseModel):
+    stored: int
+    keys: list[str]
+    skipped: list[UploadSkippedOut]
+
+
 # --- Clustering Request ---
 
 

@@ -1,14 +1,23 @@
 import logging
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pic.api.deps import PaginationParams, build_pagination_links, create_and_dispatch_job, get_db, get_or_404
 from pic.config import settings
 from pic.models.db import Image, JobType
-from pic.models.schemas import ImageFileOut, ImageListOut, ImageOut, ProblemDetail, UrlIngestOut, UrlIngestRequest
+from pic.models.schemas import (
+    ImageFileOut,
+    ImageListOut,
+    ImageOut,
+    ProblemDetail,
+    UploadOut,
+    UrlIngestOut,
+    UrlIngestRequest,
+)
 from pic.services.image_store import generate_presigned_url
+from pic.services.uploads import UploadedFile, store_uploads
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/images", tags=["images"])
@@ -69,6 +78,22 @@ async def ingest_from_urls(
 
     job = await create_and_dispatch_job(db, job_type=JobType.URL_INGEST, params=params)
     return UrlIngestOut(job_id=job.id, urls_submitted=len(urls))
+
+
+@router.post(
+    "/upload",
+    response_model=UploadOut,
+    summary="Upload images to the storage inbox",
+    description=(
+        "Store image files in the storage inbox. Run the pipeline afterwards to ingest and cluster them. "
+        "Files that are not supported images, empty, or over the size limit are skipped and listed."
+    ),
+    responses={413: {"model": ProblemDetail, "description": "Request larger than PIC_MAX_UPLOAD_SIZE_MB"}},
+)
+async def upload_images(files: list[UploadFile] = File(...)) -> UploadOut:
+    uploaded = [UploadedFile(name=f.filename or "image", data=await f.read()) for f in files]
+    result = await store_uploads(uploaded)
+    return UploadOut.model_validate({"stored": len(result.stored), "keys": result.stored, "skipped": result.skipped})
 
 
 @router.get(

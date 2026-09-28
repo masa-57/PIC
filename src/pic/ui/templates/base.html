@@ -7,6 +7,7 @@
   <title>{% block title %}PIC{% endblock %} · PIC</title>
   <link rel="stylesheet" href="/ui/static/pic.css?v={{ static_version }}">
   <script src="/ui/static/htmx.min.js?v={{ static_version }}" defer></script>
+  {% block scripts %}{% endblock %}
 </head>
 <body>
   <header class="nav">

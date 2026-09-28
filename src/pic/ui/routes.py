@@ -4,7 +4,7 @@ import hmac
 from datetime import UTC, datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,9 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pic.api.deps import create_and_dispatch_job, get_db
 from pic.config import settings
 from pic.core.auth import AuthMode, get_auth_mode
+from pic.core.constants import IMAGE_EXTENSIONS
 from pic.models.db import JobStatus, JobType
-from pic.models.schemas import UrlIngestRequest
+from pic.models.schemas import UploadOut, UrlIngestRequest
 from pic.services import browse
+from pic.services.uploads import UploadedFile, store_uploads
 from pic.ui.auth import (
     SESSION_COOKIE,
     SESSION_MAX_AGE,
@@ -149,6 +151,8 @@ async def jobs_page(request: Request, db: AsyncSession = Depends(get_db)) -> Res
         "message": None,
         "active": "jobs",
         "storage": browse.storage_info(),
+        "max_upload_bytes": settings.max_upload_size_mb * 1024 * 1024,
+        "image_extensions": ",".join(sorted(IMAGE_EXTENSIONS)),
         "gdrive_configured": browse.gdrive_configured(),
         "gdrive_folder_id": settings.gdrive_folder_id,
     }
@@ -197,3 +201,11 @@ async def start_url_ingest(
     except HTTPException as exc:
         return await _jobs_table(request, db, str(exc.detail), "error", status_code=exc.status_code)
     return await _jobs_table(request, db, f"Ingesting {len(lines)} URL(s); a pipeline run follows.")
+
+
+@router.post("/upload", response_model=UploadOut, dependencies=[Depends(require_htmx)])
+async def upload_images_ui(files: list[UploadFile] = File(...)) -> UploadOut:
+    """Store one batch of images picked with the folder dialog (upload.js sends several batches)."""
+    uploaded = [UploadedFile(name=f.filename or "image", data=await f.read()) for f in files]
+    result = await store_uploads(uploaded)
+    return UploadOut.model_validate({"stored": len(result.stored), "keys": result.stored, "skipped": result.skipped})

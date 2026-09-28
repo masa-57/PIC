@@ -1607,3 +1607,29 @@ class TestPaginationLinks:
         links = data["links"]
         assert links["last"] is not None
         assert "offset=20" in links["last"]
+
+
+@pytest.mark.unit
+class TestImageUpload:
+    def test_upload_stores_images(self, client, override_db):
+        from pic.services.uploads import UploadResult
+
+        result = UploadResult(
+            stored=["images/abc_one.jpg"], skipped=[{"name": "x.txt", "reason": "not a supported image type"}]
+        )
+        with patch("pic.api.images.store_uploads", new_callable=AsyncMock, return_value=result) as store:
+            response = client.post(
+                "/api/v1/images/upload",
+                files=[("files", ("one.jpg", b"jpeg", "image/jpeg")), ("files", ("x.txt", b"t", "text/plain"))],
+            )
+        assert response.status_code == 200
+        assert response.json() == {
+            "stored": 1,
+            "keys": ["images/abc_one.jpg"],
+            "skipped": [{"name": "x.txt", "reason": "not a supported image type"}],
+        }
+        sent = store.await_args.args[0]
+        assert [(f.name, f.data) for f in sent] == [("one.jpg", b"jpeg"), ("x.txt", b"t")]
+
+    def test_upload_requires_files(self, client, override_db):
+        assert client.post("/api/v1/images/upload").status_code == 422

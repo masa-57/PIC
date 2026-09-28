@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Web UI at `/ui` to browse clusters and start runs (storage inbox, Google Drive or URLs) with live progress and time estimates, plus a login page when `PIC_API_KEY` is set (#113)
+- `POST /api/v1/images/upload`: multipart upload of images to the storage inbox (#113)
+- Web UI at `/ui` to browse clusters and start runs (upload any local folder from the browser, storage inbox, Google Drive or URLs) with live progress and time estimates, plus a login page when `PIC_API_KEY` is set (#113)
 - Product curation API: create a product from several L1 groups (`l1_group_ids`), add images or groups to a product, remove images, split and merge products. Products are never changed by re-clustering (#113)
 - Local worker backend: `pic-worker` runs jobs from Postgres; `docker compose up` gives a full stack with no cloud accounts (#112)
 - `PIC_WORKER_BACKEND` setting (`local` default, `modal`) and `jobs.params` column (#112)

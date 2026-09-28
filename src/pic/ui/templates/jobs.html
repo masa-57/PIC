@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Runs{% endblock %}
+{% block scripts %}<script src="/ui/static/upload.js?v={{ static_version }}" defer></script>{% endblock %}
 {% block content %}
 <h1>Runs</h1>
 <p class="storage-line">Storage: <strong>{{ storage.label }}</strong></p>
@@ -7,12 +8,26 @@
 <section class="panel">
   <h2>Add images</h2>
   <div class="tabs">
-    <input type="radio" name="source" id="src-inbox" checked>
-    <label for="src-inbox">Storage inbox</label>
+    <input type="radio" name="source" id="src-folder" checked>
+    <label for="src-folder">Local folder</label>
+    <input type="radio" name="source" id="src-inbox">
+    <label for="src-inbox">Already in storage</label>
     <input type="radio" name="source" id="src-gdrive">
     <label for="src-gdrive">Google Drive</label>
     <input type="radio" name="source" id="src-urls">
     <label for="src-urls">URLs</label>
+
+    <div class="tab-panel" id="panel-folder">
+      <p>Choose a folder on this computer, including its subfolders. PIC uploads the images to storage, then runs the pipeline to ingest and cluster them. Duplicates are skipped.</p>
+      <div class="folder-upload" id="folder-upload" data-max-bytes="{{ max_upload_bytes }}" data-extensions="{{ image_extensions }}">
+        <label class="button primary" for="folder-input">Choose folder…</label>
+        <input type="file" id="folder-input" webkitdirectory multiple hidden>
+        <p id="folder-summary" class="muted" aria-live="polite">No folder chosen yet.</p>
+        <button id="folder-start" type="button" class="primary" disabled>Upload and run pipeline</button>
+        <progress id="folder-progress" max="100" value="0" hidden></progress>
+        <p id="folder-status" aria-live="polite"></p>
+      </div>
+    </div>
 
     <div class="tab-panel" id="panel-inbox">
       <p>Copy images into <code>{{ storage.inbox }}</code>, then run the pipeline. It ingests new images, skips duplicates, and re-clusters everything.</p>
