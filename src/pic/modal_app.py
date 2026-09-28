@@ -168,22 +168,6 @@ async def _check_gdrive_for_new_files_impl() -> None:
     gpu="T4",
     memory=8192,
     timeout=1800,
-    max_containers=5,
-    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=5.0),
-    secrets=[modal.Secret.from_name("pic-env")],
-)
-async def run_ingest(image_id: str) -> None:
-    """Process an uploaded image: compute pHash + DINOv2 embedding."""
-    from pic.worker.ingest import run_ingest as _run_ingest
-
-    await _run_ingest(image_id)
-
-
-@app.function(
-    image=pic_image,
-    gpu="T4",
-    memory=8192,
-    timeout=1800,
     max_containers=1,
     retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=10.0),
     secrets=[modal.Secret.from_name("pic-env")],
