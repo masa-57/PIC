@@ -1,6 +1,6 @@
 import logging
 import uuid
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import Any, TypeVar
 
@@ -12,6 +12,7 @@ from pic.config import settings
 from pic.core.database import async_session
 from pic.core.metrics import record_job_created, record_job_finished
 from pic.models.db import Job, JobStatus, JobType
+from pic.services.dispatch import dispatch_job
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +47,9 @@ async def get_or_404(
 async def create_and_dispatch_job(
     db: AsyncSession,
     job_type: JobType,
-    dispatch_fn: Callable[..., Any],
     params: dict[str, Any] | None = None,
 ) -> Job:
-    """Create a job record, dispatch to Modal, and handle failures."""
+    """Create a job record and hand it to the configured worker backend."""
     pending_result = await db.execute(
         select(func.count()).select_from(Job).where(Job.status.in_([JobStatus.PENDING, JobStatus.RUNNING]))
     )
@@ -61,26 +61,27 @@ async def create_and_dispatch_job(
         )
 
     job_id = str(uuid.uuid4())
-    job = Job(id=job_id, type=job_type, status=JobStatus.PENDING)
+    job = Job(id=job_id, type=job_type, status=JobStatus.PENDING, params=params)
     db.add(job)
     await db.commit()
     await db.refresh(job)
     record_job_created(job_type)
 
     try:
-        modal_call_id = await dispatch_fn(job_id, params)
+        call_id = await dispatch_job(job_type, job_id, params)
     except Exception:
-        logger.exception("Failed to dispatch %s job %s to Modal", job_type.value, job_id)
+        logger.exception("Failed to dispatch %s job %s", job_type.value, job_id)
         await db.execute(
-            update(Job).where(Job.id == job_id).values(status=JobStatus.FAILED, error="Failed to dispatch job to Modal")
+            update(Job)
+            .where(Job.id == job_id)
+            .values(status=JobStatus.FAILED, error="Failed to dispatch job to worker backend")
         )
         await db.commit()
         record_job_finished(job_type, JobStatus.FAILED)
         raise HTTPException(status_code=503, detail="Failed to dispatch job to compute backend") from None
 
-    # Store Modal call ID for failure monitoring
-    if modal_call_id:
-        await db.execute(update(Job).where(Job.id == job_id).values(modal_call_id=modal_call_id))
+    if call_id:
+        await db.execute(update(Job).where(Job.id == job_id).values(modal_call_id=call_id))
         await db.commit()
         await db.refresh(job)
 

@@ -27,7 +27,6 @@ from pic.models.schemas import (
     VisualizationPoint,
 )
 from pic.services.cluster_visualization import generate_visualization_html
-from pic.services.modal_dispatch import submit_cluster_job
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/clusters", tags=["clusters"])
@@ -64,7 +63,7 @@ async def run_clustering(
         if body.l2_min_samples is not None:
             params["l2_min_samples"] = body.l2_min_samples
 
-    job = await create_and_dispatch_job(db, JobType.CLUSTER_FULL, submit_cluster_job, params or None)
+    job = await create_and_dispatch_job(db, JobType.CLUSTER_FULL, params or None)
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
     return JobOut.model_validate(job)
 

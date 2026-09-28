@@ -11,7 +11,6 @@ from pic.config import settings
 from pic.core.rate_limit import limiter
 from pic.models.db import JobType
 from pic.models.schemas import ClusterRunRequest, JobOut, ProblemDetail
-from pic.services.modal_dispatch import submit_pipeline_job
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
@@ -47,6 +46,6 @@ async def run_pipeline(
         if body.l2_min_samples is not None:
             params["l2_min_samples"] = body.l2_min_samples
 
-    job = await create_and_dispatch_job(db, JobType.PIPELINE, submit_pipeline_job, params or None)
+    job = await create_and_dispatch_job(db, JobType.PIPELINE, params or None)
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
     return JobOut.model_validate(job)

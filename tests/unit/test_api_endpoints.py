@@ -405,7 +405,7 @@ class TestClustersEndpoint:
 
         override_db.refresh = AsyncMock(side_effect=mock_refresh)
 
-        with patch("pic.api.clusters.submit_cluster_job", new_callable=AsyncMock) as mock_submit:
+        with patch("pic.api.deps.dispatch_job", new_callable=AsyncMock) as mock_submit:
             mock_submit.return_value = None
             response = client.post("/api/v1/clusters/run", json={})
             assert response.status_code == 202
@@ -435,7 +435,7 @@ class TestClustersEndpoint:
 
         override_db.refresh = AsyncMock(side_effect=mock_refresh)
 
-        with patch("pic.api.clusters.submit_cluster_job", new_callable=AsyncMock) as mock_submit:
+        with patch("pic.api.deps.dispatch_job", new_callable=AsyncMock) as mock_submit:
             mock_submit.return_value = None
             response = client.post("/api/v1/clusters/run", json={})
             assert response.status_code == 202
@@ -453,7 +453,7 @@ class TestClustersEndpoint:
         override_db.refresh = AsyncMock(side_effect=mock_refresh)
         override_db.execute = AsyncMock(side_effect=[mock_pending_result, MagicMock()])
 
-        with patch("pic.api.clusters.submit_cluster_job", new_callable=AsyncMock) as mock_submit:
+        with patch("pic.api.deps.dispatch_job", new_callable=AsyncMock) as mock_submit:
             mock_submit.side_effect = Exception("Modal service unavailable")
             response = client.post("/api/v1/clusters/run", json={})
             assert response.status_code == 503
@@ -743,7 +743,7 @@ class TestPipelineEndpoint:
 
         override_db.refresh = AsyncMock(side_effect=mock_refresh)
 
-        with patch("pic.api.pipeline.submit_pipeline_job", new_callable=AsyncMock) as mock_submit:
+        with patch("pic.api.deps.dispatch_job", new_callable=AsyncMock) as mock_submit:
             mock_submit.return_value = None
             response = client.post("/api/v1/pipeline/run", json={})
             assert response.status_code == 202
@@ -773,7 +773,7 @@ class TestPipelineEndpoint:
 
         override_db.refresh = AsyncMock(side_effect=mock_refresh)
 
-        with patch("pic.api.pipeline.submit_pipeline_job", new_callable=AsyncMock) as mock_submit:
+        with patch("pic.api.deps.dispatch_job", new_callable=AsyncMock) as mock_submit:
             mock_submit.return_value = None
             response = client.post("/api/v1/pipeline/run", json={})
             assert response.status_code == 202
@@ -785,7 +785,7 @@ class TestPipelineEndpoint:
         override_db.execute = AsyncMock(return_value=mock_pending_result)
         override_db.add = MagicMock()
 
-        with patch("pic.api.pipeline.submit_pipeline_job", new_callable=AsyncMock):
+        with patch("pic.api.deps.dispatch_job", new_callable=AsyncMock):
             response = client.post("/api/v1/pipeline/run", json={})
             assert response.status_code == 429
             assert not override_db.add.called
