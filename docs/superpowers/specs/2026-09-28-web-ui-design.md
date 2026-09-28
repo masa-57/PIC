@@ -143,9 +143,10 @@ Clustering never touches products.
 
 ### 7. Simplification in the same change
 
-- Remove `GET /api/v1/clusters/visualization`, `services/cluster_visualization.py`,
-  `browser_router`, their tests, and the old view's CSP branch. The old URL
-  redirects (307) to `/ui`.
+- Remove the old HTML page `GET /api/v1/clusters/view`,
+  `services/cluster_visualization.py`, `browser_router`, their tests, and the old
+  view's CSP branch. The old URL redirects (307) to `/ui`. The JSON endpoint
+  `GET /api/v1/clusters/visualization` (2D coordinates) stays for API users.
 - Delete `scripts/visualize.py` and `scripts/visualize_clusters.py`; the UI replaces them.
 - Remove `_is_l1_unique_conflict` from `api/products.py`: the index it detects was
   dropped in migration 012, so it is dead code (PR 1).
