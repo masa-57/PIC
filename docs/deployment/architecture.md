@@ -16,8 +16,9 @@ PIC (Product Image Clustering) consists of four main components that can be depl
               jobs       │       │
                          ▼       ▼
                 ┌──────────┐  ┌──────────────────┐
-                │   GPU    │  │   PostgreSQL      │
-                │ Workers  │  │   + pgvector      │
+                │  Worker  │  │   PostgreSQL      │
+                │ (local/  │  │   + pgvector      │
+                │  Modal)  │  │                   │
                 └────┬─────┘  └──────────────────┘
                      │
               read/write images
@@ -38,20 +39,25 @@ The REST API handles all client requests: image management, clustering triggers,
 - **Network**: Needs access to PostgreSQL, object storage, and worker dispatch
 - **Stateless**: Can be scaled horizontally
 
-### GPU Workers
+### Workers
 
-ML workloads run as separate processes: DINOv2 embedding generation, HDBSCAN clustering, and Google Drive sync.
+ML workloads run outside the API: DINOv2 embedding generation, HDBSCAN clustering, URL ingest and Google Drive sync. `PIC_WORKER_BACKEND` picks where:
 
-- **Runtime**: Python 3.12 with PyTorch, torchvision, HDBSCAN
-- **Resources**: GPU recommended (CUDA), 8GB+ RAM (16GB for 10k+ images)
-- **Current implementation**: Modal serverless functions (see [modal-setup.md](modal-setup.md))
-- **Alternative**: Can run as local processes (see [self-hosted.md](self-hosted.md))
+| Backend | How jobs reach it | Guide |
+|---|---|---|
+| `local` (default) | The API leaves the job PENDING in Postgres; `pic-worker` claims it with `FOR UPDATE SKIP LOCKED` and runs it | [self-hosted.md](self-hosted.md) |
+| `modal` | The API spawns the matching Modal function | [modal-setup.md](modal-setup.md) |
+
+Both backends call the same job code in `src/pic/worker/`. Job input is stored on the job row (`jobs.params`).
+
+- **Runtime**: Python 3.12 with PyTorch, torchvision, scikit-learn, umap-learn
+- **Resources**: 8GB+ RAM (16GB for 10k+ images). A GPU speeds up embeddings: CUDA on Modal, Apple MPS when `pic-worker` runs natively on macOS. The Linux Docker image is CPU-only.
 
 ### PostgreSQL + pgvector
 
 Stores image metadata, cluster assignments, job state, and 768-dimensional DINOv2 embeddings with HNSW index for fast similarity search.
 
-- **Version**: PostgreSQL 16+ with pgvector extension
+- **Version**: PostgreSQL 16+ with pgvector (compose and CI use `pgvector/pgvector:pg18`). The initial migration creates the `vector` extension
 - **Resources**: 1GB+ RAM (scales with dataset size)
 - **Key indexes**: HNSW on embedding column, composite indexes on frequently queried columns
 
@@ -74,17 +80,18 @@ Stores image files via a pluggable `StorageBackend` protocol. Three implementati
 ### Local Development
 
 ```bash
-docker compose up db -d          # PostgreSQL with pgvector
-uv run fastapi dev src/pic/main.py  # API server
-# Workers called directly via Modal CLI or local import
+mkdir -p data/images
+docker compose up --build -d     # db + api (migrates on start) + pic-worker
 ```
+
+For API development, run `docker compose up db -d` and `uv run fastapi dev src/pic/main.py`, plus `uv run pic-worker` to process jobs.
 
 ### Cloud (Railway + Modal)
 
 | Component | Platform | Notes |
 |-----------|----------|-------|
 | API Server | Railway | Auto-deploys from GitHub |
-| GPU Workers | Modal | Serverless, pay-per-use GPU |
+| Workers | Modal (`PIC_WORKER_BACKEND=modal`) | Serverless, pay-per-use GPU |
 | Database | Neon / Railway PostgreSQL | Managed PostgreSQL with pgvector |
 | Object Storage | Cloudflare R2 | S3-compatible, free egress |
 
@@ -92,9 +99,9 @@ uv run fastapi dev src/pic/main.py  # API server
 
 Any combination of:
 - API: Docker container or direct `uvicorn` process
-- Workers: GPU server with PyTorch + cron/supervisor
+- Workers: one `pic-worker` process (Docker `worker` target, or `uv run pic-worker`)
 - Database: Any PostgreSQL 16+ with pgvector
-- Storage: MinIO, AWS S3, Google Cloud Storage (native), or local filesystem for development
+- Storage: local filesystem, any S3-compatible store (MinIO, AWS S3, R2), or Google Cloud Storage
 
 ## Environment Variables
 
@@ -106,6 +113,7 @@ All configuration is via environment variables with the `PIC_` prefix.
 | `PIC_API_KEY` | Production | API authentication key |
 | `PIC_AUTH_DISABLED` | No | Explicit opt-out for unauthenticated mode |
 | `PIC_STORAGE_BACKEND` | No | Storage backend: `s3` (default), `gcs`, `local` |
+| `PIC_WORKER_BACKEND` | No | Where jobs run: `local` (default, `pic-worker`) or `modal` |
 | `PIC_S3_ENDPOINT_URL` | S3 only | S3-compatible endpoint |
 | `PIC_S3_ACCESS_KEY_ID` | S3 only | S3 access key |
 | `PIC_S3_SECRET_ACCESS_KEY` | S3 only | S3 secret key |
