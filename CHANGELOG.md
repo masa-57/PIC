@@ -7,13 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Local worker backend: `pic-worker` runs jobs from Postgres; `docker compose up` gives a full stack with no cloud accounts (#112)
+- `PIC_WORKER_BACKEND` setting (`local` default, `modal`) and `jobs.params` column (#112)
+
 ### Changed
+- **Breaking:** jobs no longer go to Modal by default. Existing Modal deployments must set `PIC_WORKER_BACKEND=modal` (#112)
+- `scripts/seed.py` uploads through the storage backend and triggers the pipeline API; the old script was broken (#112)
+- `psycopg2-binary` is a runtime dependency so migrations run in the API image
+- The initial migration creates the pgvector extension; CI no longer does it by hand
 - Refresh all dependencies to latest stable (FastAPI 0.141, Starlette 1.7, SQLAlchemy 2.1, transformers 5.17, torch 2.14); pip-audit is clean (#111)
 - CI reduced to one workflow with four jobs: lint, unit, integration, deploy-modal; actions pinned to release SHAs (#116)
 - Dependabot now opens one grouped PR per month for Python and one for Actions (#117)
 - Local and CI Postgres moved to `pgvector/pgvector:pg18`
 
 ### Removed
+- Single-image ingest path (`run_ingest` Modal function, `pic.worker.ingest`, worker CLI entrypoint) (#112)
+- MinIO from docker compose; local storage replaces it
 - Unused dev dependencies `moto`, `testcontainers`, `coverage` (#117)
 - Trivy container scan, docs-only CI filter, coverage aggregation, deploy-readiness, post-deploy smoke, and rollback jobs (#116)
 - `TECHNICAL_DEBT.md`, completed design/plan docs under `docs/plans/`, the staging

@@ -1,81 +1,51 @@
 # Self-Hosted Deployment
 
-Running PIC without Modal. This is best-effort guidance -- full Modal decoupling is on the [roadmap](../../ROADMAP.md).
+PIC runs without Modal or any cloud account. The default worker backend is
+`local`: the API records jobs in Postgres and the `pic-worker` process picks
+them up.
 
-## Overview
+## Docker Compose
 
-PIC's GPU workers are defined as Modal functions in `src/pic/modal_app.py`, but the underlying logic lives in standard Python modules that can be called directly:
-
-- `src/pic/worker/ingest.py` -- Image ingestion logic
-- `src/pic/worker/cluster.py` -- Clustering logic
-- `src/pic/worker/pipeline.py` -- Pipeline orchestration
-- `src/pic/worker/gdrive_sync.py` -- Google Drive sync
-- `src/pic/worker/url_ingest.py` -- URL-based image ingestion (download, deduplicate, store; public `http(s)` targets only)
-
-## Running Workers Directly
-
-The worker modules can be imported and called as regular async Python functions. Signatures match the underlying worker module, not the Modal wrapper:
-
-```python
-import asyncio
-from pic.worker.ingest import run_ingest
-
-asyncio.run(run_ingest("image-id-123"))
-```
-
-For URL ingest:
-
-```python
-import asyncio
-from pic.worker.url_ingest import run_url_ingest
-
-asyncio.run(
-    run_url_ingest(
-        "job-id-123",
-        ["https://example.com/a.jpg", "https://example.com/b.png"],
-        auto_pipeline=True,
-    )
-)
-```
-
-Note: You'll need all PIC environment variables set and the ML dependencies installed (`uv sync --extra ml`).
-
-## Docker Compose (Full Stack)
-
-For a complete local deployment:
+The README quick start is the full self-hosted setup:
 
 ```bash
-# Start database
-docker compose up db -d
-
-# Apply migrations
-uv run alembic upgrade head
-
-# Run API server
-uv run fastapi run src/pic/main.py --host 0.0.0.0 --port 8000
-
-# Run workers as needed (in separate terminals or via supervisor)
-uv run python -c "
-import asyncio
-from pic.worker.cluster import run_cluster
-asyncio.run(run_cluster(job_id='job-id-123', params_json='{}'))
-"
+mkdir -p data/images
+docker compose up --build -d
+cp /path/to/photos/*.jpg data/images/
+curl -X POST http://localhost:8000/api/v1/pipeline/run
 ```
 
-When `auto_pipeline=True` is used with `run_url_ingest`, the worker creates a separate `PIPELINE` job record rather than reusing the original URL-ingest job. URL ingest rejects localhost, private-network, link-local, and redirected internal targets even in self-hosted deployments.
+Services:
 
-## Background Processing
+| Service | Image target | Role |
+|---|---|---|
+| `db` | `pgvector/pgvector:pg18` | Metadata and vectors |
+| `api` | `Dockerfile` target `api` | Applies migrations on start, serves the API and `/files` |
+| `worker` | `Dockerfile` target `worker` | `pic-worker`: runs cluster, pipeline, URL-ingest and GDrive-sync jobs |
 
-For production without Modal, consider:
+Storage is the local backend, mounted from `./data` at `/data` in both containers.
 
-1. **Cron + script**: Schedule worker runs via system cron
-2. **Supervisor/systemd**: Run workers as managed background processes
-3. **Celery/Dramatiq**: Add a task queue (requires code changes -- see ROADMAP.md)
+## Running the worker outside Docker
 
-## GPU Support
+```bash
+uv sync --extra ml
+PIC_DATABASE_URL=postgresql+asyncpg://pic:pic_local@localhost:5432/pic \
+PIC_STORAGE_BACKEND=local PIC_LOCAL_STORAGE_PATH=./data \
+uv run pic-worker
+```
 
-For GPU-accelerated embedding generation, ensure:
-- NVIDIA drivers and CUDA toolkit installed
-- PyTorch installed with CUDA support: `pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121`
+The worker polls every 2 seconds, runs one job at a time, finishes the current
+job on SIGTERM, and on start marks any RUNNING local job left by a crashed
+worker as FAILED. Run a single worker.
 
-Workers will automatically use GPU if available via PyTorch's device detection.
+## GPU
+
+The embedding code picks CUDA, then Apple MPS, then CPU.
+
+- **macOS:** run the worker natively as above to use the Apple GPU. Docker on macOS is CPU only.
+- **Linux with NVIDIA:** not supported yet. The lockfile pins CPU-only torch on Linux; see the "Local NVIDIA GPU support" item in `ROADMAP.md`.
+
+## Google Drive sync
+
+The 15-minute Drive check only exists on Modal. With the local backend, trigger
+a sync with `POST /api/v1/gdrive/sync`.
