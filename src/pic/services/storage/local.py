@@ -13,7 +13,7 @@ class LocalStorageBackend:
     """StorageBackend implementation using local filesystem."""
 
     def __init__(self, root_path: Path, base_url: str) -> None:
-        self._root = Path(root_path)
+        self._root = Path(root_path).resolve()  # relative roots (e.g. ./data) must match resolved paths
         self._base_url = base_url.rstrip("/")
         self._root.mkdir(parents=True, exist_ok=True)
 
