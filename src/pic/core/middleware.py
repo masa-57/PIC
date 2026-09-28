@@ -7,6 +7,7 @@ import time
 import uuid
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -27,6 +28,15 @@ def _sanitize_request_id(request_id: str | None) -> str:
     return str(uuid.uuid4())
 
 
+def _ui_image_sources() -> str:
+    """img-src for UI pages: presigned URLs are https, except self-hosted S3 on plain http (e.g. MinIO)."""
+    sources = "'self' https: data:"
+    if settings.storage_backend == "s3" and settings.s3_endpoint_url.startswith("http://"):
+        parts = urlsplit(settings.s3_endpoint_url)
+        sources += f" {parts.scheme}://{parts.netloc}"
+    return sources
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     _DOCS_PATHS = {"/docs", "/redoc", "/openapi.json"}
 
@@ -43,7 +53,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             )
         elif request.url.path.startswith("/ui"):
             response.headers["Content-Security-Policy"] = (
-                "default-src 'self'; img-src 'self' https: data:; frame-ancestors 'none'"
+                f"default-src 'self'; img-src {_ui_image_sources()}; frame-ancestors 'none'"
             )
         else:
             response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"

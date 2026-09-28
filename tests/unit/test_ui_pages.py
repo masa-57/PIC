@@ -247,3 +247,53 @@ class TestRunsPage:
         assert response.status_code == 200
         params = dispatch.await_args.args[2]
         assert params == {"urls": ["https://example.com/a.jpg", "https://example.com/b.jpg"], "auto_pipeline": True}
+
+
+@pytest.mark.unit
+class TestUiErrorHandling:
+    def test_htmx_framework_errors_do_not_swap(self, ui_client):
+        # A failed poll must not replace #jobs with JSON (that would break the Runs page).
+        from fastapi import HTTPException
+
+        with patch(
+            "pic.ui.routes.browse.recent_jobs",
+            new_callable=AsyncMock,
+            side_effect=HTTPException(status_code=503, detail="Database unavailable"),
+        ):
+            response = ui_client.get("/ui/jobs/table", headers=HX)
+        assert response.status_code == 503
+        assert response.headers["HX-Reswap"] == "none"
+
+    def test_htmx_validation_error_does_not_swap(self, ui_client):
+        response = ui_client.get("/ui?offset=-1", headers=HX)
+        assert response.status_code == 422
+        assert response.headers["HX-Reswap"] == "none"
+
+    def test_ui_rendered_errors_still_swap(self, ui_client):
+        with (
+            patch("pic.ui.routes.browse.has_active_clustering_job", new_callable=AsyncMock, return_value=True),
+            patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[]),
+        ):
+            response = ui_client.post("/ui/jobs/run/pipeline", headers=HX)
+        assert response.status_code == 409
+        assert "HX-Reswap" not in response.headers
+
+    def test_api_errors_are_unchanged(self, ui_client):
+        response = ui_client.get("/api/v1/no-such-route", headers=HX)
+        assert response.status_code == 404
+        assert "HX-Reswap" not in response.headers
+
+
+@pytest.mark.unit
+class TestUiImageCsp:
+    def test_http_s3_endpoint_is_allowed_for_images(self, ui_client, monkeypatch):
+        # Self-hosted MinIO often runs on plain http; presigned thumbnails must not be blocked.
+        monkeypatch.setattr(settings, "storage_backend", "s3")
+        monkeypatch.setattr(settings, "s3_endpoint_url", "http://nas.lan:9000/")
+        csp = ui_client.get("/ui/login", follow_redirects=False).headers["content-security-policy"]
+        assert "img-src 'self' https: data: http://nas.lan:9000;" in csp
+
+    def test_local_backend_keeps_default_img_src(self, ui_client, monkeypatch):
+        monkeypatch.setattr(settings, "storage_backend", "local")
+        csp = ui_client.get("/ui/login", follow_redirects=False).headers["content-security-policy"]
+        assert csp == "default-src 'self'; img-src 'self' https: data:; frame-ancestors 'none'"
