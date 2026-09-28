@@ -141,7 +141,7 @@ For Modal: run `modal setup` to authenticate, then `modal deploy src/pic/modal_a
 - **integration**: real PostgreSQL + pgvector service container (`pgvector/pgvector:pg18`), creates the `vector` extension, runs Alembic, then integration tests
 - **deploy-modal**: on `main` only, after the other three pass; skipped with a notice when `MODAL_TOKEN_ID` is not set
 
-GitHub Actions are pinned to a full commit SHA with the version in a trailing comment (`actions/checkout@<sha> # v7.0.1`); the repo's Actions policy rejects tag references, and Dependabot bumps the SHAs. The uv version is pinned once via the `UV_VERSION` env at the top of the workflow. CodeQL runs via GitHub's default setup, not a workflow file. Dependabot (`.github/dependabot.yml`) opens one grouped PR per month for Python deps and one for Actions.
+GitHub Actions are pinned to a full commit SHA with the version in a trailing comment (`actions/checkout@<sha> # v7.0.1`); the repo's Actions policy rejects tag references, and Dependabot bumps the SHAs. The uv version is pinned once via the `UV_VERSION` env at the top of the workflow. CodeQL runs via GitHub's default setup, not a workflow file. The repo's Actions policy only allows actions owned by `masa-57`, created by GitHub, or matching an allowlist (`actions/*`, `astral-sh/setup-uv`, `aquasecurity/*`); a new third-party action needs the allowlist updated in repo settings first, or the run fails with `startup_failure`. Dependabot (`.github/dependabot.yml`) opens one grouped PR per month for Python deps and one for Actions.
 
 ## Dependency Policy
 

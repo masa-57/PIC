@@ -102,7 +102,7 @@
   <text x="290" y="558" fill="#475569" font-size="9.5">pytest (70%+)</text>
   <text x="290" y="573" fill="#94a3b8" font-size="8.5">Unit + Integration</text>
 
-  <text x="400" y="558" fill="#475569" font-size="9.5">Trivy + CodeQL</text>
+  <text x="400" y="558" fill="#475569" font-size="9.5">CodeQL</text>
   <text x="400" y="573" fill="#94a3b8" font-size="8.5">Security scan</text>
 
   <text x="520" y="558" fill="#475569" font-size="9.5">Smoke test</text>
