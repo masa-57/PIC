@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0  # no floating major tag published
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0  # no floating major tag published
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -60,7 +60,7 @@ jobs:
       PIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/pic_test
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0  # no floating major tag published
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -82,7 +82,7 @@ jobs:
       MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0  # no floating major tag published
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
