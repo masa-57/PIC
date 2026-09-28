@@ -39,7 +39,7 @@ uv run ruff format src/ tests/ scripts/
 uv run mypy src/pic/
 
 # Security audit
-uv run pip-audit
+uv run pip-audit --skip-editable
 
 # Coverage (70% minimum threshold)
 uv run pytest -m unit --cov=src/pic --cov-report=term
@@ -184,7 +184,7 @@ GitHub Actions are pinned to a full commit SHA with the version in a trailing co
 2. `uv run ruff format --check src/ tests/ scripts/` -- zero formatting issues
 3. `uv run mypy src/pic/` -- zero type errors
 4. `uv run pytest -m unit` -- all tests pass
-5. `uv run pip-audit` -- no known vulnerabilities
+5. `uv run pip-audit --skip-editable` -- no known vulnerabilities
 
 ## Code Standards
 

@@ -31,7 +31,7 @@ jobs:
       - run: uv run ruff format --check src/ tests/ scripts/
       - run: uv lock --check
       - run: uv run mypy src/pic/
-      - run: uv run pip-audit
+      - run: uv run pip-audit --skip-editable  # the project itself is not on PyPI
 
   unit:
     runs-on: ubuntu-latest
