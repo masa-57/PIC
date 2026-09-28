@@ -16,7 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Unused dev dependencies `moto`, `testcontainers`, `coverage` (#117)
 - Trivy container scan, docs-only CI filter, coverage aggregation, deploy-readiness, post-deploy smoke, and rollback jobs (#116)
-- The staging deployment workflow
+- `TECHNICAL_DEBT.md`, completed design/plan docs under `docs/plans/`, the staging
+  deployment workflow, and the staging environment guide. Work is now tracked in the
+  `v0.3 Reboot` milestone; see `ROADMAP.md`.
 
 ## [0.2.1] - 2026-03-16
 
