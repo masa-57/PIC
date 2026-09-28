@@ -123,7 +123,7 @@ def compute_embeddings_batch(images_bytes: list[bytes]) -> list[list[float]]:
                     img.close()
                     raise
 
-            inputs = processor(images=images, return_tensors="pt", padding=True).to(device)
+            inputs = processor(images=images, return_tensors="pt").to(device)
         finally:
             for img in images:
                 img.close()
