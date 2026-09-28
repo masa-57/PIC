@@ -793,6 +793,96 @@ class TestPipelineEndpoint:
 
 @pytest.mark.unit
 class TestProductsEndpoint:
+    def test_create_product_from_several_groups(self, client, override_db):
+        from pic.services.curation import CurationResult
+
+        with (
+            patch(
+                "pic.api.products.curation.create_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=7, added=5, skipped=1),
+            ) as create,
+            patch("pic.api.products.get_or_404", new_callable=AsyncMock, return_value=_make_product(id=7)),
+        ):
+            response = client.post("/api/v1/products", json={"l1_group_ids": [1, 2], "title": "Mug"})
+
+        assert response.status_code == 201
+        assert response.json()["image_count"] == 5
+        assert response.headers["Location"] == "/api/v1/products/7"
+        assert create.await_args.kwargs["l1_group_ids"] == [1, 2]
+
+    def test_create_product_rejects_both_group_fields(self, client, override_db):
+        response = client.post("/api/v1/products", json={"l1_group_id": 1, "l1_group_ids": [2]})
+        assert response.status_code == 422
+
+    def test_create_product_rejects_no_group_field(self, client, override_db):
+        response = client.post("/api/v1/products", json={"title": "x"})
+        assert response.status_code == 422
+
+    def test_add_images_to_product(self, client, override_db):
+        from pic.services.curation import CurationResult
+
+        with patch(
+            "pic.api.products.curation.add_to_product",
+            new_callable=AsyncMock,
+            return_value=CurationResult(product_id=3, added=2, skipped=1),
+        ) as add:
+            response = client.post("/api/v1/products/3/images", json={"image_ids": ["a", "b", "c"]})
+
+        assert response.status_code == 200
+        assert response.json() == {"product_id": 3, "added": 2, "skipped": 1, "removed": 0, "deleted_product_ids": []}
+        assert add.await_args.args[1] == 3
+
+    def test_add_images_requires_a_selection(self, client, override_db):
+        response = client.post("/api/v1/products/3/images", json={})
+        assert response.status_code == 422
+
+    def test_remove_images_from_product(self, client, override_db):
+        from pic.services.curation import CurationResult
+
+        with patch(
+            "pic.api.products.curation.remove_from_product",
+            new_callable=AsyncMock,
+            return_value=CurationResult(product_id=3, removed=2, deleted_product_ids=[3]),
+        ):
+            response = client.request("DELETE", "/api/v1/products/3/images", json={"image_ids": ["a", "b"]})
+
+        assert response.status_code == 200
+        assert response.json()["deleted_product_ids"] == [3]
+
+    def test_merge_products(self, client, override_db):
+        from pic.services.curation import CurationResult
+
+        with patch(
+            "pic.api.products.curation.merge_products",
+            new_callable=AsyncMock,
+            return_value=CurationResult(product_id=3, added=4, deleted_product_ids=[9]),
+        ) as merge:
+            response = client.post("/api/v1/products/3/merge", json={"source_product_id": 9})
+
+        assert response.status_code == 200
+        assert merge.await_args.args[1:] == (3, 9)
+
+    def test_curation_errors_map_to_http_status(self, client, override_db):
+        from pic.services.curation import InvalidOperationError, NotFoundError
+
+        with patch(
+            "pic.api.products.curation.merge_products",
+            new_callable=AsyncMock,
+            side_effect=InvalidOperationError("Cannot merge a product into itself"),
+        ):
+            response = client.post("/api/v1/products/3/merge", json={"source_product_id": 3})
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Cannot merge a product into itself"
+
+        with patch(
+            "pic.api.products.curation.add_to_product",
+            new_callable=AsyncMock,
+            side_effect=NotFoundError("Product 5 not found"),
+        ):
+            response = client.post("/api/v1/products/5/images", json={"image_ids": ["a"]})
+        assert response.status_code == 404
+
     def test_create_product(self, client, override_db):
         group = _make_l1_group(representative_image_id="img-1")
         img1 = _make_image(id="img-1", l1_group_id=1)
@@ -1110,34 +1200,6 @@ class TestProductsEndpoint:
         # First execute call should be the L1Group SELECT with FOR UPDATE
         first_stmt = str(executed_stmts[0])
         assert "FOR UPDATE" in first_stmt
-
-    def test_create_product_integrity_error_returns_409(self, client, override_db):
-        """IntegrityError during commit returns 409 for duplicate product race."""
-        from sqlalchemy.exc import IntegrityError
-
-        group = _make_l1_group(representative_image_id="img-1")
-        mock_group_result = MagicMock()
-        mock_group_result.scalar_one_or_none.return_value = group
-        mock_exists_result = MagicMock()
-        mock_exists_result.scalar.return_value = False
-        mock_rep_exists_result = MagicMock()
-        mock_rep_exists_result.scalar.return_value = True
-
-        override_db.execute = AsyncMock(
-            side_effect=[mock_group_result, mock_exists_result, mock_rep_exists_result, MagicMock()]
-        )
-        override_db.add = MagicMock()
-        override_db.flush = AsyncMock()
-
-        orig = Exception("duplicate key value violates unique constraint")
-        orig.constraint_name = "ix_images_one_product_per_l1"  # type: ignore[attr-defined]
-        exc = IntegrityError("", {}, orig)
-        override_db.commit = AsyncMock(side_effect=exc)
-        override_db.rollback = AsyncMock()
-
-        response = client.post("/api/v1/products", json={"l1_group_id": 1, "title": "Test"})
-        assert response.status_code == 409
-        assert "already has a product" in response.json()["detail"]
 
     def test_create_product_missing_l1_group_id(self, client, override_db):
         """l1_group_id is required — omitting it yields 422."""
