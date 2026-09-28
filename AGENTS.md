@@ -109,7 +109,6 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 - `scripts/visualize.py` -- Generates HTML visualization of cluster results
 - `docs/n8n-setup-guide.md` -- n8n integration setup documentation
 - `docs/n8n-workflows/` -- n8n workflow JSON exports (batch Google Drive upload)
-- `TECHNICAL_DEBT.md` -- Tracked technical debt items
 
 ## Setup
 

@@ -1,73 +1,40 @@
 # Roadmap
 
-This document outlines likely next improvements for PIC. Contributions are
-welcome for any of these items.
+PIC restarted as a hobby project in September 2026. All work is tracked in the
+[v0.3 Reboot](https://github.com/masa-57/PIC/milestone/1) milestone on GitHub
+Issues. This file is only the map; the issues hold the detail.
 
-There are currently no open roadmap issues. The items below are prospective
-next investments rather than committed milestones.
+## Guiding principle
 
-## High Priority
+**Simplify.** Less code, fewer dependencies, fewer config knobs, less CI.
+Simplification is mostly opportunistic: when touching a module, remove what a
+single-user hobby deployment will never need. Items with a clear payoff are
+tracked as their own issues under the `simplification` label.
 
-### Worker Abstraction Layer (Modal Decoupling)
+## Order of work
 
-Currently, GPU workloads (embedding generation, clustering) run exclusively on [Modal](https://modal.com). The goal is to create a `WorkerDispatcher` protocol that allows GPU workloads to run on other platforms:
+1. **Unfreeze** ([#111](https://github.com/masa-57/PIC/issues/111)) -- refresh
+   the lockfile, fix mypy, get CI green. Nothing else can merge until this lands.
+2. **Simplify CI and deps** ([#116](https://github.com/masa-57/PIC/issues/116),
+   [#117](https://github.com/masa-57/PIC/issues/117)) -- fold into the unfreeze
+   pass where it saves work.
+3. **Run without cloud accounts** ([#112](https://github.com/masa-57/PIC/issues/112))
+   -- local worker backend so `docker compose up` plus a folder of images
+   produces clusters.
+4. **Web UI** ([#113](https://github.com/masa-57/PIC/issues/113)) -- browse and
+   curate clusters from the API itself.
+5. **Clustering benchmark** ([#114](https://github.com/masa-57/PIC/issues/114))
+   -- labeled dataset and precision/recall script.
+6. **Multi-model embeddings** ([#115](https://github.com/masa-57/PIC/issues/115))
+   -- blocked on the benchmark.
 
-- Celery + Redis
-- AWS Batch
-- Kubernetes Jobs
-- Ray
-- Local process (for development)
+Ongoing simplification: [#118](https://github.com/masa-57/PIC/issues/118)
+(Docker and root config), [#119](https://github.com/masa-57/PIC/issues/119)
+(config surface), [#120](https://github.com/masa-57/PIC/issues/120) (features
+to drop).
 
-**Research needed:** Evaluate Celery vs Dramatiq vs a custom protocol for the simplest migration path. This is the highest-impact item for platform flexibility.
+## Not planned
 
-## Medium Priority
-
-### Multi-Model Embedding Support
-
-Support alternative vision models alongside DINOv2:
-
-- CLIP (OpenAI)
-- SigLIP (Google)
-- Custom models via a plugin interface
-
-## Future
-
-### Webhook Notifications
-
-Send notifications when clustering jobs complete, new clusters are detected, or pipeline stages finish.
-
-### Batch API
-
-Accept large batches of images in a single API call with async processing and status tracking.
-
-### Real-Time Clustering
-
-Stream clustering updates as new images are ingested rather than requiring explicit cluster trigger.
-
-## Completed
-
-### Configurable Storage Backends
-
-Support for S3 (existing), Google Cloud Storage, and local filesystem via `PIC_STORAGE_BACKEND` env var. See [design doc](docs/plans/2026-03-04-storage-backends-and-url-ingestion-design.md).
-
-### URL-Based Image Ingestion
-
-`POST /api/v1/images/ingest` endpoint accepts image URLs for batch download and ingestion. See [design doc](docs/plans/2026-03-04-storage-backends-and-url-ingestion-design.md).
-
-### URL Ingest Hardening And Worker Reliability
-
-`POST /api/v1/images/ingest` now blocks private and local-network targets,
-revalidates redirect hops, and restores correct Modal dispatch and follow-up job
-chaining.
-
-### Explicit Auth Opt-Out And Metrics Alignment
-
-Auth now requires an explicit `PIC_AUTH_DISABLED=true` opt-out, and the
-documented `/metrics` behavior matches the live authenticated endpoint and
-background job metrics.
-
-### Documentation Reconciliation
-
-README, deployment guides, Google Drive setup docs, changelog entries, and
-contributor guidance were brought back in sync with the deployed system after
-the `v0.2.1` release.
+Webhooks, batch API, real-time clustering, Celery / Ray / Kubernetes workers.
+These were on the previous roadmap and are out of scope until there is a user
+who needs them.
