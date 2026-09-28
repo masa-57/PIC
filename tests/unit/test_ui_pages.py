@@ -143,3 +143,107 @@ class TestClusterDetailPage:
         assert "+19 more" in response.text
         assert "✓ product" in response.text
         assert 'src="/files/thumbnails/img-1.jpg"' in response.text
+
+
+@pytest.mark.unit
+def test_protected_page_redirects_to_login(auth_client):
+    response = auth_client.get("/ui/jobs", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/ui/login?next=/ui/jobs"
+
+
+def _job(status="completed", error=None, result=None):
+    from datetime import datetime
+
+    from pic.models.db import Job, JobStatus, JobType
+
+    return Job(
+        id="job-1",
+        type=JobType.PIPELINE,
+        status=JobStatus(status),
+        progress=1.0 if status == "completed" else 0.3,
+        error=error,
+        result=result,
+        created_at=datetime(2026, 9, 28, 12, 0),
+        completed_at=None,
+    )
+
+
+@pytest.mark.unit
+class TestRunsPage:
+    def test_polls_only_while_a_job_is_active(self, ui_client):
+        with patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[_job("running")]):
+            active = ui_client.get("/ui/jobs")
+        with patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[_job("completed")]):
+            idle = ui_client.get("/ui/jobs")
+        assert 'hx-trigger="every 3s"' in active.text
+        assert 'hx-trigger="every 3s"' not in idle.text
+
+    def test_shows_error_and_result_summary(self, ui_client):
+        job = _job("failed", error="3 of 3 images failed to ingest; see worker logs", result='{"ingest_errors": 3}')
+        with patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[job]):
+            response = ui_client.get("/ui/jobs/table", headers=HX)
+        assert "3 of 3 images failed to ingest" in response.text
+        assert "ingest_errors 3" in response.text
+
+    def test_run_requires_htmx_header(self, ui_client):
+        assert ui_client.post("/ui/jobs/run/pipeline").status_code == 400
+
+    def test_run_refuses_while_clustering_job_active(self, ui_client):
+        with (
+            patch("pic.ui.routes.browse.has_active_clustering_job", new_callable=AsyncMock, return_value=True),
+            patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[]),
+            patch("pic.ui.routes.create_and_dispatch_job", new_callable=AsyncMock) as dispatch,
+        ):
+            response = ui_client.post("/ui/jobs/run/pipeline", headers=HX)
+        assert response.status_code == 409
+        assert "already running" in response.text
+        dispatch.assert_not_awaited()
+
+    def test_run_starts_job(self, ui_client):
+        from pic.models.db import JobType
+
+        with (
+            patch("pic.ui.routes.browse.has_active_clustering_job", new_callable=AsyncMock, return_value=False),
+            patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[]),
+            patch("pic.ui.routes.create_and_dispatch_job", new_callable=AsyncMock) as dispatch,
+        ):
+            response = ui_client.post("/ui/jobs/run/cluster", headers=HX)
+        assert response.status_code == 200
+        assert dispatch.await_args.args[1] == JobType.CLUSTER_FULL
+        assert "Started" in response.text
+
+    def test_queue_full_is_shown(self, ui_client):
+        from fastapi import HTTPException
+
+        with (
+            patch("pic.ui.routes.browse.has_active_clustering_job", new_callable=AsyncMock, return_value=False),
+            patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[]),
+            patch(
+                "pic.ui.routes.create_and_dispatch_job",
+                new_callable=AsyncMock,
+                side_effect=HTTPException(status_code=429, detail="Job queue is full"),
+            ),
+        ):
+            response = ui_client.post("/ui/jobs/run/pipeline", headers=HX)
+        assert response.status_code == 429
+        assert "Job queue is full" in response.text
+
+    def test_url_ingest_rejects_private_targets(self, ui_client):
+        with patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[]):
+            response = ui_client.post("/ui/jobs/url-ingest", data={"urls": "http://127.0.0.1/a.jpg"}, headers=HX)
+        assert response.status_code == 400
+
+    def test_url_ingest_dispatches_with_auto_pipeline(self, ui_client):
+        with (
+            patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[]),
+            patch("pic.ui.routes.create_and_dispatch_job", new_callable=AsyncMock) as dispatch,
+        ):
+            response = ui_client.post(
+                "/ui/jobs/url-ingest",
+                data={"urls": "https://example.com/a.jpg\n\nhttps://example.com/b.jpg"},
+                headers=HX,
+            )
+        assert response.status_code == 200
+        params = dispatch.await_args.args[2]
+        assert params == {"urls": ["https://example.com/a.jpg", "https://example.com/b.jpg"], "auto_pipeline": True}

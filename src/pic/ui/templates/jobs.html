@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Runs{% endblock %}
+{% block content %}
+<h1>Runs</h1>
+<div class="run-actions">
+  <button class="primary" hx-post="/ui/jobs/run/pipeline" hx-target="#jobs" hx-swap="outerHTML">Run pipeline</button>
+  <button hx-post="/ui/jobs/run/cluster" hx-target="#jobs" hx-swap="outerHTML">Re-cluster</button>
+  <span class="muted">The pipeline ingests new images from the storage inbox, then clusters everything.</span>
+</div>
+<form class="url-ingest" hx-post="/ui/jobs/url-ingest" hx-target="#jobs" hx-swap="outerHTML">
+  <div>
+    <label for="urls">Ingest images from URLs (one per line)</label><br>
+    <textarea id="urls" name="urls" rows="3"></textarea>
+  </div>
+  <button type="submit">Ingest and run pipeline</button>
+</form>
+{% include "_fragments/jobs_table.html" %}
+{% endblock %}

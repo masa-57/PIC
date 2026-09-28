@@ -1,18 +1,23 @@
 """Web UI routes. Pages render Jinja2 templates; htmx requests get fragments."""
 
 import hmac
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pic.api.deps import get_db
+from pic.api.deps import create_and_dispatch_job, get_db
 from pic.config import settings
 from pic.core.auth import AuthMode, get_auth_mode
+from pic.models.db import JobStatus, JobType
+from pic.models.schemas import UrlIngestRequest
 from pic.services import browse
 from pic.ui.auth import (
     SESSION_COOKIE,
     SESSION_MAX_AGE,
+    require_htmx,
     require_ui_session,
     safe_next,
     session_token,
@@ -103,3 +108,78 @@ async def cluster_detail_page(
     if _is_htmx(request) and offset > 0:
         return templates.TemplateResponse(request, "_fragments/group_rows.html", context)
     return templates.TemplateResponse(request, "cluster_detail.html", context)
+
+
+_RUN_TYPES = {"pipeline": JobType.PIPELINE, "cluster": JobType.CLUSTER_FULL}
+_ACTIVE_STATUSES = (JobStatus.PENDING, JobStatus.RUNNING)
+
+
+async def _jobs_table(
+    request: Request,
+    db: AsyncSession,
+    message: str | None = None,
+    message_kind: str = "ok",
+    status_code: int = 200,
+) -> Response:
+    jobs = await browse.recent_jobs(db)
+    context = {
+        "jobs": jobs,
+        "polling": any(j.status in _ACTIVE_STATUSES for j in jobs),
+        "message": message,
+        "message_kind": message_kind,
+    }
+    return templates.TemplateResponse(request, "_fragments/jobs_table.html", context, status_code=status_code)
+
+
+@router.get("/jobs", response_class=HTMLResponse)
+async def jobs_page(request: Request, db: AsyncSession = Depends(get_db)) -> Response:
+    jobs = await browse.recent_jobs(db)
+    context = {
+        "jobs": jobs,
+        "polling": any(j.status in _ACTIVE_STATUSES for j in jobs),
+        "message": None,
+        "active": "jobs",
+    }
+    return templates.TemplateResponse(request, "jobs.html", context)
+
+
+@router.get("/jobs/table", response_class=HTMLResponse)
+async def jobs_table(request: Request, db: AsyncSession = Depends(get_db)) -> Response:
+    return await _jobs_table(request, db)
+
+
+@router.post("/jobs/run/{kind}", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
+async def start_run(
+    request: Request,
+    kind: Literal["pipeline", "cluster"],
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    if await browse.has_active_clustering_job(db):
+        return await _jobs_table(
+            request, db, "A pipeline or clustering job is already running.", "error", status_code=409
+        )
+    try:
+        await create_and_dispatch_job(db, _RUN_TYPES[kind], None)
+    except HTTPException as exc:
+        return await _jobs_table(request, db, str(exc.detail), "error", status_code=exc.status_code)
+    return await _jobs_table(request, db, f"Started {kind} run.")
+
+
+@router.post("/jobs/url-ingest", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
+async def start_url_ingest(
+    request: Request,
+    urls: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    lines = [line.strip() for line in urls.splitlines() if line.strip()]
+    try:
+        body = UrlIngestRequest.model_validate({"urls": lines, "auto_pipeline": True})
+    except ValidationError as exc:
+        reason = exc.errors()[0]["msg"] if exc.errors() else "Invalid URLs"
+        return await _jobs_table(request, db, f"Could not ingest: {reason}", "error", status_code=400)
+    params = {"urls": [str(u) for u in body.urls], "auto_pipeline": True}
+    try:
+        await create_and_dispatch_job(db, JobType.URL_INGEST, params)
+    except HTTPException as exc:
+        return await _jobs_table(request, db, str(exc.detail), "error", status_code=exc.status_code)
+    return await _jobs_table(request, db, f"Ingesting {len(lines)} URL(s); a pipeline run follows.")
