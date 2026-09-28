@@ -123,7 +123,6 @@ All configuration is via environment variables with the `PIC_` prefix.
 | `PIC_GCS_CREDENTIALS_JSON` | GCS only | Service account JSON |
 | `PIC_LOCAL_STORAGE_PATH` | Local only | Filesystem path (default: `data/storage`) |
 | `PIC_LOCAL_STORAGE_BASE_URL` | Local only | Base URL for file serving |
-| `PIC_CORS_ORIGINS` | No | Allowed CORS origins (comma-separated) |
 | `PIC_LOG_LEVEL` | No | Log level (default: `INFO`) |
 | `PIC_GDRIVE_FOLDER_ID` | No | Google Drive folder for sync |
 | `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | No | GDrive service account credentials |

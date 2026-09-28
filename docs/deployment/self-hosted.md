@@ -61,3 +61,6 @@ putting it on a public address:
   limit (HTTP 429 when full). For example, with Caddy and the
   [caddy-ratelimit](https://github.com/mholt/caddy-ratelimit) module, or nginx
   `limit_req`.
+- The web UI at `/ui` asks for the API key once and keeps a 30-day cookie. The
+  UI and API share one origin, so no CORS setup is needed; to call the API from
+  a browser app on another origin, add CORS headers at the reverse proxy.

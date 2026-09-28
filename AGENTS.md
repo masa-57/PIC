@@ -78,6 +78,8 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 
 **Auth**: API key via `X-API-Key` header on all `/api/v1/*` routes. Set `PIC_API_KEY` for protected mode; if it is unset, routes return 503 unless `PIC_AUTH_DISABLED=true` explicitly opts into unauthenticated mode. Uses timing-safe comparison.
 
+**Web UI**: Server-rendered at `/ui` (Jinja2 + htmx, no build step). With `PIC_API_KEY` set, `/ui/login` sets a signed `pic_session` cookie accepted only by `/ui` routes; UI POSTs require the `HX-Request` header. Products are the durable curation unit; clustering never changes them.
+
 **Health checks**: `GET /health` (basic) and `GET /health/detailed` (DB connectivity + recent job failures).
 
 **R2 lifecycle**: `images/` is an inbox; after successful ingest, objects move to `processed/`. Duplicates (detected by pipeline) move to `rejected/`.
@@ -100,6 +102,9 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 - `src/pic/services/dispatch.py` -- Routes new jobs to the local or Modal backend
 - `src/pic/services/clustering_pipeline.py` -- Shared clustering logic used by both cluster and pipeline workers
 - `src/pic/services/gdrive.py` -- Google Drive API wrapper (list, download, move files)
+- `src/pic/services/curation.py` -- Product membership changes (create, add, remove, split, merge), shared by UI and API
+- `src/pic/services/browse.py` -- Paged read models for UI pages
+- `src/pic/ui/` -- Web UI: Jinja2 templates + vendored htmx, cookie session auth (`routes.py`, `auth.py`)
 - `src/pic/models/` -- SQLAlchemy models (`db.py`) and Pydantic schemas (`schemas.py`)
 - `src/pic/worker/` -- Job implementations shared by both backends (cluster, pipeline, url_ingest, gdrive_sync)
 - `src/pic/worker/local_runner.py` -- `pic-worker`: claims PENDING jobs and runs them in-process
@@ -111,7 +116,6 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 - `src/pic/core/` -- Database engine, structured JSON logging, API key auth, middleware, exception handlers
 - `src/pic/migrations/` -- Alembic migrations (uses `sync_database_url` from config)
 - `scripts/seed.py` -- Bulk image upload + optional auto-clustering
-- `scripts/visualize.py` -- Generates HTML visualization of cluster results
 - `docs/n8n-setup-guide.md` -- n8n integration setup documentation
 - `docs/n8n-workflows/` -- n8n workflow JSON exports (batch Google Drive upload)
 

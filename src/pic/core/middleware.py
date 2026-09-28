@@ -29,7 +29,6 @@ def _sanitize_request_id(request_id: str | None) -> str:
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     _DOCS_PATHS = {"/docs", "/redoc", "/openapi.json"}
-    _HTML_VIEW_PATHS = {"/api/v1/clusters/view"}
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
         response: Response = await call_next(request)
@@ -41,11 +40,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
                 "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; img-src 'self' data: cdn.jsdelivr.net"
-            )
-        elif request.url.path in self._HTML_VIEW_PATHS:
-            response.headers["Content-Security-Policy"] = (
-                "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
-                f"img-src {settings.s3_endpoint_url} data:; frame-ancestors 'none'"
             )
         elif request.url.path.startswith("/ui"):
             response.headers["Content-Security-Policy"] = (

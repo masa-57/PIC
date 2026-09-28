@@ -6,12 +6,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from pic.api.health import router as health_router
-from pic.api.router import api_router, browser_router
+from pic.api.router import api_router
 from pic.config import settings
 from pic.core.auth import log_auth_mode, verify_api_key
 from pic.core.database import engine
@@ -40,8 +39,6 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging(level=getattr(logging, settings.log_level))
-    if settings.cors_origins == ["*"]:
-        logger.warning("CORS is set to allow all origins — restrict cors_origins in production")
     log_auth_mode()
     logger.info("PIC starting up")
     yield
@@ -63,13 +60,6 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler) 
 app.add_exception_handler(LoginRequiredError, login_required_handler)
 
 # Middleware (order matters: outermost first)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=settings.cors_allow_credentials,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key", "X-Request-ID", "Authorization"],
-)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestSizeLimitMiddleware)
 
@@ -82,8 +72,7 @@ app.middleware("http")(etag_middleware)
 
 # Routers
 app.include_router(api_router)
-app.include_router(ui_legacy_router)  # before browser_router so the old view redirects
-app.include_router(browser_router)
+app.include_router(ui_legacy_router)
 app.include_router(health_router)
 app.include_router(ui_public_router)
 app.include_router(ui_router)
