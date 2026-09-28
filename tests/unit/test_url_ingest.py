@@ -131,7 +131,11 @@ class TestRunUrlIngest:
             patch(
                 "pic.worker.url_ingest._download_urls",
                 new_callable=AsyncMock,
-                return_value=[DownloadResult(url="https://example.com/photo.jpg", image_bytes=b"fake-image-data")],
+                return_value=[
+                    DownloadResult(
+                        url="https://example.com/photo.jpg", image_bytes=b"fake-image-data", filename="photo.jpg"
+                    )
+                ],
             ),
             patch("pic.worker.image_processing.check_content_duplicate", new_callable=AsyncMock, return_value=False),
             patch("pic.worker.image_processing.insert_image_record", new_callable=AsyncMock, return_value="img-1"),
@@ -162,3 +166,33 @@ class TestRunUrlIngest:
         assert result_payload["pipeline_job_id"] == pipeline_job_id
         assert result_payload["new_image_ids"] == ["img-1"]
         assert result_payload["auto_pipeline_requested"] is True
+
+
+def _png_bytes() -> bytes:
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (4, 4)).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+@pytest.mark.unit
+class TestImageFilename:
+    def test_keeps_known_extension(self):
+        from pic.worker.url_ingest import image_filename
+
+        assert image_filename("https://example.com/a/photo.jpg", _png_bytes()) == "photo.jpg"
+
+    def test_adds_extension_from_image_format_when_url_has_none(self):
+        from pic.worker.url_ingest import image_filename
+
+        # Pipeline discovery filters by extension, so "400" would never be ingested.
+        assert image_filename("https://picsum.photos/id/70/600/400", _png_bytes()) == "400.png"
+
+    def test_rejects_unrecognised_image_bytes(self):
+        from pic.worker.url_ingest import image_filename
+
+        with pytest.raises(ValueError, match="Unsupported image format"):
+            image_filename("https://example.com/blob", b"not an image")

@@ -1,6 +1,7 @@
 """Worker task: Ingest images from URLs."""
 
 import asyncio
+import io
 import json
 import logging
 import os
@@ -10,10 +11,13 @@ from datetime import UTC, datetime
 from urllib.parse import urljoin, urlparse
 
 import httpx
+from PIL import Image as PILImage
+from PIL import UnidentifiedImageError
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pic.config import settings
+from pic.core.constants import IMAGE_EXTENSIONS
 from pic.core.metrics import record_job_created, record_job_finished
 from pic.models.db import JobStatus, JobType
 from pic.services.url_safety import resolve_public_ips, validate_url_target
@@ -22,12 +26,14 @@ logger = logging.getLogger(__name__)
 
 _URL_DOWNLOAD_TIMEOUT = 30  # seconds per URL
 _MAX_REDIRECTS = 5
+_FORMAT_EXTENSIONS = {"JPEG": ".jpg", "PNG": ".png", "GIF": ".gif", "BMP": ".bmp", "WEBP": ".webp", "TIFF": ".tiff"}
 
 
 @dataclass(frozen=True)
 class DownloadResult:
     url: str
     image_bytes: bytes | None = None
+    filename: str | None = None
     error: str | None = None
 
 
@@ -71,11 +77,24 @@ async def download_from_url(url: str) -> bytes:
     raise ValueError(f"URL exceeded redirect limit ({_MAX_REDIRECTS})")
 
 
-def _filename_from_url(url: str) -> str:
-    """Extract a safe filename from a URL."""
-    parsed = urlparse(url)
-    basename = os.path.basename(parsed.path) or "image.jpg"
-    return basename.replace("..", "_")[:256]
+def image_filename(url: str, image_bytes: bytes) -> str:
+    """Derive a safe filename from a URL, adding an extension from the image format if missing.
+
+    Pipeline discovery only picks up known image extensions, so a CDN URL such as
+    ``.../600/400`` must be stored as ``400.jpg``, not ``400``.
+    """
+    basename = (os.path.basename(urlparse(url).path) or "image").replace("..", "_")[:240]
+    if os.path.splitext(basename)[1].lower() in IMAGE_EXTENSIONS:
+        return basename
+    try:
+        with PILImage.open(io.BytesIO(image_bytes)) as img:
+            image_format = img.format
+    except (UnidentifiedImageError, OSError) as exc:
+        raise ValueError("Unsupported image format") from exc
+    extension = _FORMAT_EXTENSIONS.get(image_format or "")
+    if extension is None:
+        raise ValueError(f"Unsupported image format: {image_format}")
+    return basename + extension
 
 
 async def _download_urls(urls: list[str]) -> list[DownloadResult]:
@@ -86,10 +105,11 @@ async def _download_urls(urls: list[str]) -> list[DownloadResult]:
         async with semaphore:
             try:
                 image_bytes = await download_from_url(url)
+                filename = image_filename(url, image_bytes)
             except Exception as exc:
                 logger.warning("Failed to download %s: %s", url, exc)
                 return DownloadResult(url=url, error=str(exc))
-            return DownloadResult(url=url, image_bytes=image_bytes)
+            return DownloadResult(url=url, image_bytes=image_bytes, filename=filename)
 
     return list(await asyncio.gather(*[_download_one(url) for url in urls]))
 
@@ -160,7 +180,8 @@ async def run_url_ingest(job_id: str, urls: list[str], auto_pipeline: bool = Fal
                     continue
 
                 image_bytes = download.image_bytes
-                if image_bytes is None:
+                filename = download.filename
+                if image_bytes is None or filename is None:
                     failed += 1
                     errors.append({"url": download.url, "reason": "Download returned no data"})
                     continue
@@ -178,8 +199,6 @@ async def run_url_ingest(job_id: str, urls: list[str], auto_pipeline: bool = Fal
                     continue
 
                 seen_hashes.add(content_hash)
-
-                filename = _filename_from_url(download.url)
                 s3_key = f"{S3_PREFIX_INBOX}{uuid.uuid4()}_{filename}"
 
                 await asyncio.to_thread(upload_to_s3, image_bytes, s3_key)

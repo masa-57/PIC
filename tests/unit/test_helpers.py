@@ -1,5 +1,6 @@
 """Unit tests for worker helper functions."""
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -108,6 +109,26 @@ class TestMarkJobHelpers:
 
         assert mock_db.execute.await_count == 2
         mock_db.commit.assert_awaited_once()
+
+    async def test_mark_job_completed_stores_error(self, mock_db):
+        from pic.worker.helpers import mark_job_completed
+
+        mock_db.execute = AsyncMock(side_effect=[MagicMock(), MagicMock()])
+
+        await mark_job_completed(mock_db, "job-1", {}, error="1 of 3 images failed")
+
+        params = mock_db.execute.await_args_list[1].args[0].compile().params
+        assert params["error"] == "1 of 3 images failed"
+
+    async def test_mark_job_failed_stores_result(self, mock_db):
+        from pic.worker.helpers import mark_job_failed
+
+        mock_db.execute = AsyncMock(side_effect=[MagicMock(), MagicMock()])
+
+        await mark_job_failed(mock_db, "job-1", "boom", result={"ingest_errors": 3})
+
+        params = mock_db.execute.await_args_list[1].args[0].compile().params
+        assert json.loads(params["result"]) == {"ingest_errors": 3}
 
 
 @pytest.mark.unit

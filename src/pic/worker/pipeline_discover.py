@@ -36,10 +36,29 @@ async def download_s3_concurrent(s3_keys: list[str], max_concurrency: int) -> li
     return list(await asyncio.gather(*tasks))
 
 
-async def phase_discover_and_dedup(db: AsyncSession, job_id: str) -> tuple[list[str], dict[str, int]]:
-    """Scan R2 images/ prefix, deduplicate, create DB records for new images."""
+async def _classify_known_keys(db: AsyncSession, s3_keys: list[str]) -> tuple[dict[str, str], set[str]]:
+    """Look up inbox keys already tracked in the DB, before downloading anything.
+
+    Returns (pending image ids by key, duplicate keys). A row at images/<name> without an
+    embedding is pending work (URL ingest, or an earlier run that failed mid-ingest). A row
+    at processed/<name>, or an embedded one at images/<name>, makes the file a duplicate.
+    """
     from pic.models.db import Image
 
+    candidates = {k for s3_key in s3_keys for k in (s3_key, S3_PREFIX_PROCESSED + s3_key.removeprefix(S3_PREFIX_INBOX))}
+    result = await db.execute(select(Image.id, Image.s3_key, Image.has_embedding).where(Image.s3_key.in_(candidates)))
+    pending_ids_by_key: dict[str, str] = {}
+    existing_keys: set[str] = set()
+    for known_id, key, has_embedding in result.all():
+        if key.startswith(S3_PREFIX_INBOX) and not has_embedding:
+            pending_ids_by_key[key] = known_id
+        else:
+            existing_keys.add(key)
+    return pending_ids_by_key, existing_keys
+
+
+async def phase_discover_and_dedup(db: AsyncSession, job_id: str) -> tuple[list[str], dict[str, int]]:
+    """Scan R2 images/ prefix, deduplicate, create DB records for new images."""
     s3_keys = list_s3_objects(S3_PREFIX_INBOX)
     s3_keys = [k for k in s3_keys if os.path.splitext(k)[1].lower() in IMAGE_EXTENSIONS]
 
@@ -48,18 +67,17 @@ async def phase_discover_and_dedup(db: AsyncSession, job_id: str) -> tuple[list[
     if not s3_keys:
         return [], {"discovered": 0, "duplicates": 0}
 
-    # Fast pre-download dedup by key: skip files already tracked as either
-    # images/<name> (pending ingest) or processed/<name> (already ingested).
-    dedup_candidates = {
-        k for s3_key in s3_keys for k in (s3_key, S3_PREFIX_PROCESSED + s3_key.removeprefix(S3_PREFIX_INBOX))
-    }
-    existing_keys_result = await db.execute(select(Image.s3_key).where(Image.s3_key.in_(dedup_candidates)))
-    existing_keys = set(existing_keys_result.scalars().all())
+    pending_ids_by_key, existing_keys = await _classify_known_keys(db, s3_keys)
 
     keys_to_download: list[str] = []
+    new_image_ids: list[str] = []
     duplicates = 0
     for s3_key in s3_keys:
         processed_key = S3_PREFIX_PROCESSED + s3_key.removeprefix(S3_PREFIX_INBOX)
+        if s3_key in pending_ids_by_key and processed_key not in existing_keys:
+            logger.info("Queueing unembedded image for ingest: %s", s3_key)
+            new_image_ids.append(pending_ids_by_key[s3_key])
+            continue
         if s3_key in existing_keys or processed_key in existing_keys:
             logger.info("Skipping already-ingested key before download: %s", s3_key)
             _move_to_rejected(s3_key)
@@ -71,7 +89,6 @@ async def phase_discover_and_dedup(db: AsyncSession, job_id: str) -> tuple[list[
     downloaded = await download_s3_concurrent(keys_to_download, settings.max_concurrent_downloads)
 
     max_bytes = settings.max_image_download_mb * 1024 * 1024
-    new_image_ids: list[str] = []
     seen_hashes: set[str] = set()
 
     for s3_key, image_bytes in downloaded:

@@ -73,7 +73,7 @@ class TestPipelineDiscoverAndDedup:
         mock_session = AsyncMock()
         # First call: key-based pre-download dedup query → no key match.
         mock_existing_key_result = MagicMock()
-        mock_existing_key_result.scalars.return_value.all.return_value = []
+        mock_existing_key_result.all.return_value = []
 
         # Second call: select Image.id where content_hash matches → returns existing.
         mock_existing_result = MagicMock()
@@ -102,7 +102,7 @@ class TestPipelineDiscoverAndDedup:
         mock_session.add = MagicMock()  # db.add() is synchronous in SQLAlchemy
         # Pre-download key dedup: no matches.
         mock_key_result = MagicMock()
-        mock_key_result.scalars.return_value.all.return_value = []
+        mock_key_result.all.return_value = []
 
         # For content-hash duplicate check: return None (not in DB).
         mock_no_match = MagicMock()
@@ -135,7 +135,7 @@ class TestPipelineDiscoverAndDedup:
         mock_session = AsyncMock()
 
         mock_key_result = MagicMock()
-        mock_key_result.scalars.return_value.all.return_value = ["processed/existing.jpg"]
+        mock_key_result.all.return_value = [("img-0", "processed/existing.jpg", 1)]
 
         mock_no_match = MagicMock()
         mock_no_match.scalar_one_or_none.return_value = None
@@ -162,6 +162,29 @@ class TestPipelineDiscoverAndDedup:
         assert stats["duplicates"] == 1
         mock_download.assert_called_once_with("images/new.jpg")
         mock_move.assert_called_once_with("images/existing.jpg", "rejected/existing.jpg")
+
+    @pytest.mark.asyncio
+    async def test_queues_unembedded_inbox_row_for_ingest(self):
+        """A row already at images/<name> without an embedding (URL ingest, or a failed
+        earlier run) is pending work: queue it for ingest instead of rejecting it."""
+        mock_session = AsyncMock()
+        mock_key_result = MagicMock()
+        mock_key_result.all.return_value = [("img-1", "images/url.jpg", 0)]
+        mock_session.execute = AsyncMock(side_effect=[mock_key_result])
+
+        with (
+            patch("pic.worker.pipeline_discover.list_s3_objects", return_value=["images/url.jpg"]),
+            patch("pic.worker.pipeline_discover.download_from_s3") as mock_download,
+            patch("pic.worker.pipeline_discover.move_s3_object") as mock_move,
+        ):
+            from pic.worker.pipeline_discover import phase_discover_and_dedup
+
+            new_ids, stats = await phase_discover_and_dedup(mock_session, "job-1")
+
+        assert new_ids == ["img-1"]
+        assert stats["duplicates"] == 0
+        mock_download.assert_not_called()
+        mock_move.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_filters_non_image_files(self):
@@ -274,3 +297,57 @@ class TestPipelineIngestRetry:
         assert embed_mock.call_count == 3  # one batch attempt + two retry attempts
         # process_single_image never called because embedding always fails
         mock_process.assert_not_called()
+
+
+def _ingest_stats(ingested: int, failed: list[str], skipped: list[str]) -> dict[str, object]:
+    return {
+        "ingested": ingested,
+        "failed_image_ids": failed,
+        "skipped_download_image_ids": skipped,
+        "retried_success_count": 0,
+    }
+
+
+@pytest.mark.unit
+class TestPipelineFinalStatus:
+    async def _run(self, new_ids: list[str], ingest_stats: dict[str, object]):
+        from pic.worker.pipeline import _run_full_pipeline
+
+        with (
+            patch(
+                "pic.worker.pipeline.phase_discover_and_dedup",
+                new_callable=AsyncMock,
+                return_value=(new_ids, {"discovered": len(new_ids), "duplicates": 0}),
+            ),
+            patch("pic.worker.pipeline.phase_batch_ingest", new_callable=AsyncMock, return_value=ingest_stats),
+            patch("pic.worker.pipeline.run_full_clustering", new_callable=AsyncMock, return_value={}) as cluster,
+            patch("pic.worker.pipeline.mark_job_completed", new_callable=AsyncMock) as completed,
+            patch("pic.worker.pipeline.mark_job_failed", new_callable=AsyncMock) as failed,
+        ):
+            await _run_full_pipeline(AsyncMock(), "job-1", {})
+        return cluster, completed, failed
+
+    @pytest.mark.asyncio
+    async def test_fails_when_every_image_fails_to_ingest(self):
+        cluster, completed, failed = await self._run(["a", "b", "c"], _ingest_stats(0, ["a", "b"], ["c"]))
+
+        completed.assert_not_awaited()
+        cluster.assert_not_awaited()
+        failed.assert_awaited_once()
+        assert failed.await_args.args[2] == "3 of 3 images failed to ingest; see worker logs"
+        assert failed.await_args.kwargs["result"]["ingest_errors"] == 3
+
+    @pytest.mark.asyncio
+    async def test_partial_failure_completes_with_visible_error(self):
+        cluster, completed, failed = await self._run(["a", "b", "c"], _ingest_stats(2, ["c"], []))
+
+        failed.assert_not_awaited()
+        cluster.assert_awaited_once()
+        assert completed.await_args.kwargs["error"] == "1 of 3 images failed to ingest; see worker logs"
+
+    @pytest.mark.asyncio
+    async def test_nothing_new_completes_without_error(self):
+        cluster, completed, failed = await self._run([], _ingest_stats(0, [], []))
+
+        failed.assert_not_awaited()
+        assert completed.await_args.kwargs["error"] is None
