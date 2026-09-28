@@ -222,6 +222,16 @@ def _plural(n: int, word: str) -> str:
     return f"{n} {word}{'' if n == 1 else 's'}"
 
 
+def _gone(request: Request, target_id: str, message: str, link: str, link_label: str) -> Response:
+    """Replace an action's fragment with a notice when its cluster or product no longer exists.
+
+    Rendered at 404 so htmx swaps it in (framework errors are not swapped), instead of
+    the click silently doing nothing on a stale page.
+    """
+    context = {"target_id": target_id, "message": message, "link": link, "link_label": link_label}
+    return templates.TemplateResponse(request, "_fragments/gone.html", context, status_code=404)
+
+
 async def _groups_form(
     request: Request,
     db: AsyncSession,
@@ -234,7 +244,13 @@ async def _groups_form(
 ) -> Response:
     title = await browse.get_cluster_title(db, ref)
     if title is None:
-        raise HTTPException(status_code=404, detail="Cluster not found")
+        return _gone(
+            request,
+            "groups-form",
+            "This cluster no longer exists; a re-cluster has rebuilt the clusters.",
+            "/ui",
+            "Back to clusters",
+        )
     context = {
         "ref": ref,
         "groups": await browse.list_groups(db, ref, offset),
@@ -300,6 +316,9 @@ async def products_page(
     return templates.TemplateResponse(request, "products.html", context)
 
 
+_PRODUCT_GONE = "This product no longer exists; it was deleted or merged elsewhere."
+
+
 async def _product_context(db: AsyncSession, product_id: int) -> dict[str, object]:
     product = await browse.get_product(db, product_id)
     if product is None:
@@ -322,7 +341,10 @@ async def edit_product(
     tags: str = Form(""),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    product = await get_or_404(db, Product, product_id, "Product not found")
+    try:
+        product = await get_or_404(db, Product, product_id, "Product not found")
+    except HTTPException:
+        return _gone(request, "product-fields", _PRODUCT_GONE, "/ui/products", "Back to products")
     try:
         parsed_tags = _validate_tag_list(_parse_tags(tags))
     except ValueError as exc:
@@ -340,7 +362,10 @@ async def edit_product(
 
 @router.post("/products/{product_id}/delete", dependencies=[Depends(require_htmx)])
 async def delete_product_ui(product_id: int, db: AsyncSession = Depends(get_db)) -> Response:
-    product = await get_or_404(db, Product, product_id, "Product not found")
+    try:
+        product = await get_or_404(db, Product, product_id, "Product not found")
+    except HTTPException:
+        return Response(status_code=200, headers={"HX-Redirect": "/ui/products"})  # already gone
     await db.delete(product)
     await db.commit()
     return Response(status_code=200, headers={"HX-Redirect": "/ui/products"})
@@ -355,6 +380,8 @@ async def _product_images(
     message_link: str | None = None,
     status_code: int = 200,
 ) -> Response:
+    if await browse.get_product(db, product_id) is None:
+        return _gone(request, "product-images", _PRODUCT_GONE, "/ui/products", "Back to products")
     context = await _product_context(db, product_id)
     context.update({"message": message, "message_kind": message_kind, "message_link": message_link})
     return templates.TemplateResponse(request, "_fragments/product_images.html", context, status_code=status_code)

@@ -723,3 +723,67 @@ class TestProductCuration:
             response = ui_client.post("/ui/products/8/merge-into", data={"target_id": "9"}, headers=HX)
         assert response.status_code == 404
         assert "Product 9 not found" in response.text
+
+
+@pytest.mark.unit
+class TestStalePages:
+    """Actions from a page whose cluster or product is gone must say so, not fail silently."""
+
+    def test_cluster_gone_after_recluster_shows_message(self, ui_client):
+        from pic.services.curation import NotFoundError
+
+        with (
+            patch(
+                "pic.ui.routes.curation.create_product",
+                new_callable=AsyncMock,
+                side_effect=NotFoundError("L1 group not found: 5"),
+            ),
+            patch("pic.ui.routes.browse.get_cluster_title", new_callable=AsyncMock, return_value=None),
+        ):
+            response = ui_client.post("/ui/clusters/3/make-product", data={"group_ids": ["5"]}, headers=HX)
+        assert response.status_code == 404
+        assert "HX-Reswap" not in response.headers
+        assert 'id="groups-form"' in response.text
+        assert "no longer exists" in response.text
+        assert 'href="/ui"' in response.text
+
+    def test_product_gone_shows_message_on_image_action(self, ui_client):
+        from pic.services.curation import NotFoundError
+
+        with (
+            patch(
+                "pic.ui.routes.curation.remove_from_product",
+                new_callable=AsyncMock,
+                side_effect=NotFoundError("Product 8 not found"),
+            ),
+            patch("pic.ui.routes.browse.get_product", new_callable=AsyncMock, return_value=None),
+        ):
+            response = ui_client.post("/ui/products/8/remove", data={"image_ids": ["a"]}, headers=HX)
+        assert response.status_code == 404
+        assert 'id="product-images"' in response.text
+        assert "no longer exists" in response.text
+        assert 'href="/ui/products"' in response.text
+
+    def test_product_gone_shows_message_on_edit(self, ui_client):
+        from fastapi import HTTPException
+
+        with patch(
+            "pic.ui.routes.get_or_404",
+            new_callable=AsyncMock,
+            side_effect=HTTPException(status_code=404, detail="Product not found"),
+        ):
+            response = ui_client.post("/ui/products/8/edit", data={"title": "x"}, headers=HX)
+        assert response.status_code == 404
+        assert 'id="product-fields"' in response.text
+        assert "no longer exists" in response.text
+
+    def test_deleting_an_already_deleted_product_goes_to_list(self, ui_client):
+        from fastapi import HTTPException
+
+        with patch(
+            "pic.ui.routes.get_or_404",
+            new_callable=AsyncMock,
+            side_effect=HTTPException(status_code=404, detail="Product not found"),
+        ):
+            response = ui_client.post("/ui/products/8/delete", headers=HX)
+        assert response.headers["HX-Redirect"] == "/ui/products"
