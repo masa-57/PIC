@@ -368,3 +368,86 @@ async def list_product_choices(db: AsyncSession, limit: int = 200) -> list[tuple
         select(Product.id, Product.title).order_by(Product.created_at.desc(), Product.id.desc()).limit(limit)
     )
     return [(pid, title or f"Product #{pid}") for pid, title in rows.tuples()]
+
+
+PRODUCT_PAGE = 24
+PRODUCT_IMAGE_CAP = 500
+
+
+@dataclass(frozen=True)
+class ProductCard:
+    id: int
+    title: str
+    image_count: int
+    thumbnail: Thumb
+
+
+@dataclass(frozen=True)
+class ProductDetail:
+    id: int
+    title: str | None
+    description: str | None
+    tags: list[str]
+    representative_image_id: str
+    images: list[Thumb]
+    image_count: int
+
+
+async def list_products(db: AsyncSession, offset: int, limit: int = PRODUCT_PAGE) -> Page[ProductCard]:
+    total = int(await db.scalar(select(func.count()).select_from(Product)) or 0)
+    counts = (
+        select(Image.product_id, func.count().label("n"))
+        .where(Image.product_id.isnot(None))
+        .group_by(Image.product_id)
+        .subquery()
+    )
+    rows = await db.execute(
+        select(
+            Product.id,
+            Product.title,
+            func.coalesce(counts.c.n, 0).label("n"),
+            Image.id.label("image_id"),
+            Image.filename,
+            Image.s3_key,
+            Image.s3_thumbnail_key,
+        )
+        .join(Image, Image.id == Product.representative_image_id)
+        .outerjoin(counts, counts.c.product_id == Product.id)
+        .order_by(Product.created_at.desc(), Product.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    cards = [
+        ProductCard(
+            id=r.id,
+            title=r.title or f"Product #{r.id}",
+            image_count=int(r.n),
+            thumbnail=thumb_for(r.image_id, r.filename, r.s3_key, r.s3_thumbnail_key),
+        )
+        for r in rows
+    ]
+    return Page(items=cards, total=total, offset=offset, limit=limit)
+
+
+async def get_product(db: AsyncSession, product_id: int) -> ProductDetail | None:
+    product = await db.get(Product, product_id)
+    if product is None:
+        return None
+    count = int(await db.scalar(select(func.count()).select_from(Image).where(Image.product_id == product_id)) or 0)
+    images = (
+        await db.execute(
+            select(Image.id, Image.filename, Image.s3_key, Image.s3_thumbnail_key)
+            .where(Image.product_id == product_id)
+            .order_by(Image.created_at, Image.id)
+            .limit(PRODUCT_IMAGE_CAP)
+        )
+    ).all()
+    return ProductDetail(
+        id=product.id,
+        title=product.title,
+        description=product.description,
+        tags=list(product.tags or []),
+        representative_image_id=product.representative_image_id,
+        images=[thumb_for(i.id, i.filename, i.s3_key, i.s3_thumbnail_key) for i in images],
+        image_count=count,
+    )

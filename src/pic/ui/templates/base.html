@@ -14,6 +14,7 @@
     <a class="brand" href="/ui">PIC</a>
     <nav>
       <a href="/ui"{% if active == "clusters" %} aria-current="page"{% endif %}>Clusters</a>
+      <a href="/ui/products"{% if active == "products" %} aria-current="page"{% endif %}>Products</a>
       <a href="/ui/jobs"{% if active == "jobs" %} aria-current="page"{% endif %}>Runs</a>
     </nav>
     {% if auth_enabled() %}

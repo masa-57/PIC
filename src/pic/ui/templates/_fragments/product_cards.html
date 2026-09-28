@@ -1,0 +1,9 @@
+{% for p in page.items %}
+<a class="card" href="/ui/products/{{ p.id }}">
+  <div class="card-thumbs"><img src="{{ p.thumbnail.thumb_url }}" alt="" loading="lazy"></div>
+  <div class="card-meta"><strong>{{ p.title }}</strong><span>{{ p.image_count }} image{{ "" if p.image_count == 1 else "s" }}</span></div>
+</a>
+{% endfor %}
+{% if page.has_more %}
+<div class="more" hx-get="/ui/products?offset={{ page.next_offset }}" hx-trigger="revealed" hx-swap="outerHTML"><a href="/ui/products?offset={{ page.next_offset }}">More products</a></div>
+{% endif %}

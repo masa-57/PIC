@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title or "Product #" ~ product.id }}{% endblock %}
+{% block content %}
+<p><a href="/ui/products">← Products</a></p>
+<h1>{{ product.title or "Product #" ~ product.id }}</h1>
+<p class="muted">{{ product.image_count }} images{% if product.image_count > product.images | length %} (showing the first {{ product.images | length }}){% endif %}</p>
+{% include "_fragments/product_fields.html" %}
+{% include "_fragments/product_images.html" %}
+{% endblock %}

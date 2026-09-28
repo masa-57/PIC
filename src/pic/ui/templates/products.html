@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Products{% endblock %}
+{% block content %}
+<h1>Products</h1>
+{% if page.total == 0 %}
+<p class="empty">No products yet. Open a <a href="/ui">cluster</a>, select groups and choose "Make product".</p>
+{% else %}
+<div class="cards">{% include "_fragments/product_cards.html" %}</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,8 @@
+<form id="product-fields" class="product-fields" hx-post="/ui/products/{{ product.id }}/edit" hx-target="#product-fields" hx-swap="outerHTML">
+  {% if fields_message %}<p class="flash {{ fields_message_kind }}">{{ fields_message }}</p>{% endif %}
+  <label>Title <input name="title" value="{{ product.title or '' }}"></label>
+  <label>Description <textarea name="description" rows="3">{{ product.description or '' }}</textarea></label>
+  <label>Tags (comma-separated) <input name="tags" value="{{ product.tags | join(', ') }}"></label>
+  <div><button type="submit">Save</button>
+    <button type="button" hx-post="/ui/products/{{ product.id }}/delete" hx-confirm="Delete this product? Its images become uncurated again." hx-target="body">Delete product</button></div>
+</form>

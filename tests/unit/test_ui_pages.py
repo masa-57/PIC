@@ -1,12 +1,12 @@
 """Unit tests for web UI pages (DB-facing helpers are patched)."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from pic.config import settings
-from pic.services.browse import ClusterCard, GroupRow, Page, Thumb
+from pic.services.browse import ClusterCard, GroupRow, Page, ProductCard, ProductDetail, Thumb
 from pic.ui import auth
 
 HX = {"HX-Request": "true"}
@@ -541,3 +541,74 @@ class TestClusterCuration:
 
     def test_actions_require_htmx(self, ui_client):
         assert ui_client.post("/ui/clusters/3/make-product", data={"group_ids": ["5"]}).status_code == 400
+
+
+def _detail(**overrides):
+    values = {
+        "id": 8,
+        "title": "Mug",
+        "description": "Blue",
+        "tags": ["blue", "ceramic"],
+        "representative_image_id": "img-1",
+        "images": [_thumb("img-1"), _thumb("img-2")],
+        "image_count": 2,
+    }
+    values.update(overrides)
+    return ProductDetail(**values)
+
+
+@pytest.mark.unit
+class TestProductPages:
+    def test_products_list(self, ui_client):
+        card = ProductCard(id=8, title="Mug", image_count=3, thumbnail=_thumb())
+        with patch("pic.ui.routes.browse.list_products", new_callable=AsyncMock, return_value=Page([card], 1, 0, 24)):
+            response = ui_client.get("/ui/products")
+        assert 'href="/ui/products/8"' in response.text
+        assert "3 images" in response.text
+
+    def test_products_empty_state(self, ui_client):
+        with patch("pic.ui.routes.browse.list_products", new_callable=AsyncMock, return_value=Page([], 0, 0, 24)):
+            response = ui_client.get("/ui/products")
+        assert "No products yet" in response.text
+
+    def test_product_detail_404(self, ui_client):
+        with patch("pic.ui.routes.browse.get_product", new_callable=AsyncMock, return_value=None):
+            assert ui_client.get("/ui/products/999").status_code == 404
+
+    def test_product_detail_shows_fields_and_images(self, ui_client):
+        with (
+            patch("pic.ui.routes.browse.get_product", new_callable=AsyncMock, return_value=_detail()),
+            patch(
+                "pic.ui.routes.browse.list_product_choices",
+                new_callable=AsyncMock,
+                return_value=[(8, "Mug"), (9, "Cup")],
+            ),
+        ):
+            response = ui_client.get("/ui/products/8")
+        assert 'value="Mug"' in response.text
+        assert 'value="blue, ceramic"' in response.text
+        assert 'name="image_ids" value="img-2"' in response.text
+
+    def test_edit_saves_fields(self, ui_client, monkeypatch):
+        product = MagicMock(id=8, title="Mug", description=None, tags=None)
+        with (
+            patch("pic.ui.routes.get_or_404", new_callable=AsyncMock, return_value=product),
+            patch("pic.ui.routes.browse.get_product", new_callable=AsyncMock, return_value=_detail(title="Big mug")),
+        ):
+            response = ui_client.post(
+                "/ui/products/8/edit",
+                data={"title": "Big mug", "description": "", "tags": "blue, , ceramic "},
+                headers=HX,
+            )
+        assert response.status_code == 200
+        assert product.title == "Big mug"
+        assert product.description is None
+        assert product.tags == ["blue", "ceramic"]
+        assert "Saved" in response.text
+
+    def test_delete_redirects_to_list(self, ui_client):
+        with (
+            patch("pic.ui.routes.get_or_404", new_callable=AsyncMock, return_value=MagicMock(id=8)),
+        ):
+            response = ui_client.post("/ui/products/8/delete", headers=HX)
+        assert response.headers["HX-Redirect"] == "/ui/products"

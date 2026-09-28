@@ -1,0 +1,8 @@
+{% from "_macros.html" import thumb %}
+<form id="product-images" hx-target="#product-images" hx-swap="outerHTML">
+  <div class="thumbs">
+    {% for t in product.images %}
+    <span class="selectable"><input type="checkbox" name="image_ids" value="{{ t.id }}" aria-label="Select {{ t.filename }}">{{ thumb(t) }}</span>
+    {% endfor %}
+  </div>
+</form>
