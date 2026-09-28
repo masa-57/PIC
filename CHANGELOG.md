@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Web UI curation: make products from groups, add to, remove from, split and merge products, edit and delete products (#113)
 - `POST /api/v1/images/upload`: multipart upload of images to the storage inbox (#113)
 - Web UI at `/ui` to browse clusters and start runs (upload any local folder from the browser, storage inbox, Google Drive or URLs) with live progress and time estimates, plus a login page when `PIC_API_KEY` is set (#113)
 - Product curation API: create a product from several L1 groups (`l1_group_ids`), add images or groups to a product, remove images, split and merge products. Products are never changed by re-clustering (#113)
@@ -15,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PIC_WORKER_BACKEND` setting (`local` default, `modal`) and `jobs.params` column (#112)
 
 ### Changed
+- Documentation rewritten for the web UI and local-first setup: README, architecture diagram, AGENTS.md, CONTRIBUTING, SECURITY, deployment and operations guides; `.env.example` now defaults to the Compose database and local storage (#113)
 - **Breaking:** jobs no longer go to Modal by default. Existing Modal deployments must set `PIC_WORKER_BACKEND=modal` (#112)
 - `scripts/seed.py` uploads through the storage backend and triggers the pipeline API; the old script was broken (#112)
 - `psycopg2-binary` is a runtime dependency so migrations run in the API image
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Local and CI Postgres moved to `pgvector/pgvector:pg18`
 
 ### Removed
+- `docs/images/pipeline-demo.svg` (described AI tagging and Gemini, which PIC does not have)
 - Old HTML cluster page `GET /api/v1/clusters/view` (now redirects to `/ui`), `scripts/visualize.py` and `scripts/visualize_clusters.py` (#113)
 - CORS settings `PIC_CORS_ORIGINS` and `PIC_CORS_ALLOW_CREDENTIALS`; the UI is same-origin. Add CORS headers at a reverse proxy if a browser app on another origin calls the API (#119)
 - Built-in rate limiting (`slowapi`) and its settings `PIC_RATE_LIMIT_DEFAULT`, `PIC_RATE_LIMIT_BURST`, `PIC_RATE_LIMIT_STORAGE_URL`, `PIC_JOB_TRIGGER_RATE_LIMIT`, plus the `X-RateLimit-Limit` header. Rate-limit at a reverse proxy instead; see `docs/deployment/self-hosted.md` (#120)

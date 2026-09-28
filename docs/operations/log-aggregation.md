@@ -1,25 +1,21 @@
 # Log Aggregation
 
-This document describes the PIC project's logging configuration, how to view
-logs, and recommended external log aggregation services.
+This document describes how PIC logs, how to view the logs, and how to send them to an external log service.
 
 ## Current Logging Configuration
 
-PIC uses Python's standard `logging` module with a custom `JSONFormatter`
-(defined in `src/pic/core/logging.py`). In production, all log output is
-structured JSON written to stdout.
+PIC uses Python's standard `logging` module with a custom `JSONFormatter` (defined in `src/pic/core/logging.py`). The API and `pic-worker` both call `setup_logging()`, which writes one JSON object per line to stdout. This is the same in every environment; there is no plain-text mode to switch on.
 
 ### Log Format
 
-Each log entry is a JSON object with the following fields:
+Each log entry is a JSON object. Example: an access log line from the API.
 
 ```json
 {
-  "timestamp": "2025-01-15T10:30:00.123456+00:00",
+  "timestamp": "2026-09-28T10:30:00.123456+00:00",
   "level": "INFO",
-  "logger": "pic.api.routes.images",
-  "message": "Image ingested successfully",
-  "request_id": "abc-123-def"
+  "logger": "pic.core.middleware",
+  "message": "POST /api/v1/pipeline/run 202 14.2ms [3f2a9c1e-5b7d-4e8a-9f0b-2c6d1e4a7b3c]"
 }
 ```
 
@@ -29,97 +25,113 @@ Each log entry is a JSON object with the following fields:
 | `level` | Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL |
 | `logger` | Python logger name (module path) |
 | `message` | Human-readable log message |
-| `request_id` | X-Request-ID header value (when present) |
-| `exception` | Full traceback string (when an exception is logged) |
+| `exception` | Full traceback string (only when an exception is logged) |
 
-### Configuration
+### Access logs and request IDs
 
-The log level is controlled by the `PIC_LOG_LEVEL` environment variable
-(default: `INFO`). The `setup_logging()` function in `src/pic/core/logging.py`
-configures the root logger and quiets noisy libraries (`httpcore`, `httpx`,
-`transformers`).
+The API writes one access log line per request (logger `pic.core.middleware`), in the form `METHOD PATH STATUS LATENCYms [REQUEST_ID]`. The level is INFO for status below 400, WARNING for 4xx and ERROR for 5xx. `/health`, `/health/detailed` and `/metrics` are not logged.
+
+The request ID is the `X-Request-ID` header sent by the client (letters, digits, `.`, `_`, `-`, up to 64 characters), or a generated UUID. It is returned in the `X-Request-ID` response header and in API error bodies. In the logs it appears only at the end of the access log message, not as a separate JSON field, and other log lines from the same request do not carry it.
+
+### Log level
+
+- **API**: `PIC_LOG_LEVEL` (default `INFO`; DEBUG, INFO, WARNING, ERROR or CRITICAL).
+- **`pic-worker`**: always logs at `INFO`. It ignores `PIC_LOG_LEVEL`.
+- **Modal functions**: they do not call `setup_logging()`, so their output is not PIC's JSON format and uses Python's default logging configuration inside Modal.
+
+`setup_logging()` also sets `httpcore`, `httpx` and `transformers` to WARNING to cut noise.
 
 ## Viewing Logs
 
-With docker compose, follow the API and worker logs with:
+With Docker Compose, follow the API and worker logs with:
 
 ```bash
 docker compose logs -f api worker
 ```
 
-A native `pic-worker` logs to its terminal. Modal worker logs are in the Modal
-dashboard. Neither keeps logs long-term; for that, use an external service.
+A native `pic-worker` or `fastapi` process logs to its terminal. Modal logs are in the Modal dashboard, or `uv run modal app logs pic`.
 
-## Recommended External Services
+Docker keeps container logs only until the container is removed, and Modal keeps them for a limited time. For long-term storage and search, use an external service.
 
-### Datadog
+## External Services
 
-- Full-text search with field-based filtering.
-- Log-to-metric conversion for alerting.
-- APM integration for distributed tracing.
-- Setup: Use the Datadog agent or your container host's log drain.
+Any service that ingests JSON lines from container stdout works. Some common choices:
 
 ### Grafana Loki
 
-- Horizontally scalable log aggregation.
-- Label-based indexing (efficient for structured JSON logs).
-- Native integration with Grafana dashboards.
-- Cost-effective for high-volume logging.
-- Setup: Use Promtail or a syslog drain to forward logs.
+- Label-based indexing, cheap for high volume.
+- Parses JSON at query time (`| json` in LogQL).
+- Self-hostable; works with Grafana dashboards.
+- Setup: Promtail / Grafana Alloy reading Docker logs, or the Loki Docker logging driver.
+
+### Datadog
+
+- Hosted; full-text search and field filtering.
+- Log-based metrics and alerts.
+- Setup: the Datadog agent with Docker log collection, or your host's log drain.
 
 ### Papertrail
 
-- Simple setup with syslog-based forwarding.
-- Real-time tail and search.
-- Alert rules on log patterns.
-- Good for smaller deployments.
-- Setup: Configure a syslog drain on your container host.
+- Hosted; simple syslog forwarding, live tail and search.
+- Good for small deployments.
+- Setup: a syslog logging driver or your host's log drain.
 
-## Forwarding Logs to External Services
+## Forwarding Logs
 
-To forward logs to an external aggregation service, use one of these approaches:
+- **Docker logging driver**: add a `logging:` section (for example `syslog` or `loki`) to the `api` and `worker` services in `docker-compose.yml`.
+- **Log collector**: run an agent (Promtail, Alloy, Vector, Datadog agent) that reads the Docker log files on the host.
+- **Host log drain**: most container platforms can forward stdout to a log service.
 
-- **Docker logging driver**: Configure a `logging` driver (e.g. `syslog`, `loki`)
-  for the `api` and `worker` services in `docker-compose.yml`.
-- **Host log drain**: Most container hosts can forward stdout to a log service.
-- **Application-level forwarding**: Add a Python logging handler that sends
-  logs directly to your aggregation service (e.g., Datadog's `datadog_logger`,
-  Loki's `python-logging-loki`, or Papertrail's `SysLogHandler`).
+Prefer these over adding a logging handler in the code: they need no code change and also capture output from before logging is set up.
 
-### Environment-Specific Configuration
-
-Configure the log level per environment:
+### Per-environment level
 
 ```
 # Production
 PIC_LOG_LEVEL=INFO
 
-# Staging / Development
+# Debugging
 PIC_LOG_LEVEL=DEBUG
 ```
 
-## Log Format Reference
+With Compose, set it in the `x-pic-env` block of `docker-compose.yml` and recreate the `api` container. Compose does not read a `.env` file into the containers.
 
-### Standard Application Logs
+## Logger Reference
 
-All application logs follow the JSON format described above. Key log sources:
+Logger names follow the module path. Main sources:
 
 | Logger | Purpose |
 |--------|---------|
-| `pic.api.*` | API request handling, route-level logging |
-| `pic.services.*` | Business logic (clustering, embedding, ingestion) |
-| `pic.core.database` | Database connection pool events |
-| `pic.core.auth` | Authentication and authorization |
+| `pic.main` | API startup and shutdown, local storage mount |
+| `pic.core.middleware` | Access logs (one line per request) |
+| `pic.core.auth` | Authentication mode at startup |
+| `pic.core.database` | Database TLS warnings at startup |
+| `pic.core.exception_handlers` | Unhandled errors in API requests |
+| `pic.api.*` | Route handlers (`pic.api.images`, `pic.api.products`, `pic.api.gdrive`, `pic.api.deps` for job dispatch, ...) |
+| `pic.services.*` | Business logic (`pic.services.clustering`, `pic.services.embedding`, `pic.services.dispatch`, `pic.services.storage.*`, ...) |
+| `pic.worker.local_runner` | `pic-worker` start/stop, each job run, orphaned job recovery |
+| `pic.worker.*` | Job implementations (`pic.worker.pipeline`, `pic.worker.cluster`, `pic.worker.gdrive_sync`, `pic.worker.url_ingest`, `pic.worker.helpers`, ...) |
+| `pic.modal_app` | Modal Google Drive cron checker |
 
-### Filtering by Request ID
+The web UI (`pic.ui`) does not log on its own; its requests show up in the access log.
 
-The `X-Request-ID` header is propagated through the logging context. To trace
-a specific request across all log entries:
+### Useful queries
+
+Trace one request by its ID:
 
 ```
-# Example query (Datadog)
-@request_id:abc-123-def
+# Datadog
+"3f2a9c1e-5b7d-4e8a-9f0b-2c6d1e4a7b3c"
 
-# Example query (Loki / LogQL)
-{app="pic-api"} |= "abc-123-def"
+# Loki / LogQL
+{compose_service="api"} |= "3f2a9c1e-5b7d-4e8a-9f0b-2c6d1e4a7b3c"
 ```
+
+Find failed jobs in worker logs:
+
+```
+# Loki / LogQL
+{compose_service="worker"} | json | level="ERROR"
+```
+
+Label names depend on how you collect logs; adjust `compose_service` to match your setup.

@@ -1,6 +1,6 @@
 # Monitoring Setup
 
-This document describes how to monitor the PIC API using Prometheus and Grafana.
+This document describes how to monitor PIC: the API with Prometheus and Grafana, background jobs through the database, and liveness through the health endpoints.
 
 ## Metrics Endpoint
 
@@ -31,20 +31,54 @@ curl -H "X-API-Key: ${PIC_API_KEY}" http://localhost:8000/metrics
 | `http_request_size_bytes` | Summary | handler | Observed request body sizes |
 | `http_response_size_bytes` | Summary | handler | Observed response sizes |
 
-### Job Metrics
+### Job Metrics (limited, read this first)
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `jobs_created_total` | Counter | type | PIC custom counter for created background jobs (`CLUSTER_FULL`, `PIPELINE`, `URL_INGEST`, `GDRIVE_SYNC`) |
-| `jobs_completed_total` | Counter | type, status | PIC custom counter for terminal job outcomes (`COMPLETED`, `FAILED`) |
+| `jobs_created_total` | Counter | type | Jobs created through the API (`CLUSTER_FULL`, `PIPELINE`, `URL_INGEST`, `GDRIVE_SYNC`) |
+| `jobs_completed_total` | Counter | type, status | Jobs that reached `COMPLETED` or `FAILED`, **as seen by the API process only** |
+
+Jobs run in `pic-worker` or on Modal, not in the API. Those processes count job outcomes in their own memory, and neither exposes a metrics endpoint, so those counts are never scraped. The API's `/metrics` only sees:
+
+- `jobs_created_total` for jobs created through the API. Pipeline jobs queued by a URL ingest job are created in the worker and are missing.
+- `jobs_completed_total{status="FAILED"}` for jobs the API itself marks failed: dispatch failures, stale `RUNNING` jobs swept by `/health/detailed`, and Modal failures detected by `/health/detailed`.
+
+Successful jobs and most failures never appear there. Do not build success ratios or failure alerts on `jobs_completed_total`; they will look healthy while jobs fail. Use [Job Monitoring](#job-monitoring) instead.
 
 ### Database Pool Metrics
+
+These describe the API process's SQLAlchemy pool (size `PIC_DB_POOL_SIZE`, default 10, plus up to `PIC_DB_POOL_MAX_OVERFLOW`, default 20).
 
 | Metric | Type | Description |
 |--------|------|-------------|
 | `db_pool_checked_out` | Gauge | Connections currently checked out |
 | `db_pool_checked_in` | Gauge | Connections available in pool |
 | `db_pool_overflow` | Gauge | Overflow connections in use |
+
+## Job Monitoring
+
+Job state lives in the `jobs` table. Read it through the API or the database:
+
+- **Web UI**: the **Runs** page lists recent jobs with status and progress.
+- **API**: `GET /api/v1/jobs?status=failed` lists failed jobs, newest first, with their `error`. `GET /api/v1/jobs/{id}` returns one job.
+- **`GET /health/detailed`** (needs `X-API-Key` when auth is on) returns `recent_failed_jobs` (jobs failed in the last hour), `stale_jobs_swept` and the pool status. Its `status` is `warning` when more than 5 jobs failed in the last hour, and `degraded` when the database is unreachable. Calling it also marks `RUNNING` jobs older than `PIC_STALE_JOB_TIMEOUT_MINUTES` (default 90) as failed.
+- **SQL**, for a dashboard or an exporter such as `sql_exporter`:
+
+  ```sql
+  SELECT type, status, count(*)
+  FROM jobs
+  WHERE created_at > now() - interval '1 day'
+  GROUP BY type, status;
+  ```
+
+  Enum values are stored UPPERCASE in the database (`FAILED`, `PIPELINE`, ...).
+
+A simple setup: poll `/health/detailed` every few minutes from an uptime checker and alert when `status` is not `ok`.
+
+## Health Endpoints
+
+- `GET /health` needs no auth. It always returns HTTP 200; the body says `"status": "ok"` or `"degraded"` (database unreachable). Check the body, not just the status code.
+- `GET /health/detailed` is described above.
 
 ## Recommended Alerts
 
@@ -53,12 +87,13 @@ curl -H "X-API-Key: ${PIC_API_KEY}" http://localhost:8000/metrics
 - `http_request_duration_highr_seconds` p99 > 5s for 5 minutes
 - `http_requests_total` with status 5xx rate > 1% of total for 5 minutes
 - `db_pool_checked_out` equals pool size for 2 minutes (pool exhaustion)
-- `/health` endpoint returning non-200 for 1 minute
+- `/health` not answering, or its body not `"status": "ok"`, for 1 minute
 
 ### Warning
 
 - `http_request_duration_highr_seconds` p95 > 2s for 10 minutes
-- `jobs_completed_total{status="FAILED"}` rate increasing for 15 minutes
+- `/health/detailed` `status` is `warning` (more than 5 failed jobs in the last hour)
+- `jobs` table has `PENDING` jobs older than 15 minutes (worker down or stuck)
 - `db_pool_overflow` > 0 for 5 minutes (pool under pressure)
 
 ## Prometheus Scrape Configuration
@@ -102,8 +137,7 @@ If you keep `PIC_API_KEY` enabled, point Prometheus at a proxy endpoint that han
 **Row: Background Jobs**
 
 - Jobs created rate: `sum(rate(jobs_created_total[5m])) by (type)`
-- Jobs failed rate: `sum(rate(jobs_completed_total{status="FAILED"}[5m])) by (type)`
-- Job success ratio: `sum(rate(jobs_completed_total{status="COMPLETED"}[5m])) by (type) / sum(rate(jobs_completed_total[5m])) by (type)`
+- For job outcomes, use a Postgres data source with the SQL query from [Job Monitoring](#job-monitoring), not `jobs_completed_total` (see the note under Job Metrics).
 
 **Row: Database Pool**
 

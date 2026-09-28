@@ -9,13 +9,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pic.api.deps import create_and_dispatch_job, get_db
+from pic.api.deps import create_and_dispatch_job, get_db, get_or_404
 from pic.config import settings
 from pic.core.auth import AuthMode, get_auth_mode
 from pic.core.constants import IMAGE_EXTENSIONS
-from pic.models.db import JobStatus, JobType
-from pic.models.schemas import UploadOut, UrlIngestRequest
-from pic.services import browse
+from pic.models.db import JobStatus, JobType, Product
+from pic.models.schemas import UploadOut, UrlIngestRequest, _validate_tag_list
+from pic.services import browse, curation
 from pic.services.uploads import UploadedFile, store_uploads
 from pic.ui.auth import (
     SESSION_COOKIE,
@@ -107,7 +107,14 @@ async def cluster_detail_page(
     if title is None:
         raise HTTPException(status_code=404, detail="Cluster not found")
     groups = await browse.list_groups(db, ref, offset)
-    context = {"title": title, "groups": groups, "ref": ref, "active": "clusters"}
+    context = {
+        "title": title,
+        "groups": groups,
+        "ref": ref,
+        "active": "clusters",
+        "product_choices": await browse.list_product_choices(db),
+        "message": None,
+    }
     if _is_htmx(request) and offset > 0:
         return templates.TemplateResponse(request, "_fragments/group_rows.html", context)
     return templates.TemplateResponse(request, "cluster_detail.html", context)
@@ -209,3 +216,224 @@ async def upload_images_ui(files: list[UploadFile] = File(...)) -> UploadOut:
     uploaded = [UploadedFile(name=f.filename or "image", data=await f.read()) for f in files]
     result = await store_uploads(uploaded)
     return UploadOut.model_validate({"stored": len(result.stored), "keys": result.stored, "skipped": result.skipped})
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+def _gone(request: Request, target_id: str, message: str, link: str, link_label: str) -> Response:
+    """Replace an action's fragment with a notice when its cluster or product no longer exists.
+
+    Rendered at 404 so htmx swaps it in (framework errors are not swapped), instead of
+    the click silently doing nothing on a stale page.
+    """
+    context = {"target_id": target_id, "message": message, "link": link, "link_label": link_label}
+    return templates.TemplateResponse(request, "_fragments/gone.html", context, status_code=404)
+
+
+async def _groups_form(
+    request: Request,
+    db: AsyncSession,
+    ref: str,
+    offset: int,
+    message: str,
+    message_kind: str = "ok",
+    message_link: str | None = None,
+    status_code: int = 200,
+) -> Response:
+    title = await browse.get_cluster_title(db, ref)
+    if title is None:
+        return _gone(
+            request,
+            "groups-form",
+            "This cluster no longer exists; a re-cluster has rebuilt the clusters.",
+            "/ui",
+            "Back to clusters",
+        )
+    context = {
+        "ref": ref,
+        "groups": await browse.list_groups(db, ref, offset),
+        "product_choices": await browse.list_product_choices(db),
+        "message": message,
+        "message_kind": message_kind,
+        "message_link": message_link,
+    }
+    return templates.TemplateResponse(request, "_fragments/groups_form.html", context, status_code=status_code)
+
+
+@router.post("/clusters/{ref}/make-product", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
+async def make_product(
+    request: Request,
+    ref: str,
+    group_ids: list[int] = Form(default=[]),
+    image_ids: list[str] = Form(default=[]),
+    offset: int = Form(0),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    try:
+        outcome = await curation.create_product(db, l1_group_ids=group_ids, image_ids=image_ids)
+    except curation.CurationError as exc:
+        return await _groups_form(request, db, ref, offset, str(exc), "error", status_code=exc.status_code)
+    message = f"Created product #{outcome.product_id} with {_plural(outcome.added, 'image')}"
+    if outcome.skipped:
+        message += f"; {outcome.skipped} already in other products were skipped"
+    return await _groups_form(request, db, ref, offset, message, message_link=f"/ui/products/{outcome.product_id}")
+
+
+@router.post("/clusters/{ref}/add-to-product", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
+async def add_groups_to_product(
+    request: Request,
+    ref: str,
+    product_id: int = Form(...),
+    group_ids: list[int] = Form(default=[]),
+    image_ids: list[str] = Form(default=[]),
+    offset: int = Form(0),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    try:
+        outcome = await curation.add_to_product(db, product_id, l1_group_ids=group_ids, image_ids=image_ids)
+    except curation.CurationError as exc:
+        return await _groups_form(request, db, ref, offset, str(exc), "error", status_code=exc.status_code)
+    message = f"Added {_plural(outcome.added, 'image')} to product #{product_id}"
+    if outcome.skipped:
+        message += f"; {outcome.skipped} already in other products were skipped"
+    return await _groups_form(request, db, ref, offset, message, message_link=f"/ui/products/{product_id}")
+
+
+def _parse_tags(raw: str) -> list[str]:
+    return [t.strip() for t in raw.split(",") if t.strip()]
+
+
+@router.get("/products", response_class=HTMLResponse)
+async def products_page(
+    request: Request,
+    offset: int = Query(0, ge=0, le=settings.max_pagination_offset),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    page = await browse.list_products(db, offset)
+    context = {"page": page, "active": "products"}
+    if _is_htmx(request) and offset > 0:
+        return templates.TemplateResponse(request, "_fragments/product_cards.html", context)
+    return templates.TemplateResponse(request, "products.html", context)
+
+
+_PRODUCT_GONE = "This product no longer exists; it was deleted or merged elsewhere."
+
+
+async def _product_context(db: AsyncSession, product_id: int) -> dict[str, object]:
+    product = await browse.get_product(db, product_id)
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    choices = [c for c in await browse.list_product_choices(db) if c[0] != product_id]
+    return {"product": product, "merge_choices": choices, "active": "products", "message": None}
+
+
+@router.get("/products/{product_id}", response_class=HTMLResponse)
+async def product_page(request: Request, product_id: int, db: AsyncSession = Depends(get_db)) -> Response:
+    return templates.TemplateResponse(request, "product_detail.html", await _product_context(db, product_id))
+
+
+@router.post("/products/{product_id}/edit", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
+async def edit_product(
+    request: Request,
+    product_id: int,
+    title: str = Form(""),
+    description: str = Form(""),
+    tags: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    try:
+        product = await get_or_404(db, Product, product_id, "Product not found")
+    except HTTPException:
+        return _gone(request, "product-fields", _PRODUCT_GONE, "/ui/products", "Back to products")
+    try:
+        parsed_tags = _validate_tag_list(_parse_tags(tags))
+    except ValueError as exc:
+        detail = await browse.get_product(db, product_id)
+        context = {"product": detail, "fields_message": str(exc), "fields_message_kind": "error"}
+        return templates.TemplateResponse(request, "_fragments/product_fields.html", context, status_code=400)
+    product.title = title.strip() or None
+    product.description = description.strip() or None
+    product.tags = parsed_tags or None
+    await db.commit()
+    detail = await browse.get_product(db, product_id)
+    context = {"product": detail, "fields_message": "Saved.", "fields_message_kind": "ok"}
+    return templates.TemplateResponse(request, "_fragments/product_fields.html", context)
+
+
+@router.post("/products/{product_id}/delete", dependencies=[Depends(require_htmx)])
+async def delete_product_ui(product_id: int, db: AsyncSession = Depends(get_db)) -> Response:
+    try:
+        product = await get_or_404(db, Product, product_id, "Product not found")
+    except HTTPException:
+        return Response(status_code=200, headers={"HX-Redirect": "/ui/products"})  # already gone
+    await db.delete(product)
+    await db.commit()
+    return Response(status_code=200, headers={"HX-Redirect": "/ui/products"})
+
+
+async def _product_images(
+    request: Request,
+    db: AsyncSession,
+    product_id: int,
+    message: str,
+    message_kind: str = "ok",
+    message_link: str | None = None,
+    status_code: int = 200,
+) -> Response:
+    if await browse.get_product(db, product_id) is None:
+        return _gone(request, "product-images", _PRODUCT_GONE, "/ui/products", "Back to products")
+    context = await _product_context(db, product_id)
+    context.update({"message": message, "message_kind": message_kind, "message_link": message_link})
+    return templates.TemplateResponse(request, "_fragments/product_images.html", context, status_code=status_code)
+
+
+@router.post("/products/{product_id}/remove", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
+async def remove_product_images_ui(
+    request: Request,
+    product_id: int,
+    image_ids: list[str] = Form(default=[]),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    try:
+        outcome = await curation.remove_from_product(db, product_id, image_ids)
+    except curation.CurationError as exc:
+        return await _product_images(request, db, product_id, str(exc), "error", status_code=exc.status_code)
+    if product_id in outcome.deleted_product_ids:
+        return Response(status_code=200, headers={"HX-Redirect": "/ui/products"})
+    return await _product_images(request, db, product_id, f"Removed {_plural(outcome.removed, 'image')}.")
+
+
+@router.post("/products/{product_id}/split", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
+async def split_product_ui(
+    request: Request,
+    product_id: int,
+    image_ids: list[str] = Form(default=[]),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    try:
+        outcome = await curation.split_product(db, product_id, image_ids)
+    except curation.CurationError as exc:
+        return await _product_images(request, db, product_id, str(exc), "error", status_code=exc.status_code)
+    return await _product_images(
+        request,
+        db,
+        product_id,
+        f"Moved {_plural(outcome.added, 'image')} to new product #{outcome.product_id}.",
+        message_link=f"/ui/products/{outcome.product_id}",
+    )
+
+
+@router.post("/products/{product_id}/merge-into", dependencies=[Depends(require_htmx)])
+async def merge_into_ui(
+    request: Request,
+    product_id: int,
+    target_id: int = Form(...),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    try:
+        await curation.merge_products(db, target_id, product_id)
+    except curation.CurationError as exc:
+        return await _product_images(request, db, product_id, str(exc), "error", status_code=exc.status_code)
+    return Response(status_code=200, headers={"HX-Redirect": f"/ui/products/{target_id}"})

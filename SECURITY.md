@@ -2,9 +2,12 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-|---------|--------------------|
-| 0.1.x   | Yes                |
+Security fixes go into the latest release. Older versions are not patched; please upgrade.
+
+| Version | Supported |
+|---------|-----------|
+| Latest release | Yes |
+| Older releases | No |
 
 ## Reporting a Vulnerability
 
@@ -30,10 +33,12 @@ You will be credited in the fix unless you prefer to remain anonymous.
 
 ## Security Considerations
 
-PIC handles image data and provides an API with key-based authentication. When deploying:
+PIC handles image data and provides a JSON API and a web UI protected by one API key. When deploying:
 
-- Always set a strong `PIC_API_KEY` in production
-- Use HTTPS for all API communication
-- Restrict database access to the API server and workers only
-- Review S3/R2 bucket policies to prevent public access to images
-- Rotate secrets regularly (see `docs/runbooks/secrets-rotation.md`)
+- The Docker Compose stack is for a single machine: it disables auth (`PIC_AUTH_DISABLED=true`) and binds to `127.0.0.1`. Don't expose it as is.
+- Set a long random `PIC_API_KEY` for anything reachable by others. API clients send it as `X-API-Key`; the web UI asks for it once and stores a `pic_session` cookie (an HMAC of the key, `HttpOnly`, `SameSite=Strict`, 30 days). Rotating the key ends every UI session.
+- Serve PIC over HTTPS behind a reverse proxy, and make sure the proxy forwards the https scheme (for example with `--forwarded-allow-ips`), or the session cookie is set without the `Secure` flag.
+- With the local storage backend, `/files` serves stored images **without authentication**. Use S3/R2/MinIO or GCS with private buckets for public deployments.
+- PIC has no built-in rate limiting; add it at the reverse proxy.
+- Restrict database access to the API and workers.
+- Rotate secrets regularly (see `docs/runbooks/secrets-rotation.md`).

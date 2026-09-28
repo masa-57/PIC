@@ -1,0 +1,19 @@
+{% from "_macros.html" import thumb %}
+<form id="product-images" hx-target="#product-images" hx-swap="outerHTML">
+  <div class="actions">
+    <button hx-post="/ui/products/{{ product.id }}/remove">Remove selected</button>
+    <button hx-post="/ui/products/{{ product.id }}/split">Split into new product</button>
+    {% if merge_choices %}
+    <select name="target_id" aria-label="Merge into">
+      {% for pid, label in merge_choices %}<option value="{{ pid }}">{{ label }}</option>{% endfor %}
+    </select>
+    <button hx-post="/ui/products/{{ product.id }}/merge-into" hx-confirm="Move every image into the chosen product and delete this one?">Merge into</button>
+    {% endif %}
+  </div>
+  {% include "_fragments/flash.html" %}
+  <div class="thumbs">
+    {% for t in product.images %}
+    <span class="selectable"><input type="checkbox" name="image_ids" value="{{ t.id }}" aria-label="Select {{ t.filename }}">{{ thumb(t) }}</span>
+    {% endfor %}
+  </div>
+</form>

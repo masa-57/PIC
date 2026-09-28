@@ -1,198 +1,188 @@
-# PIC - Product Image Clustering
+# PIC: Product Image Clustering
 
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Hierarchical image clustering API for product catalog images. Two-level clustering automatically organizes thousands of product images into meaningful groups:
+PIC organizes a folder of product photos into groups, so you can turn thousands of loose images into a clean product catalog. It is open source and self-hosted: one `docker compose up`, no cloud accounts.
 
-- **Level 1**: Groups images of the exact same product (different angles, zoom levels) using HDBSCAN on DINOv2 cosine distance
-- **Level 2**: Groups visually similar products (shared design, style, or category) using DINOv2 embeddings + HDBSCAN
+It clusters at two levels:
 
-<p align="center">
-  <img src="docs/images/pipeline-demo.svg" alt="PIC Pipeline Demo" width="900"/>
-</p>
+- **Level 1 (L1): same product.** Photos of one item from different angles, crops or zoom levels become one group.
+- **Level 2 (L2): similar products.** L1 groups that share a design, style or category are collected into clusters.
 
-## Features
+Clusters are suggestions and are rebuilt on every run. **Products** are yours: you build them from the suggestions in the web UI (merge groups, split, prune), and re-clustering never changes them.
 
-- Two-level hierarchical clustering (near-duplicate detection + semantic similarity)
-- DINOv2 vision transformer embeddings for high-quality visual similarity
-- pgvector-powered vector search for finding similar images
-- Full pipeline API for batch ingestion, deduplication, and clustering
-- Product management with AI-ready candidate extraction
-- Google Drive sync for automated image ingestion
-- Pluggable storage backends: S3-compatible (Cloudflare R2, MinIO, AWS S3), Google Cloud Storage, or local filesystem
-- URL-based image ingestion (download, deduplicate, and store images from URLs)
-- API key authentication with timing-safe comparison
-- Web UI at `/ui`: upload a local folder, watch runs with progress, browse clusters
-- Structured JSON logging with request ID tracking
-- Prometheus metrics
+## Quick start
 
-## Quick Start
-
-Prerequisites: Docker. Nothing else.
+You need Docker and nothing else.
 
 ```bash
 git clone https://github.com/masa-57/PIC.git
 cd PIC
 mkdir -p data/images
 docker compose up --build -d
-
-open http://localhost:8000/ui
 ```
 
-On the **Runs** page, choose **Local folder**, pick any folder of product photos and click **Upload and run pipeline**. Progress and a time estimate show under Recent runs; then browse the results on **Clusters**. Other sources on the same page: files already in the storage inbox (`data/images/` with Compose), Google Drive, or image URLs. From scripts, use `POST /api/v1/images/upload` and `POST /api/v1/pipeline/run`.
+Open **http://localhost:8000/ui**, then:
 
-Compose runs three services: Postgres with pgvector, the API (which applies migrations on start), and `pic-worker`, which picks up jobs and runs them. API docs are at http://localhost:8000/docs.
+1. On **Runs**, keep **Local folder** selected, click **Choose folder…** and pick any folder of product photos (subfolders are included).
+2. Click **Upload and run pipeline**. The run shows its step, progress and a time estimate.
+3. Open **Clusters** to browse the result. Click a thumbnail to enlarge it.
 
-The first pipeline run downloads the DINOv2 model (about 350 MB) into a Docker volume; later runs reuse it.
+The first run downloads the DINOv2 model (about 350 MB); later runs reuse it. API docs are at http://localhost:8000/docs.
+
+Compose starts three services: Postgres with pgvector, the API (which applies database migrations on start) and `pic-worker`, which runs the jobs. Images and thumbnails are stored in `./data`.
+
 On Linux, if the worker cannot write to `data/`, run `sudo chown -R 1001 data` (the containers run as uid 1001).
 
-### Using your Mac's GPU
+## Using the web UI
 
-Docker on macOS cannot reach the Apple GPU, so the worker runs on CPU in Compose.
-To use the GPU, run the database and API in Docker and the worker natively:
+**Runs** is where images come in and jobs are started:
+
+| Source | What it does |
+|---|---|
+| Local folder | Uploads a folder from your computer through the browser, then runs the pipeline |
+| Already in storage | Runs the pipeline on files you placed in the storage inbox yourself (`./data/images/` with Compose) |
+| Google Drive | Syncs new images from a shared Drive folder (needs [Drive setup](docs/gdrive-setup-guide.md)) |
+| URLs | Downloads public image URLs, then runs the pipeline |
+
+**Re-cluster** rebuilds the clusters without adding images. Recent runs show progress, how long each run took, and errors.
+
+**Clusters** lists L2 clusters as thumbnail cards, plus an **Unclustered** card for groups that did not fit any cluster. A cluster page shows its L1 groups.
+
+**Products** are your curated catalog:
+
+- On a cluster page, select groups or single images and click **Make product**. Selecting several groups merges them; selecting some images of a group splits them off. **Add to product** adds the selection to an existing product.
+- On a product page, remove images, **split** some into a new product, **merge** into another product, or edit the title, description and tags.
+- Groups whose images already belong to a product show **✓ product**, so after the next run you only need to look at new groups.
+
+When `PIC_API_KEY` is set, the UI asks for it once and keeps a 30-day session cookie.
+
+## How it works
+
+<p align="center">
+  <img src="docs/images/architecture.svg" alt="PIC architecture" width="900"/>
+</p>
+
+A **pipeline run**:
+
+1. **Discovers** new files in the storage inbox (`images/`) and skips exact duplicates by SHA-256 content hash (they move to `rejected/`).
+2. **Ingests** each image: DINOv2 embedding, perceptual hashes, dimensions and a thumbnail. Ingested files move to `processed/`.
+3. **Clusters** everything:
+   - L1: HDBSCAN on DINOv2 cosine distance groups near-duplicates.
+   - L2: UMAP reduces the L1 groups' representative embeddings, then HDBSCAN groups them.
+
+Jobs are rows in Postgres. The API creates them and a worker runs them one at a time: `pic-worker` by default, or [Modal](docs/deployment/modal-setup.md) serverless GPU functions if you set `PIC_WORKER_BACKEND=modal`. Only one pipeline or clustering job runs at a time.
+
+**Components**
+
+| Component | Role |
+|---|---|
+| FastAPI app | JSON API under `/api/v1` and the web UI under `/ui` (Jinja2 + htmx, no build step) |
+| `pic-worker` or Modal | Embeddings (DINOv2) and clustering (HDBSCAN, UMAP) |
+| PostgreSQL + pgvector | Images, groups, clusters, products, jobs, and embeddings with an HNSW index for similarity search |
+| Object storage | Local filesystem, S3-compatible (AWS S3, Cloudflare R2, MinIO) or Google Cloud Storage |
+
+## Faster runs on a Mac
+
+Docker on macOS cannot use the Apple GPU. For large folders, run the database and API in Docker and the worker natively:
 
 ```bash
-docker compose up -d db api
-docker compose stop worker
+docker compose up -d db api      # not plain "up": that would also start the Docker worker
 uv sync --extra ml
-PIC_DATABASE_URL=postgresql+asyncpg://pic:pic_local@localhost:5432/pic \
+PIC_DATABASE_URL='postgresql+asyncpg://pic:pic_local@localhost:5432/pic?sslmode=disable' \
 PIC_STORAGE_BACKEND=local PIC_LOCAL_STORAGE_PATH=./data \
 uv run pic-worker
 ```
 
-The embedding code picks Apple's MPS device automatically.
+The worker picks Apple's MPS device automatically. The first run after the worker starts loads the model (a few seconds); later runs skip that. The GPU matters most for large batches, where embedding dominates the run time.
 
-### Running on Modal instead
+## API
 
-Set `PIC_WORKER_BACKEND=modal` on the API and deploy the Modal app (see [docs/deployment/modal-setup.md](docs/deployment/modal-setup.md)).
-Do not run `pic-worker` in that mode; it refuses to start.
+Everything the UI does is also in the JSON API under `/api/v1`. Interactive docs: `/docs`.
 
-## Architecture
+Requests need an `X-API-Key` header when `PIC_API_KEY` is set. For local use, `PIC_AUTH_DISABLED=true` turns auth off explicitly (Compose does this). With neither set, the API returns 503, so a misconfigured server never runs open by accident.
 
-<p align="center">
-  <img src="docs/images/architecture.svg" alt="PIC Architecture" width="900"/>
-</p>
+```bash
+# Upload images to the inbox, then run the pipeline
+curl -F files=@mug-front.jpg -F files=@mug-side.jpg http://localhost:8000/api/v1/images/upload
+curl -X POST http://localhost:8000/api/v1/pipeline/run
 
-PIC uses a two-level clustering approach:
+# Follow the job
+curl http://localhost:8000/api/v1/jobs
+```
 
-1. **Level 1 (L1)** -- HDBSCAN on DINOv2 cosine distance groups identical products photographed from different angles. Density-based clustering runs on CPU (embeddings computed on GPU).
-2. **Level 2 (L2)** -- DINOv2 embeddings + UMAP dimensionality reduction + HDBSCAN clustering groups visually similar products. Runs on GPU for embedding computation.
+| Endpoints | Purpose |
+|---|---|
+| `/images` | List and inspect images, upload files, ingest from URLs |
+| `/pipeline/run` | Discover, deduplicate, ingest and cluster in one job |
+| `/clusters` | Run clustering; list L1 groups and L2 clusters |
+| `/products` | Product CRUD; create from `l1_group_ids`; add/remove images; split; merge; list uncurated groups (`/candidates`) |
+| `/search` | Similar images (vector search) and near-duplicates (pHash) |
+| `/jobs` | Job status and results |
+| `/gdrive/sync` | Start a Google Drive sync |
 
-**Components**:
+URL ingest only accepts public `http(s)` URLs. Localhost, private-network and link-local targets are rejected, including through redirects.
 
-| Component | Purpose |
-|-----------|---------|
-| **FastAPI** | REST API for images, clusters, search, products, pipeline |
-| **Workers** | `pic-worker` (local, default) or Modal serverless GPU functions; both compute embeddings and run clustering |
-| **PostgreSQL + pgvector** | Metadata storage + vector similarity search (HNSW index) |
-| **Object Storage** | Pluggable storage backend (S3, GCS, or local filesystem) with inbox/processed/rejected lifecycle |
+Health checks are `GET /health` and `GET /health/detailed`. Prometheus metrics are at `GET /metrics` (same auth as the API).
 
-**Flows**:
+## Deploying
 
-- **Jobs**: the API records each job, then either leaves it for the local `pic-worker` (default) or spawns a Modal function (`PIC_WORKER_BACKEND=modal`). Both run the same worker code.
-- **URL Ingestion**: Submit public image URLs via API -> download, deduplicate, and store with configurable concurrency. PIC rejects localhost, private-network, link-local, and redirected internal targets. When `auto_pipeline=true`, PIC creates and tracks a separate pipeline job after ingestion succeeds.
-- **Clustering**: Triggered via API or pipeline. L1 runs HDBSCAN on DINOv2 cosine distance; L2 runs UMAP + HDBSCAN on DINOv2 embeddings.
-- **Pipeline**: Single endpoint for n8n/automation -- discovers, deduplicates, ingests, and clusters in one call.
-- **Google Drive sync**: Watches a Drive folder, downloads new images, processes them, and syncs to storage.
+The Compose setup is meant for one machine and binds to `127.0.0.1`. Its settings live in the `x-pic-env` block of `docker-compose.yml` (Compose does not load a `.env` file into the containers). To run PIC on a server:
 
-## API Overview
+- Set `PIC_API_KEY` to a long random value and remove `PIC_AUTH_DISABLED`. The same key protects the API and the web UI.
+- Put a reverse proxy in front for TLS and rate limiting. PIC has no built-in rate limiter.
+- Choose storage. With the local backend, `/files` serves the stored images **without authentication**, and `PIC_ENV=production` refuses to start; use S3/R2/MinIO or GCS for a public deployment.
+- Use any PostgreSQL with the pgvector extension (self-hosted, Neon, Supabase). Run `uv run alembic upgrade head` before starting a new version; Compose does this on API start, the plain `api` image does not.
 
-All endpoints are under `/api/v1/` and require an API key via `X-API-Key` header by default. To run without auth, set `PIC_AUTH_DISABLED=true` explicitly. If `PIC_API_KEY` is unset and `PIC_AUTH_DISABLED=false`, protected endpoints return `503` so misconfigured non-production deployments do not silently run unauthenticated.
-
-The Prometheus scrape target is `GET /metrics` at the app root. It uses the same auth dependency as the API unless you explicitly run with `PIC_AUTH_DISABLED=true`.
-
-| Endpoint Group | Description |
-|----------------|-------------|
-| `/images` | Upload, list, get, delete images; ingest from URLs |
-| `/clusters` | Trigger clustering, list L1 groups and L2 clusters |
-| `/search` | Find similar images (vector search) and near-duplicates (pHash) |
-| `/products` | CRUD for products created from L1 groups, candidate listing |
-| `/pipeline` | Batch pipeline: discover + dedup + ingest + cluster |
-| `/gdrive` | Trigger Google Drive sync |
-| `/jobs` | List and inspect background job status |
-| `/health` | Basic and detailed health checks |
-
-`POST /api/v1/images/ingest` returns a URL-ingest job immediately. It accepts only public `http(s)` image URLs; localhost, RFC1918/link-local targets, and unsafe redirect hops are rejected. If `auto_pipeline=true`, the URL-ingest worker records the spawned pipeline job ID in the URL-ingest job result instead of reusing the original job record.
-
-## Deployment
-
-PIC is designed for deployment with:
-
-- **API server**: Any container platform (Fly.io, Cloud Run, a VPS, etc.) using `Dockerfile` (the default, last stage is the slim `api` image)
-- **Workers**: the `pic-worker` process (`Dockerfile` target `worker`), or Modal serverless GPU functions with `PIC_WORKER_BACKEND=modal`
-- **Database**: PostgreSQL with pgvector extension (Neon, Supabase, self-hosted)
-- **Object storage**: S3-compatible (Cloudflare R2, MinIO, AWS S3), Google Cloud Storage, or local filesystem
-
-See `docs/deployment/` for detailed deployment guides.
-See [monitoring setup](docs/operations/monitoring-setup.md) for Prometheus/Grafana notes, including the authenticated `/metrics` scrape path.
+The `Dockerfile` builds two images: `api` (slim, the default target) and `worker` (with the ML stack). See [self-hosting](docs/deployment/self-hosted.md), [architecture and settings](docs/deployment/architecture.md) and [Modal](docs/deployment/modal-setup.md).
 
 ## Configuration
 
-Copy `.env.example` to `.env` and configure. Key environment variables:
+All settings are `PIC_*` environment variables (see [`.env.example`](.env.example) and `src/pic/config.py`). The ones you are most likely to set:
 
-| Variable | Description |
-|----------|-------------|
-| `PIC_DATABASE_URL` | PostgreSQL connection string (asyncpg format) |
-| `PIC_STORAGE_BACKEND` | Storage backend: `s3` (default), `gcs`, or `local` |
-| `PIC_WORKER_BACKEND` | Where jobs run: `local` (`pic-worker`, default) or `modal` |
-| `PIC_S3_BUCKET` | S3 bucket name for image storage |
-| `PIC_S3_ENDPOINT_URL` | S3-compatible endpoint URL |
-| `PIC_S3_ACCESS_KEY_ID` | S3 access key |
-| `PIC_S3_SECRET_ACCESS_KEY` | S3 secret key |
-| `PIC_GCS_BUCKET` | GCS bucket name (required when `storage_backend=gcs`) |
-| `PIC_GCS_PROJECT_ID` | GCS project ID |
-| `PIC_GCS_CREDENTIALS_JSON` | GCS service account JSON (required when `storage_backend=gcs`) |
-| `PIC_LOCAL_STORAGE_PATH` | Local filesystem path (default: `data/storage`) |
-| `PIC_LOCAL_STORAGE_BASE_URL` | Base URL for local file serving (e.g., `http://localhost:8000/files`) |
-| `PIC_ENV` | Runtime environment (`development`, `staging`, `production`, `test`) |
-| `PIC_API_KEY` | API authentication key (required in production unless explicitly disabled) |
-| `PIC_AUTH_DISABLED` | Explicitly allow unauthenticated mode when no `PIC_API_KEY` is set |
-| `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | Google Drive service account JSON (optional) |
-| `PIC_GDRIVE_FOLDER_ID` | Google Drive folder ID to watch (optional) |
-| `PIC_GDRIVE_SCOPES` | Google Drive OAuth scopes (optional, default: full drive access) |
-
-See `.env.example` for the full list including clustering parameters and embedding settings.
+| Variable | Purpose |
+|---|---|
+| `PIC_DATABASE_URL` | PostgreSQL URL (`postgresql+asyncpg://…`) |
+| `PIC_API_KEY` / `PIC_AUTH_DISABLED` | Protect the API and UI, or explicitly run open |
+| `PIC_STORAGE_BACKEND` | `local`, `s3` or `gcs` (Compose uses `local`) |
+| `PIC_LOCAL_STORAGE_PATH` | Root folder for the local backend |
+| `PIC_S3_BUCKET`, `PIC_S3_ENDPOINT_URL`, `PIC_S3_ACCESS_KEY_ID`, `PIC_S3_SECRET_ACCESS_KEY` | S3-compatible storage |
+| `PIC_GCS_BUCKET`, `PIC_GCS_PROJECT_ID`, `PIC_GCS_CREDENTIALS_JSON` | Google Cloud Storage |
+| `PIC_WORKER_BACKEND` | `local` (`pic-worker`, default) or `modal` |
+| `PIC_GDRIVE_SERVICE_ACCOUNT_JSON`, `PIC_GDRIVE_FOLDER_ID` | Google Drive sync |
+| `PIC_MAX_UPLOAD_SIZE_MB` | Largest request and uploaded file (default 20) |
+| `PIC_L1_*`, `PIC_L2_*` | Clustering parameters (defaults suit most catalogs) |
 
 ## Development
 
 ```bash
-# Lint
-uv run ruff check src/ tests/ scripts/
+uv sync --extra ml                                  # dependencies, including the ML stack
+docker compose up -d db                             # Postgres for the API and integration tests
+uv run fastapi dev src/pic/main.py                  # API with reload
+uv run pic-worker                                   # worker (needs the storage settings above)
 
-# Format
-uv run ruff format src/ tests/ scripts/
-
-# Type check
-uv run mypy src/pic/
-
-# Run unit tests
-uv run pytest -m unit
-
-# Run integration tests (requires Docker)
-uv run pytest -m integration
-
-# Run unit + integration tests
-uv run pytest -m "unit or integration"
-
-# Run e2e tests (requires a running API; defaults to http://localhost:8000)
-PIC_E2E_BASE_URL=http://localhost:8000 uv run pytest -m e2e
-
-# Security audit
-uv run pip-audit
-
-# Database migrations
-uv run alembic upgrade head
-uv run alembic revision --autogenerate -m "description"
+uv run ruff check src/ tests/ scripts/              # lint
+uv run ruff format src/ tests/ scripts/             # format
+uv run mypy src/pic/                                # type check (strict)
+uv run pytest -m unit                               # fast tests, no services
+uv run pytest -m integration                        # needs Postgres; see below
+uv run pip-audit --skip-editable                    # dependency audit
 ```
 
-A `Makefile` provides shortcuts: `make dev`, `make test`, `make lint`, `make format`, `make migrate`, and more.
+Integration tests truncate every table in the database they use. Point them at a throwaway database, not your catalog:
+
+```bash
+docker compose exec db psql -U pic -d pic -c "CREATE DATABASE pic_test"
+PIC_DATABASE_URL='postgresql+asyncpg://pic:pic_local@localhost:5432/pic_test?sslmode=disable' uv run pytest -m integration
+```
+
+The `Makefile` has shortcuts (`make help`). Guidance for AI coding assistants is in [AGENTS.md](AGENTS.md).
 
 ## Contributing
 
-Contributions are welcome. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md), and the [roadmap](ROADMAP.md) for what is planned. Please report security issues as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).

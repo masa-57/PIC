@@ -1,12 +1,12 @@
 """Unit tests for web UI pages (DB-facing helpers are patched)."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from pic.config import settings
-from pic.services.browse import ClusterCard, GroupRow, Page, Thumb
+from pic.services.browse import ClusterCard, GroupRow, Page, ProductCard, ProductDetail, Thumb
 from pic.ui import auth
 
 HX = {"HX-Request": "true"}
@@ -136,6 +136,7 @@ class TestClusterDetailPage:
         with (
             patch("pic.ui.routes.browse.get_cluster_title", new_callable=AsyncMock, return_value="mugs"),
             patch("pic.ui.routes.browse.list_groups", new_callable=AsyncMock, return_value=Page([row], 1, 0, 20)),
+            patch("pic.ui.routes.browse.list_product_choices", new_callable=AsyncMock, return_value=[]),
         ):
             response = ui_client.get("/ui/clusters/3")
         assert response.status_code == 200
@@ -458,3 +459,393 @@ class TestFolderUpload:
             response = ui_client.post("/ui/upload", files=[("files", ("sub/a.jpg", b"x", "image/jpeg"))], headers=HX)
         assert response.status_code == 200
         assert response.json()["stored"] == 1
+
+
+@pytest.mark.unit
+class TestClusterCuration:
+    def _patch_page(self):
+        row = GroupRow(id=5, member_count=2, product_id=None, images=[_thumb()])
+        return (
+            patch("pic.ui.routes.browse.get_cluster_title", new_callable=AsyncMock, return_value="mugs"),
+            patch("pic.ui.routes.browse.list_groups", new_callable=AsyncMock, return_value=Page([row], 1, 0, 20)),
+            patch("pic.ui.routes.browse.list_product_choices", new_callable=AsyncMock, return_value=[(8, "Mug")]),
+        )
+
+    def test_page_has_selectable_groups_and_picker(self, ui_client):
+        a, b, c = self._patch_page()
+        with a, b, c:
+            response = ui_client.get("/ui/clusters/3")
+        assert 'name="group_ids" value="5"' in response.text
+        assert '<option value="8">Mug</option>' in response.text
+
+    def test_make_product_reports_counts(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b, c = self._patch_page()
+        with (
+            a,
+            b,
+            c,
+            patch(
+                "pic.ui.routes.curation.create_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=12, added=7, skipped=2),
+            ) as create,
+        ):
+            response = ui_client.post(
+                "/ui/clusters/3/make-product", data={"group_ids": ["5", "6"], "offset": "0"}, headers=HX
+            )
+        assert response.status_code == 200
+        assert create.await_args.kwargs["l1_group_ids"] == [5, 6]
+        assert "Created product #12 with 7 images; 2 already in other products were skipped" in response.text
+        assert 'href="/ui/products/12"' in response.text
+
+    def test_make_product_without_selection_shows_error(self, ui_client):
+        from pic.services.curation import EmptySelectionError
+
+        a, b, c = self._patch_page()
+        with (
+            a,
+            b,
+            c,
+            patch(
+                "pic.ui.routes.curation.create_product",
+                new_callable=AsyncMock,
+                side_effect=EmptySelectionError("Select at least one group or image"),
+            ),
+        ):
+            response = ui_client.post("/ui/clusters/3/make-product", data={"offset": "0"}, headers=HX)
+        assert response.status_code == 409
+        assert "Select at least one group or image" in response.text
+
+    def test_add_to_product(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b, c = self._patch_page()
+        with (
+            a,
+            b,
+            c,
+            patch(
+                "pic.ui.routes.curation.add_to_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=8, added=2),
+            ) as add,
+        ):
+            response = ui_client.post(
+                "/ui/clusters/3/add-to-product", data={"group_ids": ["5"], "product_id": "8", "offset": "0"}, headers=HX
+            )
+        assert response.status_code == 200
+        assert add.await_args.args[1] == 8
+        assert "Added 2 images to product #8" in response.text
+
+    def test_actions_require_htmx(self, ui_client):
+        assert ui_client.post("/ui/clusters/3/make-product", data={"group_ids": ["5"]}).status_code == 400
+
+
+def _detail(**overrides):
+    values = {
+        "id": 8,
+        "title": "Mug",
+        "description": "Blue",
+        "tags": ["blue", "ceramic"],
+        "representative_image_id": "img-1",
+        "images": [_thumb("img-1"), _thumb("img-2")],
+        "image_count": 2,
+    }
+    values.update(overrides)
+    return ProductDetail(**values)
+
+
+@pytest.mark.unit
+class TestProductPages:
+    def test_products_list(self, ui_client):
+        card = ProductCard(id=8, title="Mug", image_count=3, thumbnail=_thumb())
+        with patch("pic.ui.routes.browse.list_products", new_callable=AsyncMock, return_value=Page([card], 1, 0, 24)):
+            response = ui_client.get("/ui/products")
+        assert 'href="/ui/products/8"' in response.text
+        assert "3 images" in response.text
+
+    def test_products_empty_state(self, ui_client):
+        with patch("pic.ui.routes.browse.list_products", new_callable=AsyncMock, return_value=Page([], 0, 0, 24)):
+            response = ui_client.get("/ui/products")
+        assert "No products yet" in response.text
+
+    def test_product_detail_404(self, ui_client):
+        with patch("pic.ui.routes.browse.get_product", new_callable=AsyncMock, return_value=None):
+            assert ui_client.get("/ui/products/999").status_code == 404
+
+    def test_product_detail_shows_fields_and_images(self, ui_client):
+        with (
+            patch("pic.ui.routes.browse.get_product", new_callable=AsyncMock, return_value=_detail()),
+            patch(
+                "pic.ui.routes.browse.list_product_choices",
+                new_callable=AsyncMock,
+                return_value=[(8, "Mug"), (9, "Cup")],
+            ),
+        ):
+            response = ui_client.get("/ui/products/8")
+        assert 'value="Mug"' in response.text
+        assert 'value="blue, ceramic"' in response.text
+        assert 'name="image_ids" value="img-2"' in response.text
+
+    def test_edit_saves_fields(self, ui_client, monkeypatch):
+        product = MagicMock(id=8, title="Mug", description=None, tags=None)
+        with (
+            patch("pic.ui.routes.get_or_404", new_callable=AsyncMock, return_value=product),
+            patch("pic.ui.routes.browse.get_product", new_callable=AsyncMock, return_value=_detail(title="Big mug")),
+        ):
+            response = ui_client.post(
+                "/ui/products/8/edit",
+                data={"title": "Big mug", "description": "", "tags": "blue, , ceramic "},
+                headers=HX,
+            )
+        assert response.status_code == 200
+        assert product.title == "Big mug"
+        assert product.description is None
+        assert product.tags == ["blue", "ceramic"]
+        assert "Saved" in response.text
+
+    def test_delete_redirects_to_list(self, ui_client):
+        with (
+            patch("pic.ui.routes.get_or_404", new_callable=AsyncMock, return_value=MagicMock(id=8)),
+        ):
+            response = ui_client.post("/ui/products/8/delete", headers=HX)
+        assert response.headers["HX-Redirect"] == "/ui/products"
+
+
+@pytest.mark.unit
+class TestProductCuration:
+    def _patches(self, detail=None):
+        return (
+            patch("pic.ui.routes.browse.get_product", new_callable=AsyncMock, return_value=detail or _detail()),
+            patch(
+                "pic.ui.routes.browse.list_product_choices",
+                new_callable=AsyncMock,
+                return_value=[(8, "Mug"), (9, "Cup")],
+            ),
+        )
+
+    def test_merge_picker_excludes_current_product(self, ui_client):
+        a, b = self._patches()
+        with a, b:
+            response = ui_client.get("/ui/products/8")
+        assert '<option value="8">' not in response.text
+        assert '<option value="9">Cup</option>' in response.text
+
+    def test_remove_reports_count(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b = self._patches()
+        with (
+            a,
+            b,
+            patch(
+                "pic.ui.routes.curation.remove_from_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=8, removed=1),
+            ),
+        ):
+            response = ui_client.post("/ui/products/8/remove", data={"image_ids": ["img-2"]}, headers=HX)
+        assert response.status_code == 200
+        assert "Removed 1 image" in response.text
+
+    def test_removing_every_image_redirects_to_list(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        with patch(
+            "pic.ui.routes.curation.remove_from_product",
+            new_callable=AsyncMock,
+            return_value=CurationResult(product_id=8, removed=2, deleted_product_ids=[8]),
+        ):
+            response = ui_client.post("/ui/products/8/remove", data={"image_ids": ["img-1", "img-2"]}, headers=HX)
+        assert response.headers["HX-Redirect"] == "/ui/products"
+
+    def test_split_links_new_product(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b = self._patches()
+        with (
+            a,
+            b,
+            patch(
+                "pic.ui.routes.curation.split_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=15, added=1),
+            ),
+        ):
+            response = ui_client.post("/ui/products/8/split", data={"image_ids": ["img-2"]}, headers=HX)
+        assert "Moved 1 image to new product #15" in response.text
+        assert 'href="/ui/products/15"' in response.text
+
+    def test_split_of_every_image_shows_error(self, ui_client):
+        from pic.services.curation import InvalidOperationError
+
+        a, b = self._patches()
+        with (
+            a,
+            b,
+            patch(
+                "pic.ui.routes.curation.split_product",
+                new_callable=AsyncMock,
+                side_effect=InvalidOperationError("Select fewer than all images to split a product"),
+            ),
+        ):
+            response = ui_client.post("/ui/products/8/split", data={"image_ids": ["img-1", "img-2"]}, headers=HX)
+        assert response.status_code == 400
+        assert "Select fewer than all images" in response.text
+
+    def test_merge_into_redirects_to_target(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        with patch(
+            "pic.ui.routes.curation.merge_products",
+            new_callable=AsyncMock,
+            return_value=CurationResult(product_id=9, added=2, deleted_product_ids=[8]),
+        ) as merge:
+            response = ui_client.post("/ui/products/8/merge-into", data={"target_id": "9"}, headers=HX)
+        assert merge.await_args.args[1:] == (9, 8)
+        assert response.headers["HX-Redirect"] == "/ui/products/9"
+
+    def test_merge_into_deleted_target_shows_error(self, ui_client):
+        from pic.services.curation import NotFoundError
+
+        a, b = self._patches()
+        with (
+            a,
+            b,
+            patch(
+                "pic.ui.routes.curation.merge_products",
+                new_callable=AsyncMock,
+                side_effect=NotFoundError("Product 9 not found"),
+            ),
+        ):
+            response = ui_client.post("/ui/products/8/merge-into", data={"target_id": "9"}, headers=HX)
+        assert response.status_code == 404
+        assert "Product 9 not found" in response.text
+
+
+@pytest.mark.unit
+class TestStalePages:
+    """Actions from a page whose cluster or product is gone must say so, not fail silently."""
+
+    def test_cluster_gone_after_recluster_shows_message(self, ui_client):
+        from pic.services.curation import NotFoundError
+
+        with (
+            patch(
+                "pic.ui.routes.curation.create_product",
+                new_callable=AsyncMock,
+                side_effect=NotFoundError("L1 group not found: 5"),
+            ),
+            patch("pic.ui.routes.browse.get_cluster_title", new_callable=AsyncMock, return_value=None),
+        ):
+            response = ui_client.post("/ui/clusters/3/make-product", data={"group_ids": ["5"]}, headers=HX)
+        assert response.status_code == 404
+        assert "HX-Reswap" not in response.headers
+        assert 'id="groups-form"' in response.text
+        assert "no longer exists" in response.text
+        assert 'href="/ui"' in response.text
+
+    def test_product_gone_shows_message_on_image_action(self, ui_client):
+        from pic.services.curation import NotFoundError
+
+        with (
+            patch(
+                "pic.ui.routes.curation.remove_from_product",
+                new_callable=AsyncMock,
+                side_effect=NotFoundError("Product 8 not found"),
+            ),
+            patch("pic.ui.routes.browse.get_product", new_callable=AsyncMock, return_value=None),
+        ):
+            response = ui_client.post("/ui/products/8/remove", data={"image_ids": ["a"]}, headers=HX)
+        assert response.status_code == 404
+        assert 'id="product-images"' in response.text
+        assert "no longer exists" in response.text
+        assert 'href="/ui/products"' in response.text
+
+    def test_product_gone_shows_message_on_edit(self, ui_client):
+        from fastapi import HTTPException
+
+        with patch(
+            "pic.ui.routes.get_or_404",
+            new_callable=AsyncMock,
+            side_effect=HTTPException(status_code=404, detail="Product not found"),
+        ):
+            response = ui_client.post("/ui/products/8/edit", data={"title": "x"}, headers=HX)
+        assert response.status_code == 404
+        assert 'id="product-fields"' in response.text
+        assert "no longer exists" in response.text
+
+    def test_deleting_an_already_deleted_product_goes_to_list(self, ui_client):
+        from fastapi import HTTPException
+
+        with patch(
+            "pic.ui.routes.get_or_404",
+            new_callable=AsyncMock,
+            side_effect=HTTPException(status_code=404, detail="Product not found"),
+        ):
+            response = ui_client.post("/ui/products/8/delete", headers=HX)
+        assert response.headers["HX-Redirect"] == "/ui/products"
+
+
+@pytest.mark.unit
+class TestImageLevelSelection:
+    """Selecting individual thumbnails on a cluster page splits a mixed group in one step."""
+
+    def _patch_page(self):
+        row = GroupRow(id=5, member_count=2, product_id=None, images=[_thumb("img-1"), _thumb("img-2")])
+        return (
+            patch("pic.ui.routes.browse.get_cluster_title", new_callable=AsyncMock, return_value="mugs"),
+            patch("pic.ui.routes.browse.list_groups", new_callable=AsyncMock, return_value=Page([row], 1, 0, 20)),
+            patch("pic.ui.routes.browse.list_product_choices", new_callable=AsyncMock, return_value=[(8, "Mug")]),
+        )
+
+    def test_thumbnails_are_selectable(self, ui_client):
+        a, b, c = self._patch_page()
+        with a, b, c:
+            text = ui_client.get("/ui/clusters/3").text
+        assert 'name="image_ids" value="img-1"' in text
+        assert 'name="image_ids" value="img-2"' in text
+
+    def test_make_product_from_selected_images(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b, c = self._patch_page()
+        with (
+            a,
+            b,
+            c,
+            patch(
+                "pic.ui.routes.curation.create_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=12, added=1),
+            ) as create,
+        ):
+            response = ui_client.post("/ui/clusters/3/make-product", data={"image_ids": ["img-2"]}, headers=HX)
+        assert response.status_code == 200
+        assert create.await_args.kwargs["image_ids"] == ["img-2"]
+        assert create.await_args.kwargs["l1_group_ids"] == []
+        assert "Created product #12 with 1 image" in response.text
+
+    def test_add_selected_images_to_product(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b, c = self._patch_page()
+        with (
+            a,
+            b,
+            c,
+            patch(
+                "pic.ui.routes.curation.add_to_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=8, added=1),
+            ) as add,
+        ):
+            response = ui_client.post(
+                "/ui/clusters/3/add-to-product",
+                data={"image_ids": ["img-1"], "group_ids": ["6"], "product_id": "8"},
+                headers=HX,
+            )
+        assert response.status_code == 200
+        assert add.await_args.kwargs == {"l1_group_ids": [6], "image_ids": ["img-1"]}

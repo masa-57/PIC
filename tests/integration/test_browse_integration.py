@@ -108,3 +108,40 @@ class TestTypicalDurations:
         durations = await browse.typical_durations(db)
 
         assert durations == {JobType.CLUSTER_FULL: 20.0}
+
+
+@pytest.mark.integration
+class TestProductChoices:
+    async def test_lists_products_newest_first_with_fallback_title(self, db, seed_l1_group):
+        from pic.services import curation
+
+        g1, _ = await seed_l1_group(member_count=1)
+        g2, _ = await seed_l1_group(member_count=1)
+        first = await curation.create_product(db, l1_group_ids=[g1], title="Mug")
+        second = await curation.create_product(db, l1_group_ids=[g2])
+
+        choices = await browse.list_product_choices(db)
+
+        assert choices == [(second.product_id, f"Product #{second.product_id}"), (first.product_id, "Mug")]
+
+
+@pytest.mark.integration
+class TestProducts:
+    async def test_list_and_detail(self, db, seed_l1_group):
+        from pic.services import curation
+
+        g1, imgs = await seed_l1_group(member_count=3)
+        created = await curation.create_product(db, l1_group_ids=[g1], title="Mug", tags=["blue"])
+
+        page = await browse.list_products(db, offset=0)
+        assert page.total == 1
+        assert (page.items[0].id, page.items[0].title, page.items[0].image_count) == (created.product_id, "Mug", 3)
+
+        detail = await browse.get_product(db, created.product_id)
+        assert detail is not None
+        assert detail.tags == ["blue"]
+        assert {t.id for t in detail.images} == set(imgs)
+        assert detail.image_count == 3
+
+    async def test_missing_product_is_none(self, db):
+        assert await browse.get_product(db, 999999) is None

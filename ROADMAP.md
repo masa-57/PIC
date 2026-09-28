@@ -14,16 +14,17 @@ tracked as their own issues under the `simplification` label.
 
 ## Order of work
 
-1. **Unfreeze** ([#111](https://github.com/masa-57/PIC/issues/111)) -- refresh
+1. ✅ **Unfreeze** ([#111](https://github.com/masa-57/PIC/issues/111)) -- refresh
    the lockfile, fix mypy, get CI green. Nothing else can merge until this lands.
-2. **Simplify CI and deps** ([#116](https://github.com/masa-57/PIC/issues/116),
+2. ✅ **Simplify CI and deps** ([#116](https://github.com/masa-57/PIC/issues/116),
    [#117](https://github.com/masa-57/PIC/issues/117)) -- fold into the unfreeze
    pass where it saves work.
-3. **Run without cloud accounts** ([#112](https://github.com/masa-57/PIC/issues/112))
+3. ✅ **Run without cloud accounts** ([#112](https://github.com/masa-57/PIC/issues/112))
    -- local worker backend so `docker compose up` plus a folder of images
    produces clusters.
-4. **Web UI** ([#113](https://github.com/masa-57/PIC/issues/113)) -- browse and
-   curate clusters from the API itself.
+4. ✅ **Web UI** ([#113](https://github.com/masa-57/PIC/issues/113)) -- upload a
+   folder, run and watch jobs, browse clusters, and curate products that
+   survive re-clustering.
 5. **Clustering benchmark** ([#114](https://github.com/masa-57/PIC/issues/114))
    -- labeled dataset and precision/recall script.
 6. **Multi-model embeddings** ([#115](https://github.com/masa-57/PIC/issues/115))
@@ -45,8 +46,6 @@ Worth doing once the milestone above is done, or when a real need shows up.
 - **Local NVIDIA GPU support.** Ship CPU and CUDA torch variants in the
   lockfile so a Linux worker can use an NVIDIA GPU. Shares the fix with
   [#124](https://github.com/masa-57/PIC/issues/124).
-- **Image upload endpoint.** Pairs with the web UI
-  ([#113](https://github.com/masa-57/PIC/issues/113)).
 
 ## Not planned
 

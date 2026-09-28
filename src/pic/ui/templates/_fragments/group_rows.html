@@ -2,10 +2,11 @@
 {% for g in groups.items %}
 <section class="group">
   <header>
+    <input type="checkbox" name="group_ids" value="{{ g.id }}" aria-label="Select group {{ g.id }}">
     <strong>Group {{ g.id }} · {{ g.member_count }} images</strong>
-    {% if g.product_id %}<span class="badge">✓ product</span>{% endif %}
+    {% if g.product_id %}<a class="badge" href="/ui/products/{{ g.product_id }}">✓ product</a>{% endif %}
   </header>
-  <div class="thumbs">{% for t in g.images %}{{ thumb(t) }}{% endfor %}{% if g.more %}<span class="more-count">+{{ g.more }} more</span>{% endif %}</div>
+  <div class="thumbs">{% for t in g.images %}<span class="selectable"><input type="checkbox" name="image_ids" value="{{ t.id }}" aria-label="Select {{ t.filename }}">{{ thumb(t) }}</span>{% endfor %}{% if g.more %}<span class="more-count">+{{ g.more }} more</span>{% endif %}</div>
 </section>
 {% endfor %}
 {% if groups.has_more %}
