@@ -182,3 +182,21 @@ class TestMergeProducts:
         created = await curation.create_product(db, l1_group_ids=[g1])
         with pytest.raises(curation.NotFoundError):
             await curation.merge_products(db, 999999, created.product_id)
+
+
+@pytest.mark.integration
+class TestProductsSurviveReclustering:
+    async def test_product_membership_is_unchanged_after_full_clustering(self, db, seed_images):
+        from pic.services.clustering_pipeline import run_full_clustering
+
+        image_ids = await seed_images(count=8, with_embedding=True)
+        await run_full_clustering(db, {})
+        created = await curation.create_product(db, image_ids=image_ids[:3], title="Keep me")
+
+        await run_full_clustering(db, {})
+
+        assert await _member_ids(db, created.product_id) == set(image_ids[:3])
+        product = await db.get(Product, created.product_id)
+        await db.refresh(product)
+        assert product.title == "Keep me"
+        assert product.representative_image_id in image_ids[:3]
