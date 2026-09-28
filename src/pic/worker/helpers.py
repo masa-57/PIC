@@ -118,18 +118,15 @@ async def mark_job_running(db: AsyncSession, job_id: str) -> None:
     await db.commit()
 
 
-async def mark_job_failed(db: AsyncSession, job_id: str, error: str) -> None:
-    """Set job status to FAILED with error message and timestamp."""
+async def mark_job_failed(
+    db: AsyncSession, job_id: str, error: str, *, result: dict[str, object] | None = None
+) -> None:
+    """Set job status to FAILED with error message, optional result JSON, and timestamp."""
     job_type = await _load_job_type(db, job_id)
-    await db.execute(
-        update(Job)
-        .where(Job.id == job_id)
-        .values(
-            status=JobStatus.FAILED,
-            error=error,
-            completed_at=datetime.now(UTC),
-        )
-    )
+    values: dict[str, object] = {"status": JobStatus.FAILED, "error": error, "completed_at": datetime.now(UTC)}
+    if result is not None:
+        values["result"] = json.dumps(result)
+    await db.execute(update(Job).where(Job.id == job_id).values(**values))
     await db.commit()
     if job_type is not None:
         record_job_finished(job_type, JobStatus.FAILED)
@@ -171,8 +168,13 @@ async def sweep_stale_jobs(db: AsyncSession, max_age_minutes: int | None = None)
     return swept
 
 
-async def mark_job_completed(db: AsyncSession, job_id: str, result: dict[str, object]) -> None:
-    """Set job status to COMPLETED with result JSON and timestamp."""
+async def mark_job_completed(
+    db: AsyncSession, job_id: str, result: dict[str, object], *, error: str | None = None
+) -> None:
+    """Set job status to COMPLETED with result JSON and timestamp.
+
+    ``error`` records a partial failure (e.g. some images failed) on a job that still completed.
+    """
     job_type = await _load_job_type(db, job_id)
     await db.execute(
         update(Job)
@@ -181,6 +183,7 @@ async def mark_job_completed(db: AsyncSession, job_id: str, result: dict[str, ob
             status=JobStatus.COMPLETED,
             progress=1.0,
             result=json.dumps(result),
+            error=error,
             completed_at=datetime.now(UTC),
         )
     )

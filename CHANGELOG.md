@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deployment workflow, and the staging environment guide. Work is now tracked in the
   `v0.3 Reboot` milestone; see `ROADMAP.md`.
 
+### Fixed
+- URL-ingested images are now embedded and clustered: the pipeline ingests existing `images/` rows without an embedding instead of rejecting them, and URLs without an extension get one from the image format (#128)
+- A pipeline run where every image fails to ingest now ends `FAILED`; partial failures complete with the error count in the job's `error` field (#129)
+
 ## [0.2.1] - 2026-03-16
 
 ### Added
