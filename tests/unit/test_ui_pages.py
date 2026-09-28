@@ -297,3 +297,56 @@ class TestUiImageCsp:
         monkeypatch.setattr(settings, "storage_backend", "local")
         csp = ui_client.get("/ui/login", follow_redirects=False).headers["content-security-policy"]
         assert csp == "default-src 'self'; img-src 'self' https: data:; frame-ancestors 'none'"
+
+
+@pytest.mark.unit
+class TestAddImagesPanel:
+    def test_shows_storage_and_source_tabs(self, ui_client, monkeypatch):
+        from pathlib import Path
+
+        monkeypatch.setattr(settings, "storage_backend", "local")
+        monkeypatch.setattr(settings, "local_storage_path", Path("/data"))
+        monkeypatch.setattr(settings, "gdrive_folder_id", "")
+        with patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[]):
+            response = ui_client.get("/ui/jobs")
+        text = response.text
+        assert "Storage: <strong>Local filesystem</strong>" in text
+        assert "/data/images/" in text
+        for label in ("Storage inbox", "Google Drive", "URLs"):
+            assert label in text
+        assert "PIC_GDRIVE_FOLDER_ID" in text  # not configured: tab explains what to set
+        assert 'hx-post="/ui/jobs/run/gdrive"' not in text
+
+    def test_gdrive_tab_has_sync_button_when_configured(self, ui_client, monkeypatch):
+        monkeypatch.setattr(settings, "gdrive_folder_id", "folder-123")
+        monkeypatch.setattr(settings, "gdrive_service_account_json", "{}")
+        with patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[]):
+            response = ui_client.get("/ui/jobs")
+        assert 'hx-post="/ui/jobs/run/gdrive"' in response.text
+        assert "folder-123" in response.text
+
+    def test_gdrive_sync_not_configured_is_rejected(self, ui_client, monkeypatch):
+        monkeypatch.setattr(settings, "gdrive_folder_id", "")
+        with (
+            patch("pic.ui.routes.browse.has_active_clustering_job", new_callable=AsyncMock, return_value=False),
+            patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[]),
+            patch("pic.ui.routes.create_and_dispatch_job", new_callable=AsyncMock) as dispatch,
+        ):
+            response = ui_client.post("/ui/jobs/run/gdrive", headers=HX)
+        assert response.status_code == 400
+        assert "Google Drive sync is not configured" in response.text
+        dispatch.assert_not_awaited()
+
+    def test_gdrive_sync_dispatches_job(self, ui_client, monkeypatch):
+        from pic.models.db import JobType
+
+        monkeypatch.setattr(settings, "gdrive_folder_id", "folder-123")
+        monkeypatch.setattr(settings, "gdrive_service_account_json", "{}")
+        with (
+            patch("pic.ui.routes.browse.has_active_clustering_job", new_callable=AsyncMock, return_value=False),
+            patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[]),
+            patch("pic.ui.routes.create_and_dispatch_job", new_callable=AsyncMock) as dispatch,
+        ):
+            response = ui_client.post("/ui/jobs/run/gdrive", headers=HX)
+        assert response.status_code == 200
+        assert dispatch.await_args.args[1] == JobType.GDRIVE_SYNC

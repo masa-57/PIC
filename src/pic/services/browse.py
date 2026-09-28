@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -240,3 +241,31 @@ def summarize_result(result: str | None) -> str:
     return " · ".join(
         f"{k} {v}" for k, v in data.items() if isinstance(v, int | float | str) and not isinstance(v, bool)
     )
+
+
+@dataclass(frozen=True)
+class StorageInfo:
+    label: str
+    inbox: str
+    hint: str | None = None
+
+
+def storage_info() -> StorageInfo:
+    """Where images live and where new ones go, for display. Never includes credentials."""
+    backend = settings.storage_backend
+    if backend == "local":
+        return StorageInfo(
+            label="Local filesystem",
+            inbox=f"{str(settings.local_storage_path).rstrip('/')}/images/",
+            hint="With Docker Compose, copy files into ./data/images/ next to docker-compose.yml.",
+        )
+    if backend == "gcs":
+        return StorageInfo(label="Google Cloud Storage", inbox=f"gs://{settings.gcs_bucket}/images/")
+    host = urlsplit(settings.s3_endpoint_url).hostname if settings.s3_endpoint_url else None
+    port = urlsplit(settings.s3_endpoint_url).port if settings.s3_endpoint_url else None
+    label = f"S3-compatible at {host}{f':{port}' if port else ''}" if host else "Amazon S3"
+    return StorageInfo(label=label, inbox=f"s3://{settings.s3_bucket}/images/")
+
+
+def gdrive_configured() -> bool:
+    return bool(settings.gdrive_folder_id and settings.gdrive_service_account_json)

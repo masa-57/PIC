@@ -110,7 +110,8 @@ async def cluster_detail_page(
     return templates.TemplateResponse(request, "cluster_detail.html", context)
 
 
-_RUN_TYPES = {"pipeline": JobType.PIPELINE, "cluster": JobType.CLUSTER_FULL}
+_RUN_TYPES = {"pipeline": JobType.PIPELINE, "cluster": JobType.CLUSTER_FULL, "gdrive": JobType.GDRIVE_SYNC}
+_RUN_LABELS = {"pipeline": "pipeline run", "cluster": "re-cluster", "gdrive": "Google Drive sync"}
 _ACTIVE_STATUSES = (JobStatus.PENDING, JobStatus.RUNNING)
 
 
@@ -139,6 +140,9 @@ async def jobs_page(request: Request, db: AsyncSession = Depends(get_db)) -> Res
         "polling": any(j.status in _ACTIVE_STATUSES for j in jobs),
         "message": None,
         "active": "jobs",
+        "storage": browse.storage_info(),
+        "gdrive_configured": browse.gdrive_configured(),
+        "gdrive_folder_id": settings.gdrive_folder_id,
     }
     return templates.TemplateResponse(request, "jobs.html", context)
 
@@ -151,9 +155,11 @@ async def jobs_table(request: Request, db: AsyncSession = Depends(get_db)) -> Re
 @router.post("/jobs/run/{kind}", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
 async def start_run(
     request: Request,
-    kind: Literal["pipeline", "cluster"],
+    kind: Literal["pipeline", "cluster", "gdrive"],
     db: AsyncSession = Depends(get_db),
 ) -> Response:
+    if kind == "gdrive" and not browse.gdrive_configured():
+        return await _jobs_table(request, db, "Google Drive sync is not configured.", "error", status_code=400)
     if await browse.has_active_clustering_job(db):
         return await _jobs_table(
             request, db, "A pipeline or clustering job is already running.", "error", status_code=409
@@ -162,7 +168,7 @@ async def start_run(
         await create_and_dispatch_job(db, _RUN_TYPES[kind], None)
     except HTTPException as exc:
         return await _jobs_table(request, db, str(exc.detail), "error", status_code=exc.status_code)
-    return await _jobs_table(request, db, f"Started {kind} run.")
+    return await _jobs_table(request, db, f"Started {_RUN_LABELS[kind]}.")
 
 
 @router.post("/jobs/url-ingest", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])

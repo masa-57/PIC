@@ -2,17 +2,49 @@
 {% block title %}Runs{% endblock %}
 {% block content %}
 <h1>Runs</h1>
-<div class="run-actions">
-  <button class="primary" hx-post="/ui/jobs/run/pipeline" hx-target="#jobs" hx-swap="outerHTML">Run pipeline</button>
-  <button hx-post="/ui/jobs/run/cluster" hx-target="#jobs" hx-swap="outerHTML">Re-cluster</button>
-  <span class="muted">The pipeline ingests new images from the storage inbox, then clusters everything.</span>
-</div>
-<form class="url-ingest" hx-post="/ui/jobs/url-ingest" hx-target="#jobs" hx-swap="outerHTML">
-  <div>
-    <label for="urls">Ingest images from URLs (one per line)</label><br>
-    <textarea id="urls" name="urls" rows="3"></textarea>
+<p class="storage-line">Storage: <strong>{{ storage.label }}</strong></p>
+
+<section class="panel">
+  <h2>Add images</h2>
+  <div class="tabs">
+    <input type="radio" name="source" id="src-inbox" checked>
+    <label for="src-inbox">Storage inbox</label>
+    <input type="radio" name="source" id="src-gdrive">
+    <label for="src-gdrive">Google Drive</label>
+    <input type="radio" name="source" id="src-urls">
+    <label for="src-urls">URLs</label>
+
+    <div class="tab-panel" id="panel-inbox">
+      <p>Copy images into <code>{{ storage.inbox }}</code>, then run the pipeline. It ingests new images, skips duplicates, and re-clusters everything.</p>
+      {% if storage.hint %}<p class="muted">{{ storage.hint }}</p>{% endif %}
+      <button class="primary" hx-post="/ui/jobs/run/pipeline" hx-target="#jobs" hx-swap="outerHTML">Run pipeline</button>
+    </div>
+
+    <div class="tab-panel" id="panel-gdrive">
+      {% if gdrive_configured %}
+      <p>Sync new images from Google Drive folder <code>{{ gdrive_folder_id }}</code>, then re-cluster. Synced files move to its <code>processed/</code> subfolder.</p>
+      <button class="primary" hx-post="/ui/jobs/run/gdrive" hx-target="#jobs" hx-swap="outerHTML">Sync now</button>
+      {% else %}
+      <p class="muted">Google Drive sync is not configured. Set <code>PIC_GDRIVE_SERVICE_ACCOUNT_JSON</code> and <code>PIC_GDRIVE_FOLDER_ID</code>, then restart PIC.</p>
+      {% endif %}
+    </div>
+
+    <div class="tab-panel" id="panel-urls">
+      <form hx-post="/ui/jobs/url-ingest" hx-target="#jobs" hx-swap="outerHTML">
+        <label for="urls">Image URLs, one per line (public http/https, up to 100)</label>
+        <textarea id="urls" name="urls" rows="5" placeholder="https://example.com/products/mug-front.jpg&#10;https://example.com/products/mug-side.jpg"></textarea>
+        <button class="primary" type="submit">Ingest and run pipeline</button>
+      </form>
+    </div>
   </div>
-  <button type="submit">Ingest and run pipeline</button>
-</form>
+</section>
+
+<section class="panel">
+  <h2>Maintenance</h2>
+  <p class="muted">Re-cluster all images without adding new ones, for example after changing clustering settings.</p>
+  <button hx-post="/ui/jobs/run/cluster" hx-target="#jobs" hx-swap="outerHTML">Re-cluster</button>
+</section>
+
+<h2>Recent runs</h2>
 {% include "_fragments/jobs_table.html" %}
 {% endblock %}

@@ -56,3 +56,46 @@ class TestSummarizeResult:
     def test_handles_empty_and_invalid(self):
         assert browse.summarize_result(None) == ""
         assert browse.summarize_result("not json") == ""
+
+
+@pytest.mark.unit
+class TestStorageInfo:
+    def test_local_backend_shows_inbox_folder(self, monkeypatch):
+        from pathlib import Path
+
+        monkeypatch.setattr(browse.settings, "storage_backend", "local")
+        monkeypatch.setattr(browse.settings, "local_storage_path", Path("/data"))
+        info = browse.storage_info()
+        assert info.label == "Local filesystem"
+        assert info.inbox == "/data/images/"
+        assert "./data/images" in (info.hint or "")
+
+    def test_s3_compatible_backend_shows_endpoint_host_not_credentials(self, monkeypatch):
+        monkeypatch.setattr(browse.settings, "storage_backend", "s3")
+        monkeypatch.setattr(browse.settings, "s3_bucket", "pic-images")
+        monkeypatch.setattr(browse.settings, "s3_endpoint_url", "http://user:secret@nas.lan:9000")
+        info = browse.storage_info()
+        assert info.label == "S3-compatible at nas.lan:9000"
+        assert info.inbox == "s3://pic-images/images/"
+        assert "secret" not in info.label + info.inbox
+
+    def test_aws_s3_without_endpoint(self, monkeypatch):
+        monkeypatch.setattr(browse.settings, "storage_backend", "s3")
+        monkeypatch.setattr(browse.settings, "s3_endpoint_url", "")
+        assert browse.storage_info().label == "Amazon S3"
+
+    def test_gcs_backend(self, monkeypatch):
+        monkeypatch.setattr(browse.settings, "storage_backend", "gcs")
+        monkeypatch.setattr(browse.settings, "gcs_bucket", "pics")
+        info = browse.storage_info()
+        assert (info.label, info.inbox) == ("Google Cloud Storage", "gs://pics/images/")
+
+
+@pytest.mark.unit
+class TestGdriveConfigured:
+    def test_needs_both_settings(self, monkeypatch):
+        monkeypatch.setattr(browse.settings, "gdrive_folder_id", "folder")
+        monkeypatch.setattr(browse.settings, "gdrive_service_account_json", "")
+        assert browse.gdrive_configured() is False
+        monkeypatch.setattr(browse.settings, "gdrive_service_account_json", "{}")
+        assert browse.gdrive_configured() is True
