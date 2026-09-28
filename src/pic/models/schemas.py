@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TypedDict
 
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
 from pic.models.db import JobStatus, JobType
 from pic.services.url_safety import validate_url_target
@@ -277,7 +277,8 @@ def _validate_tag_list(v: list[str]) -> list[str]:
 
 
 class ProductCreate(BaseModel):
-    l1_group_id: int  # Used to find images, NOT stored as FK
+    l1_group_id: int | None = None  # Single-group form; used to find images, NOT stored as FK
+    l1_group_ids: list[int] = Field(default_factory=list, max_length=500)
     title: str | None = None
     description: str | None = None
     tags: list[str] = Field(default_factory=list)
@@ -286,6 +287,12 @@ class ProductCreate(BaseModel):
     @classmethod
     def validate_tags(cls, v: list[str]) -> list[str]:
         return _validate_tag_list(v)
+
+    @model_validator(mode="after")
+    def exactly_one_group_source(self) -> "ProductCreate":
+        if (self.l1_group_id is None) == (not self.l1_group_ids):
+            raise ValueError("Provide either l1_group_id or l1_group_ids, not both")
+        return self
 
 
 class ProductUpdate(BaseModel):
@@ -318,6 +325,37 @@ class ProductListOut(BaseModel):
     offset: int = 0
     limit: int = 50
     links: PaginationLinks | None = None
+
+
+class ProductImagesAdd(BaseModel):
+    image_ids: list[str] = Field(default_factory=list, max_length=1000)
+    l1_group_ids: list[int] = Field(default_factory=list, max_length=500)
+
+    @model_validator(mode="after")
+    def requires_selection(self) -> "ProductImagesAdd":
+        if not self.image_ids and not self.l1_group_ids:
+            raise ValueError("Provide image_ids or l1_group_ids")
+        return self
+
+
+class ProductImagesRemove(BaseModel):
+    image_ids: list[str] = Field(..., min_length=1, max_length=1000)
+
+
+class ProductSplit(BaseModel):
+    image_ids: list[str] = Field(..., min_length=1, max_length=1000)
+
+
+class ProductMerge(BaseModel):
+    source_product_id: int
+
+
+class CurationResultOut(BaseModel):
+    product_id: int | None
+    added: int = 0
+    skipped: int = 0
+    removed: int = 0
+    deleted_product_ids: list[int] = []
 
 
 class CandidateOut(BaseModel):

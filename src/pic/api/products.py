@@ -1,9 +1,11 @@
 import asyncio
 import logging
+from collections.abc import Awaitable
+from dataclasses import asdict
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import exists, func, select, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pic.api.deps import PaginationParams, build_pagination_links, get_db, get_or_404
@@ -11,28 +13,24 @@ from pic.models.db import Image, L1Group, Product
 from pic.models.schemas import (
     CandidateListOut,
     CandidateOut,
+    CurationResultOut,
     ProblemDetail,
     ProductCreate,
     ProductImageListOut,
     ProductImageOut,
+    ProductImagesAdd,
+    ProductImagesRemove,
     ProductListOut,
+    ProductMerge,
     ProductOut,
+    ProductSplit,
     ProductUpdate,
 )
+from pic.services import curation
 from pic.services.image_store import generate_presigned_url
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/products", tags=["products"])
-
-
-def _is_l1_unique_conflict(exc: IntegrityError) -> bool:
-    """True when unique constraint/index enforces one product per L1 group."""
-    original = getattr(exc, "orig", None)
-    constraint_name = getattr(original, "constraint_name", None)
-    if constraint_name == "ix_images_one_product_per_l1":
-        return True
-    # asyncpg may only surface the name in string form depending on adapter/version
-    return "ix_images_one_product_per_l1" in str(original)
 
 
 def _product_to_out(product: Product, image_count: int | None = None) -> ProductOut:
@@ -109,7 +107,10 @@ async def list_candidates(
     responses={
         400: {"model": ProblemDetail, "description": "Invalid L1 group state"},
         404: {"model": ProblemDetail, "description": "L1 group not found"},
-        409: {"model": ProblemDetail, "description": "L1 group already has a product"},
+        409: {
+            "model": ProblemDetail,
+            "description": "L1 group already has a product, or every selected image is taken",
+        },
     },
 )
 async def create_product(
@@ -117,7 +118,24 @@ async def create_product(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> ProductOut:
-    """Create a product from an L1 group. Links all group images to the product."""
+    """Create a product from one L1 group (`l1_group_id`) or several (`l1_group_ids`).
+
+    With `l1_group_ids`, images already in another product are skipped.
+    """
+    if body.l1_group_id is None:
+        outcome = await _curate(
+            curation.create_product(
+                db,
+                l1_group_ids=body.l1_group_ids,
+                title=body.title,
+                description=body.description,
+                tags=body.tags,
+            )
+        )
+        assert outcome.product_id is not None  # create always returns the new id  # noqa: S101
+        created = await get_or_404(db, Product, outcome.product_id, "Product not found")
+        response.headers["Location"] = f"/api/v1/products/{created.id}"
+        return _product_to_out(created, image_count=outcome.added)
     group_result = await db.execute(select(L1Group).where(L1Group.id == body.l1_group_id).with_for_update())
     group = group_result.scalar_one_or_none()
     if group is None:
@@ -151,14 +169,25 @@ async def create_product(
     db.add(product)
     await db.flush()
 
-    await db.execute(update(Image).where(Image.l1_group_id == body.l1_group_id).values(product_id=product.id))
-    try:
-        await db.commit()
-    except IntegrityError as exc:
+    # Only claim free images: a concurrent curation request may have taken some since the check above.
+    await db.execute(
+        update(Image)
+        .where(Image.l1_group_id == body.l1_group_id, Image.product_id.is_(None))
+        .values(product_id=product.id)
+    )
+    conflict = await db.execute(
+        select(
+            exists().where(
+                Image.l1_group_id == body.l1_group_id,
+                Image.product_id.isnot(None),
+                Image.product_id != product.id,
+            )
+        )
+    )
+    if conflict.scalar():
         await db.rollback()
-        if _is_l1_unique_conflict(exc):
-            raise HTTPException(status_code=409, detail="L1 group already has a product") from None
-        raise
+        raise HTTPException(status_code=409, detail="L1 group already has a product")
+    await db.commit()
     await db.refresh(product)
 
     count_result = await db.execute(select(func.count()).select_from(Image).where(Image.product_id == product.id))
@@ -310,3 +339,64 @@ async def get_product_images(
             f"/api/v1/products/{product_id}/images", total, pagination.offset, pagination.limit
         ),
     )
+
+
+async def _curate(operation: Awaitable[curation.CurationResult]) -> curation.CurationResult:
+    """Await a curation operation, mapping its errors to HTTP errors."""
+    try:
+        return await operation
+    except curation.CurationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from None
+
+
+_CURATION_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {"model": ProblemDetail, "description": "Invalid curation request"},
+    404: {"model": ProblemDetail, "description": "Product, group or image not found"},
+    409: {"model": ProblemDetail, "description": "Every selected image already belongs to a product"},
+}
+
+
+@router.post("/{product_id}/images", response_model=CurationResultOut, responses=_CURATION_RESPONSES)
+async def add_product_images(
+    product_id: int,
+    body: ProductImagesAdd,
+    db: AsyncSession = Depends(get_db),
+) -> CurationResultOut:
+    """Add images, or whole L1 groups, to a product. Images in another product are skipped."""
+    outcome = await _curate(
+        curation.add_to_product(db, product_id, l1_group_ids=body.l1_group_ids, image_ids=body.image_ids)
+    )
+    return CurationResultOut(**asdict(outcome))
+
+
+@router.delete("/{product_id}/images", response_model=CurationResultOut, responses=_CURATION_RESPONSES)
+async def remove_product_images(
+    product_id: int,
+    body: ProductImagesRemove,
+    db: AsyncSession = Depends(get_db),
+) -> CurationResultOut:
+    """Unlink images from a product. A product left with no images is deleted."""
+    outcome = await _curate(curation.remove_from_product(db, product_id, body.image_ids))
+    return CurationResultOut(**asdict(outcome))
+
+
+@router.post("/{product_id}/merge", response_model=CurationResultOut, responses=_CURATION_RESPONSES)
+async def merge_product(
+    product_id: int,
+    body: ProductMerge,
+    db: AsyncSession = Depends(get_db),
+) -> CurationResultOut:
+    """Move every image of `source_product_id` into this product and delete the source."""
+    outcome = await _curate(curation.merge_products(db, product_id, body.source_product_id))
+    return CurationResultOut(**asdict(outcome))
+
+
+@router.post("/{product_id}/split", response_model=CurationResultOut, responses=_CURATION_RESPONSES)
+async def split_product(
+    product_id: int,
+    body: ProductSplit,
+    db: AsyncSession = Depends(get_db),
+) -> CurationResultOut:
+    """Move some of this product's images into a new product. `product_id` in the result is the new product."""
+    outcome = await _curate(curation.split_product(db, product_id, body.image_ids))
+    return CurationResultOut(**asdict(outcome))

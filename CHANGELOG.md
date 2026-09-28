@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Product curation API: create a product from several L1 groups (`l1_group_ids`), add images or groups to a product, remove images, split and merge products. Products are never changed by re-clustering (#113)
 - Local worker backend: `pic-worker` runs jobs from Postgres; `docker compose up` gives a full stack with no cloud accounts (#112)
 - `PIC_WORKER_BACKEND` setting (`local` default, `modal`) and `jobs.params` column (#112)
 
@@ -25,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Built-in rate limiting (`slowapi`) and its settings `PIC_RATE_LIMIT_DEFAULT`, `PIC_RATE_LIMIT_BURST`, `PIC_RATE_LIMIT_STORAGE_URL`, `PIC_JOB_TRIGGER_RATE_LIMIT`, plus the `X-RateLimit-Limit` header. Rate-limit at a reverse proxy instead; see `docs/deployment/self-hosted.md` (#120)
 - Sentry integration (`sentry-sdk`, `PIC_SENTRY_DSN`) (#120)
 - Railway config (`railway.json`) and its runbook; the API image runs on any container host (#118)
+- Dead `ix_images_one_product_per_l1` conflict handling in `POST /api/v1/products` (the index was dropped in migration 012)
 - Single-image ingest path (`run_ingest` Modal function, `pic.worker.ingest`, worker CLI entrypoint) (#112)
 - MinIO from docker compose; local storage replaces it
 - Unused dev dependencies `moto`, `testcontainers`, `coverage` (#117)
