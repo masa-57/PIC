@@ -9,7 +9,7 @@ This file provides context and instructions for AI coding agents working with th
 
 ## Project Overview
 
-PIC is a hierarchical image clustering API for product catalog images. Two-level clustering:
+PIC is an open-source hierarchical image clustering API for product catalog images, meant to be self-hosted by anyone. Two-level clustering:
 - **Level 1**: Near-duplicate detection (same product, different angles) via HDBSCAN on DINOv2 cosine distance
 - **Level 2**: Semantic similarity (visually similar products) via DINOv2 embeddings + UMAP + HDBSCAN
 
@@ -207,7 +207,8 @@ GitHub Actions are pinned to a full commit SHA with the version in a trailing co
 ## Task Tracking
 
 - All work is tracked as GitHub Issues in the current milestone (see `ROADMAP.md` for the order of work). Check the milestone before starting anything
-- Simplification is a standing goal: when touching a module, remove settings, deps, or features a single-user hobby deployment will never need. Prefer deleting over abstracting. Log larger candidates on the `simplification`-labelled issues rather than doing them by surprise
+- Simplification is a standing goal: when touching a module, remove settings, deps, or features that a small self-hosted deployment will never need. Prefer deleting over abstracting. Log larger candidates on the `simplification`-labelled issues rather than doing them by surprise
+- PIC is open source and stays that way. Simplify for a small self-hosted deployment, not for a single private user: keep what outside users and contributors need (README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY.md, issue templates, self-hosting docs). When dropping a feature someone may rely on in a public deployment, document the alternative and note it in CHANGELOG
 - When discovering a new bug or improvement opportunity, create a GitHub Issue and attach it to the milestone
 - Reference issue numbers in commit messages (e.g. `fixes #42`)
 - Do NOT leave TODOs in code without a corresponding GitHub Issue
