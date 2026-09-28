@@ -34,6 +34,8 @@ pic_image = (
         "numba>=0.59,<1.0",
         "scipy>=1.12,<2.0",
     )
+    # Jobs chained inside Modal (URL ingest -> pipeline) must dispatch to Modal, not the local worker.
+    .env({"PIC_WORKER_BACKEND": "modal"})
     .add_local_python_source("pic")
 )
 
@@ -49,6 +51,8 @@ pic_check_image = (
         "google-auth>=2.0,<3.0",
         "tenacity>=8.0,<10.0",
     )
+    # Jobs chained inside Modal (URL ingest -> pipeline) must dispatch to Modal, not the local worker.
+    .env({"PIC_WORKER_BACKEND": "modal"})
     .add_local_python_source("pic")
 )
 
