@@ -18,3 +18,6 @@ coverage.xml
 dist/
 *.egg-info
 .DS_Store
+
+# Local storage used by docker compose (images can be large)
+data/

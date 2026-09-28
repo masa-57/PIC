@@ -123,7 +123,7 @@ The Prometheus scrape target is `GET /metrics` at the app root. It uses the same
 
 PIC is designed for deployment with:
 
-- **API server**: Any container platform (Railway, Fly.io, Cloud Run, etc.) using `Dockerfile.railway`
+- **API server**: Any container platform (Railway, Fly.io, Cloud Run, etc.) using `Dockerfile` (the default, last stage is the slim `api` image)
 - **Workers**: the `pic-worker` process (`Dockerfile` target `worker`), or Modal serverless GPU functions with `PIC_WORKER_BACKEND=modal`
 - **Database**: PostgreSQL with pgvector extension (Neon, Supabase, self-hosted)
 - **Object storage**: S3-compatible (Cloudflare R2, MinIO, AWS S3), Google Cloud Storage, or local filesystem

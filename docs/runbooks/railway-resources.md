@@ -13,7 +13,7 @@
 
 The following are configured in `railway.json`:
 
-- **Dockerfile**: `Dockerfile.railway` (API-only, no ML dependencies)
+- **Dockerfile**: `Dockerfile`; its last stage, `api`, is API-only with no ML dependencies
 - **Health check**: `GET /health` with 30s timeout
 - **Restart policy**: `ON_FAILURE` with max 3 retries
 
