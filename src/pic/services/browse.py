@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pic.config import settings
-from pic.models.db import Image, Job, JobStatus, JobType, L1Group, L2Cluster
+from pic.models.db import Image, Job, JobStatus, JobType, L1Group, L2Cluster, Product
 from pic.services.image_store import generate_presigned_url
 
 CLUSTER_PAGE = 24
@@ -360,3 +360,11 @@ def job_view(job: Job, now: datetime, typical: dict[JobType, float]) -> JobView:
         left = typical[job.type] - elapsed_s
         remaining = format_duration(left) if left >= 1 else "almost done"
     return JobView(job, True, step, percent, format_duration(elapsed_s), remaining, None)
+
+
+async def list_product_choices(db: AsyncSession, limit: int = 200) -> list[tuple[int, str]]:
+    """Products for pickers, newest first."""
+    rows = await db.execute(
+        select(Product.id, Product.title).order_by(Product.created_at.desc(), Product.id.desc()).limit(limit)
+    )
+    return [(pid, title or f"Product #{pid}") for pid, title in rows.tuples()]

@@ -15,7 +15,7 @@ from pic.core.auth import AuthMode, get_auth_mode
 from pic.core.constants import IMAGE_EXTENSIONS
 from pic.models.db import JobStatus, JobType
 from pic.models.schemas import UploadOut, UrlIngestRequest
-from pic.services import browse
+from pic.services import browse, curation
 from pic.services.uploads import UploadedFile, store_uploads
 from pic.ui.auth import (
     SESSION_COOKIE,
@@ -107,7 +107,14 @@ async def cluster_detail_page(
     if title is None:
         raise HTTPException(status_code=404, detail="Cluster not found")
     groups = await browse.list_groups(db, ref, offset)
-    context = {"title": title, "groups": groups, "ref": ref, "active": "clusters"}
+    context = {
+        "title": title,
+        "groups": groups,
+        "ref": ref,
+        "active": "clusters",
+        "product_choices": await browse.list_product_choices(db),
+        "message": None,
+    }
     if _is_htmx(request) and offset > 0:
         return templates.TemplateResponse(request, "_fragments/group_rows.html", context)
     return templates.TemplateResponse(request, "cluster_detail.html", context)
@@ -209,3 +216,68 @@ async def upload_images_ui(files: list[UploadFile] = File(...)) -> UploadOut:
     uploaded = [UploadedFile(name=f.filename or "image", data=await f.read()) for f in files]
     result = await store_uploads(uploaded)
     return UploadOut.model_validate({"stored": len(result.stored), "keys": result.stored, "skipped": result.skipped})
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+async def _groups_form(
+    request: Request,
+    db: AsyncSession,
+    ref: str,
+    offset: int,
+    message: str,
+    message_kind: str = "ok",
+    message_link: str | None = None,
+    status_code: int = 200,
+) -> Response:
+    title = await browse.get_cluster_title(db, ref)
+    if title is None:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+    context = {
+        "ref": ref,
+        "groups": await browse.list_groups(db, ref, offset),
+        "product_choices": await browse.list_product_choices(db),
+        "message": message,
+        "message_kind": message_kind,
+        "message_link": message_link,
+    }
+    return templates.TemplateResponse(request, "_fragments/groups_form.html", context, status_code=status_code)
+
+
+@router.post("/clusters/{ref}/make-product", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
+async def make_product(
+    request: Request,
+    ref: str,
+    group_ids: list[int] = Form(default=[]),
+    offset: int = Form(0),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    try:
+        outcome = await curation.create_product(db, l1_group_ids=group_ids)
+    except curation.CurationError as exc:
+        return await _groups_form(request, db, ref, offset, str(exc), "error", status_code=exc.status_code)
+    message = f"Created product #{outcome.product_id} with {_plural(outcome.added, 'image')}"
+    if outcome.skipped:
+        message += f"; {outcome.skipped} already in other products were skipped"
+    return await _groups_form(request, db, ref, offset, message, message_link=f"/ui/products/{outcome.product_id}")
+
+
+@router.post("/clusters/{ref}/add-to-product", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
+async def add_groups_to_product(
+    request: Request,
+    ref: str,
+    product_id: int = Form(...),
+    group_ids: list[int] = Form(default=[]),
+    offset: int = Form(0),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    try:
+        outcome = await curation.add_to_product(db, product_id, l1_group_ids=group_ids)
+    except curation.CurationError as exc:
+        return await _groups_form(request, db, ref, offset, str(exc), "error", status_code=exc.status_code)
+    message = f"Added {_plural(outcome.added, 'image')} to product #{product_id}"
+    if outcome.skipped:
+        message += f"; {outcome.skipped} already in other products were skipped"
+    return await _groups_form(request, db, ref, offset, message, message_link=f"/ui/products/{product_id}")

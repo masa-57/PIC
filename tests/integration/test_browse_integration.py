@@ -108,3 +108,18 @@ class TestTypicalDurations:
         durations = await browse.typical_durations(db)
 
         assert durations == {JobType.CLUSTER_FULL: 20.0}
+
+
+@pytest.mark.integration
+class TestProductChoices:
+    async def test_lists_products_newest_first_with_fallback_title(self, db, seed_l1_group):
+        from pic.services import curation
+
+        g1, _ = await seed_l1_group(member_count=1)
+        g2, _ = await seed_l1_group(member_count=1)
+        first = await curation.create_product(db, l1_group_ids=[g1], title="Mug")
+        second = await curation.create_product(db, l1_group_ids=[g2])
+
+        choices = await browse.list_product_choices(db)
+
+        assert choices == [(second.product_id, f"Product #{second.product_id}"), (first.product_id, "Mug")]

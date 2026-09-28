@@ -136,6 +136,7 @@ class TestClusterDetailPage:
         with (
             patch("pic.ui.routes.browse.get_cluster_title", new_callable=AsyncMock, return_value="mugs"),
             patch("pic.ui.routes.browse.list_groups", new_callable=AsyncMock, return_value=Page([row], 1, 0, 20)),
+            patch("pic.ui.routes.browse.list_product_choices", new_callable=AsyncMock, return_value=[]),
         ):
             response = ui_client.get("/ui/clusters/3")
         assert response.status_code == 200
@@ -458,3 +459,85 @@ class TestFolderUpload:
             response = ui_client.post("/ui/upload", files=[("files", ("sub/a.jpg", b"x", "image/jpeg"))], headers=HX)
         assert response.status_code == 200
         assert response.json()["stored"] == 1
+
+
+@pytest.mark.unit
+class TestClusterCuration:
+    def _patch_page(self):
+        row = GroupRow(id=5, member_count=2, product_id=None, images=[_thumb()])
+        return (
+            patch("pic.ui.routes.browse.get_cluster_title", new_callable=AsyncMock, return_value="mugs"),
+            patch("pic.ui.routes.browse.list_groups", new_callable=AsyncMock, return_value=Page([row], 1, 0, 20)),
+            patch("pic.ui.routes.browse.list_product_choices", new_callable=AsyncMock, return_value=[(8, "Mug")]),
+        )
+
+    def test_page_has_selectable_groups_and_picker(self, ui_client):
+        a, b, c = self._patch_page()
+        with a, b, c:
+            response = ui_client.get("/ui/clusters/3")
+        assert 'name="group_ids" value="5"' in response.text
+        assert '<option value="8">Mug</option>' in response.text
+
+    def test_make_product_reports_counts(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b, c = self._patch_page()
+        with (
+            a,
+            b,
+            c,
+            patch(
+                "pic.ui.routes.curation.create_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=12, added=7, skipped=2),
+            ) as create,
+        ):
+            response = ui_client.post(
+                "/ui/clusters/3/make-product", data={"group_ids": ["5", "6"], "offset": "0"}, headers=HX
+            )
+        assert response.status_code == 200
+        assert create.await_args.kwargs["l1_group_ids"] == [5, 6]
+        assert "Created product #12 with 7 images; 2 already in other products were skipped" in response.text
+        assert 'href="/ui/products/12"' in response.text
+
+    def test_make_product_without_selection_shows_error(self, ui_client):
+        from pic.services.curation import EmptySelectionError
+
+        a, b, c = self._patch_page()
+        with (
+            a,
+            b,
+            c,
+            patch(
+                "pic.ui.routes.curation.create_product",
+                new_callable=AsyncMock,
+                side_effect=EmptySelectionError("Select at least one group or image"),
+            ),
+        ):
+            response = ui_client.post("/ui/clusters/3/make-product", data={"offset": "0"}, headers=HX)
+        assert response.status_code == 409
+        assert "Select at least one group or image" in response.text
+
+    def test_add_to_product(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b, c = self._patch_page()
+        with (
+            a,
+            b,
+            c,
+            patch(
+                "pic.ui.routes.curation.add_to_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=8, added=2),
+            ) as add,
+        ):
+            response = ui_client.post(
+                "/ui/clusters/3/add-to-product", data={"group_ids": ["5"], "product_id": "8", "offset": "0"}, headers=HX
+            )
+        assert response.status_code == 200
+        assert add.await_args.args[1] == 8
+        assert "Added 2 images to product #8" in response.text
+
+    def test_actions_require_htmx(self, ui_client):
+        assert ui_client.post("/ui/clusters/3/make-product", data={"group_ids": ["5"]}).status_code == 400
