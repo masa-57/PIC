@@ -23,6 +23,7 @@ from pic.models.schemas import (
     ProductListOut,
     ProductMerge,
     ProductOut,
+    ProductSplit,
     ProductUpdate,
 )
 from pic.services import curation
@@ -168,7 +169,24 @@ async def create_product(
     db.add(product)
     await db.flush()
 
-    await db.execute(update(Image).where(Image.l1_group_id == body.l1_group_id).values(product_id=product.id))
+    # Only claim free images: a concurrent curation request may have taken some since the check above.
+    await db.execute(
+        update(Image)
+        .where(Image.l1_group_id == body.l1_group_id, Image.product_id.is_(None))
+        .values(product_id=product.id)
+    )
+    conflict = await db.execute(
+        select(
+            exists().where(
+                Image.l1_group_id == body.l1_group_id,
+                Image.product_id.isnot(None),
+                Image.product_id != product.id,
+            )
+        )
+    )
+    if conflict.scalar():
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="L1 group already has a product")
     await db.commit()
     await db.refresh(product)
 
@@ -370,4 +388,15 @@ async def merge_product(
 ) -> CurationResultOut:
     """Move every image of `source_product_id` into this product and delete the source."""
     outcome = await _curate(curation.merge_products(db, product_id, body.source_product_id))
+    return CurationResultOut(**asdict(outcome))
+
+
+@router.post("/{product_id}/split", response_model=CurationResultOut, responses=_CURATION_RESPONSES)
+async def split_product(
+    product_id: int,
+    body: ProductSplit,
+    db: AsyncSession = Depends(get_db),
+) -> CurationResultOut:
+    """Move some of this product's images into a new product. `product_id` in the result is the new product."""
+    outcome = await _curate(curation.split_product(db, product_id, body.image_ids))
     return CurationResultOut(**asdict(outcome))

@@ -342,6 +342,10 @@ class ProductImagesRemove(BaseModel):
     image_ids: list[str] = Field(..., min_length=1, max_length=1000)
 
 
+class ProductSplit(BaseModel):
+    image_ids: list[str] = Field(..., min_length=1, max_length=1000)
+
+
 class ProductMerge(BaseModel):
     source_product_id: int
 

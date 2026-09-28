@@ -121,7 +121,8 @@ Clustering never touches products.
   `{"l1_group_ids": [...]}`
 - `DELETE /api/v1/products/{id}/images` with `{"image_ids": [...]}`
 - `POST /api/v1/products/{id}/merge` with `{"source_product_id": n}`
-- Split is create plus add; no dedicated endpoint.
+- `POST /api/v1/products/{id}/split` with `{"image_ids": [...]}` (atomic; the result's
+  `product_id` is the new product)
 
 ### 5. Security headers
 

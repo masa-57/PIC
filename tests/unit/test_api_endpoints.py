@@ -41,6 +41,13 @@ def _make_job(**overrides):
     return job
 
 
+def _no_conflict():
+    """Result of the post-claim conflict check in the single-group create path: no conflict."""
+    result = MagicMock()
+    result.scalar.return_value = False
+    return result
+
+
 def _make_l1_group(**overrides):
     """Create a mock L1Group ORM object."""
     group = MagicMock()
@@ -863,6 +870,24 @@ class TestProductsEndpoint:
         assert response.status_code == 200
         assert merge.await_args.args[1:] == (3, 9)
 
+    def test_split_product(self, client, override_db):
+        from pic.services.curation import CurationResult
+
+        with patch(
+            "pic.api.products.curation.split_product",
+            new_callable=AsyncMock,
+            return_value=CurationResult(product_id=15, added=2),
+        ) as split:
+            response = client.post("/api/v1/products/3/split", json={"image_ids": ["a", "b"]})
+
+        assert response.status_code == 200
+        assert response.json()["product_id"] == 15
+        assert split.await_args.args[1:] == (3, ["a", "b"])
+
+    def test_split_product_requires_images(self, client, override_db):
+        response = client.post("/api/v1/products/3/split", json={"image_ids": []})
+        assert response.status_code == 422
+
     def test_curation_errors_map_to_http_status(self, client, override_db):
         from pic.services.curation import InvalidOperationError, NotFoundError
 
@@ -901,7 +926,14 @@ class TestProductsEndpoint:
         mock_count_result.scalar_one.return_value = 2
 
         override_db.execute = AsyncMock(
-            side_effect=[mock_group_result, mock_exists_result, mock_rep_exists_result, MagicMock(), mock_count_result]
+            side_effect=[
+                mock_group_result,
+                mock_exists_result,
+                mock_rep_exists_result,
+                MagicMock(),
+                _no_conflict(),
+                mock_count_result,
+            ]
         )
         override_db.add = MagicMock()
         override_db.flush = AsyncMock()
@@ -942,7 +974,14 @@ class TestProductsEndpoint:
         mock_count_result.scalar_one.return_value = 1
 
         override_db.execute = AsyncMock(
-            side_effect=[mock_group_result, mock_exists_result, mock_rep_exists_result, MagicMock(), mock_count_result]
+            side_effect=[
+                mock_group_result,
+                mock_exists_result,
+                mock_rep_exists_result,
+                MagicMock(),
+                _no_conflict(),
+                mock_count_result,
+            ]
         )
         override_db.add = MagicMock()
         override_db.flush = AsyncMock()
@@ -988,6 +1027,40 @@ class TestProductsEndpoint:
             json={"l1_group_id": 1},
         )
         assert response.status_code == 409
+
+    def test_create_product_single_group_loses_race_returns_409(self, client, override_db):
+        """If another request claims the group's images after the exists check, roll back with 409."""
+        group = _make_l1_group(representative_image_id="img-1")
+        mock_group_result = MagicMock()
+        mock_group_result.scalar_one_or_none.return_value = group
+        mock_exists_result = MagicMock()
+        mock_exists_result.scalar.return_value = False
+        mock_rep_exists_result = MagicMock()
+        mock_rep_exists_result.scalar.return_value = True
+        mock_conflict_result = MagicMock()
+        mock_conflict_result.scalar.return_value = True  # images now belong to another product
+
+        override_db.execute = AsyncMock(
+            side_effect=[
+                mock_group_result,
+                mock_exists_result,
+                mock_rep_exists_result,
+                MagicMock(),
+                mock_conflict_result,
+            ]
+        )
+        override_db.add = MagicMock()
+        override_db.flush = AsyncMock()
+        override_db.commit = AsyncMock()
+        override_db.rollback = AsyncMock()
+
+        response = client.post("/api/v1/products", json={"l1_group_id": 1})
+
+        assert response.status_code == 409
+        override_db.rollback.assert_awaited_once()
+        override_db.commit.assert_not_awaited()
+        claim_stmt = override_db.execute.await_args_list[3].args[0]
+        assert "images.product_id IS NULL" in str(claim_stmt)
 
     def test_create_product_missing_representative_image_rejected(self, client, override_db):
         group = _make_l1_group(representative_image_id="img-missing")
@@ -1176,7 +1249,14 @@ class TestProductsEndpoint:
 
         async def tracking_execute(stmt, *args, **kwargs):
             executed_stmts.append(stmt)
-            results = [mock_group_result, mock_exists_result, mock_rep_exists_result, MagicMock(), mock_count_result]
+            results = [
+                mock_group_result,
+                mock_exists_result,
+                mock_rep_exists_result,
+                MagicMock(),
+                _no_conflict(),
+                mock_count_result,
+            ]
             return results[len(executed_stmts) - 1]
 
         override_db.execute = AsyncMock(side_effect=tracking_execute)
