@@ -82,3 +82,103 @@ class TestAddToProduct:
         g1, _ = await seed_l1_group(member_count=1)
         with pytest.raises(curation.NotFoundError):
             await curation.add_to_product(db, 999999, l1_group_ids=[g1])
+
+
+@pytest.mark.integration
+class TestRemoveFromProduct:
+    async def test_removes_images_and_reassigns_representative(self, db, seed_l1_group):
+        g1, imgs = await seed_l1_group(member_count=3)
+        created = await curation.create_product(db, l1_group_ids=[g1])
+        product = await db.get(Product, created.product_id)
+        old_rep = product.representative_image_id
+
+        result = await curation.remove_from_product(db, created.product_id, [old_rep])
+
+        assert result.removed == 1
+        assert result.deleted_product_ids == []
+        remaining = await _member_ids(db, created.product_id)
+        assert remaining == set(imgs) - {old_rep}
+        await db.refresh(product)
+        assert product.representative_image_id in remaining
+
+    async def test_deletes_product_when_last_image_is_removed(self, db, seed_l1_group):
+        g1, imgs = await seed_l1_group(member_count=2)
+        created = await curation.create_product(db, l1_group_ids=[g1])
+
+        result = await curation.remove_from_product(db, created.product_id, imgs)
+
+        assert result.deleted_product_ids == [created.product_id]
+        assert (await db.execute(select(Product).where(Product.id == created.product_id))).first() is None
+        assert await _member_ids(db, created.product_id) == set()
+
+    async def test_ignores_images_of_other_products(self, db, seed_l1_group):
+        g1, imgs1 = await seed_l1_group(member_count=2)
+        g2, imgs2 = await seed_l1_group(member_count=1)
+        target = await curation.create_product(db, l1_group_ids=[g1])
+        other = await curation.create_product(db, l1_group_ids=[g2])
+
+        result = await curation.remove_from_product(db, target.product_id, imgs2)
+
+        assert result.removed == 0
+        assert await _member_ids(db, other.product_id) == set(imgs2)
+
+
+@pytest.mark.integration
+class TestSplitProduct:
+    async def test_moves_selected_images_to_a_new_product(self, db, seed_l1_group):
+        g1, imgs = await seed_l1_group(member_count=3)
+        created = await curation.create_product(db, l1_group_ids=[g1], title="Vase")
+
+        result = await curation.split_product(db, created.product_id, imgs[:1])
+
+        assert result.product_id != created.product_id
+        assert await _member_ids(db, result.product_id) == {imgs[0]}
+        assert await _member_ids(db, created.product_id) == set(imgs[1:])
+        new_product = await db.get(Product, result.product_id)
+        assert new_product.title == "Vase (split)"
+
+    async def test_rejects_splitting_every_image(self, db, seed_l1_group):
+        g1, imgs = await seed_l1_group(member_count=2)
+        created = await curation.create_product(db, l1_group_ids=[g1])
+
+        with pytest.raises(curation.InvalidOperationError):
+            await curation.split_product(db, created.product_id, imgs)
+        assert await _member_ids(db, created.product_id) == set(imgs)
+
+    async def test_rejects_images_not_in_the_product(self, db, seed_l1_group):
+        g1, imgs1 = await seed_l1_group(member_count=2)
+        g2, imgs2 = await seed_l1_group(member_count=1)
+        created = await curation.create_product(db, l1_group_ids=[g1])
+        await curation.create_product(db, l1_group_ids=[g2])
+
+        with pytest.raises(curation.InvalidOperationError):
+            await curation.split_product(db, created.product_id, [imgs1[0], imgs2[0]])
+        assert await _member_ids(db, created.product_id) == set(imgs1)
+
+
+@pytest.mark.integration
+class TestMergeProducts:
+    async def test_moves_all_images_and_deletes_source(self, db, seed_l1_group):
+        g1, imgs1 = await seed_l1_group(member_count=2)
+        g2, imgs2 = await seed_l1_group(member_count=2)
+        target = await curation.create_product(db, l1_group_ids=[g1])
+        source = await curation.create_product(db, l1_group_ids=[g2])
+
+        result = await curation.merge_products(db, target.product_id, source.product_id)
+
+        assert result.added == 2
+        assert result.deleted_product_ids == [source.product_id]
+        assert await _member_ids(db, target.product_id) == set(imgs1 + imgs2)
+        assert (await db.execute(select(Product).where(Product.id == source.product_id))).first() is None
+
+    async def test_rejects_merging_into_itself(self, db, seed_l1_group):
+        g1, _ = await seed_l1_group(member_count=1)
+        created = await curation.create_product(db, l1_group_ids=[g1])
+        with pytest.raises(curation.InvalidOperationError):
+            await curation.merge_products(db, created.product_id, created.product_id)
+
+    async def test_missing_target_raises_not_found(self, db, seed_l1_group):
+        g1, _ = await seed_l1_group(member_count=1)
+        created = await curation.create_product(db, l1_group_ids=[g1])
+        with pytest.raises(curation.NotFoundError):
+            await curation.merge_products(db, 999999, created.product_id)
