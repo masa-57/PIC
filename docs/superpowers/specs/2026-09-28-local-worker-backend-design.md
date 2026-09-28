@@ -118,8 +118,10 @@ the same problem as #124, and is a roadmap item.
 ### 6. Simplification in the same change
 
 - Delete the single-image ingest path: Modal `run_ingest`,
-  `pic/worker/ingest.py` (if nothing else uses it), `submit_ingest_job`, and
-  the unused CLI in `pic/worker/entrypoint.py`. The pipeline covers ingest.
+  `pic/worker/ingest.py`, `submit_ingest_job`, the unused CLI in
+  `pic/worker/entrypoint.py`, and their tests (`test_ingest_worker.py`,
+  `test_entrypoint.py`). Nothing else imports them; the pipeline covers ingest.
+  `pic-worker` replaces the CLI entry point.
 - `scripts/seed.py` becomes: copy files into storage `images/` through the
   storage backend, then call `POST /api/v1/pipeline/run` and poll the job.
   It stops talking to Postgres and Modal directly.
