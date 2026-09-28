@@ -7,31 +7,34 @@ Thank you for your interest in contributing to PIC (Product Image Clustering).
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) (package manager)
 - Docker and Docker Compose
-- PostgreSQL with [pgvector](https://github.com/pgvector/pgvector) extension (or use the provided Docker Compose)
 
 ## Development Setup
 
+The quickest way to see the whole app is `docker compose up --build -d` and http://localhost:8000/ui (see the README). For day-to-day work, run the database in Docker and the API and worker natively:
+
 ```bash
-# Clone and install
+# Clone and install (the ml extra is needed for the worker and most tests)
 git clone https://github.com/masa-57/PIC.git
 cd PIC
 uv sync --extra ml
 
-# Start PostgreSQL with pgvector
-docker compose up db -d
+# Environment: the defaults point at the Compose database and local storage in ./data
+cp .env.example .env
 
-# Apply database migrations
+# PostgreSQL with pgvector, then the schema
+docker compose up -d db
 uv run alembic upgrade head
 
-# Copy and configure environment
-cp .env.example .env
-# Edit .env with your settings (at minimum: PIC_DATABASE_URL)
-
-# Run the API server
+# API with reload (JSON API at /api/v1, web UI at /ui, docs at /docs)
 uv run fastapi dev src/pic/main.py
+
+# In a second terminal: the worker that runs pipeline and clustering jobs
+uv run pic-worker
 ```
 
-The API will be available at `http://localhost:8000`. Interactive docs at `/docs`.
+Without `pic-worker`, jobs you start stay `pending`. Don't run it alongside the Compose `worker` service; start Compose with `docker compose up -d db` (or `db api`) instead.
+
+The web UI is server-rendered (Jinja2 templates in `src/pic/ui/templates/`, vendored htmx, no build step), so template and CSS changes show on reload.
 
 ## Code Style
 
@@ -58,20 +61,18 @@ uv run mypy src/pic/
 # Unit tests (fast, no external dependencies)
 uv run pytest -m unit -v
 
-# Integration tests (requires Docker for PostgreSQL)
-uv run pytest -m integration -v
+# Integration tests: need PostgreSQL and TRUNCATE every table, so use a separate database
+docker compose exec db psql -U pic -d pic -c "CREATE DATABASE pic_test"   # once
+PIC_DATABASE_URL='postgresql+asyncpg://pic:pic_local@localhost:5432/pic_test?sslmode=disable' uv run pytest -m integration -v
 
-# Unit + integration tests
-uv run pytest -m "unit or integration" -v
-
-# E2E tests (requires a running API instance)
+# E2E tests (health checks against a running API)
 PIC_E2E_BASE_URL=http://localhost:8000 uv run pytest -m e2e -v
 ```
 
 Test markers:
 - `unit` -- Fast tests with mocked dependencies
-- `integration` -- Requires PostgreSQL with pgvector
-- `e2e` -- Full pipeline tests (slow)
+- `integration` -- Real PostgreSQL with pgvector
+- `e2e` -- Checks against a running API instance
 
 ## Before Submitting a PR
 
@@ -82,9 +83,11 @@ uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run mypy src/pic/
 uv run pytest -m unit -v
+uv run pip-audit --skip-editable
+uv lock --check
 ```
 
-All four must pass.
+All must pass; CI runs the same checks plus the integration tests. `pre-commit install` sets up hooks that run ruff and mypy on commit and the unit tests on push.
 
 ## Pull Request Process
 

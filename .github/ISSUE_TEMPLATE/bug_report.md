@@ -25,6 +25,8 @@ assignees: ""
 
 ## Environment
 - PIC version:
-- Python version:
-- Platform:
-- Deployment (Docker / Modal / local):
+- Where it happened (web UI page, or API endpoint):
+- Browser (for web UI bugs):
+- Platform (OS, CPU/GPU):
+- How PIC runs (Docker Compose / native `pic-worker` / Modal):
+- Storage backend (local / S3-compatible / GCS):

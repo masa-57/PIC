@@ -1,38 +1,58 @@
 # Deployment Rollback Procedures
 
-This document covers rollback procedures for all PIC infrastructure components.
+This document covers rolling back each part of a PIC deployment: the API and local worker, Modal workers, database migrations, and the data itself.
 
-## API Rollback
+Before any rollback that touches the database, take a backup (see [database-backup-restore.md](database-backup-restore.md)).
 
-Revert the bad commit on `main`, then rebuild and restart the API from it:
+## API and local worker rollback
+
+The `api` and `worker` images are built from the same source, so roll them back together.
+
+Check out the last known-good version and rebuild:
+
+```bash
+git checkout <good-commit-sha>        # or a release tag
+docker compose up --build -d api worker
+```
+
+Or revert the bad commit on your branch and rebuild from it:
 
 ```bash
 git revert <bad-commit-sha>
-git push origin main
 docker compose up --build -d api worker   # or redeploy on your container host
 ```
 
-## Modal Workers Rollback
+Note: the `api` service runs `alembic upgrade head` on start. It never downgrades. If the bad version added a migration, the older code runs against the newer schema. If that breaks, downgrade the migration first (see below), using the newer code that still contains it.
 
-Modal deployments are triggered by CI/CD on push to `main`. To roll back:
+## Modal workers rollback
 
-1. Identify the last known-good commit SHA from the CI/CD history.
-2. Re-run the `deploy-modal` job from that commit in GitHub Actions, or:
+Only relevant with `PIC_WORKER_BACKEND=modal`. CI deploys Modal on each push to `main` and tags the deployment with the commit SHA.
+
+Option 1: roll back with the Modal CLI. `modal app history pic` lists deployments; `modal app rollback pic` redeploys the previous one, and `modal app rollback pic <version>` a specific one:
+
+```bash
+uv run modal app history pic
+uv run modal app rollback pic
+```
+
+Option 2: redeploy a known-good commit yourself:
 
 ```bash
 git checkout <good-commit-sha>
 uv sync --frozen
-uv run modal deploy src/pic/modal_app.py
+uv run modal deploy src/pic/modal_app.py --tag "<good-commit-sha>"
 ```
 
-Alternatively, revert the offending commit on `main` and let CI/CD redeploy:
+Option 3: revert the offending commit on `main` and let CI redeploy:
 
 ```bash
 git revert <bad-commit-sha>
 git push origin main
 ```
 
-## Database Rollback (Alembic)
+Roll back the API too if the change touched both.
+
+## Database rollback (Alembic)
 
 To revert the most recent migration:
 
@@ -46,55 +66,64 @@ To revert to a specific revision:
 uv run alembic downgrade <revision-id>
 ```
 
-After reverting, verify the current state:
+After reverting, check the current state:
 
 ```bash
 uv run alembic current
 uv run alembic history --verbose
 ```
 
-To validate that a migration is reversible (downgrade then upgrade roundtrip):
+To check that the latest migration is reversible (downgrade then upgrade):
 
 ```bash
-python3 scripts/rollback_check.py
+uv run python scripts/rollback_check.py
 ```
 
-### Important Notes
+### Important notes
 
-- Always take a logical backup before running `alembic downgrade` in production.
-- Some migrations may not be fully reversible (e.g., data migrations that drop columns).
-  Review the downgrade function before running.
-- Set `PIC_DATABASE_URL` to the target database before running Alembic commands.
+- Take a logical backup before running `alembic downgrade` on real data.
+- Some migrations cannot be fully reversed (for example, ones that drop columns or rewrite data). Read the downgrade function before running it.
+- Alembic needs a sync URL: set `PIC_DATABASE_URL` to the target database. The `postgresql+asyncpg://` form used by the app is converted automatically.
+- With Compose, the database listens on `127.0.0.1:5432`, so run Alembic from the host with `PIC_DATABASE_URL=postgresql+asyncpg://pic:pic_local@localhost:5432/pic?sslmode=disable`.
+- Stop the worker during a downgrade (`docker compose stop worker`), and do not restart `api` on the old schema with new code: it would upgrade again on start.
 
-## Neon Point-in-Time Recovery
+## Data rollback
 
-Neon supports branching and point-in-time recovery (PITR):
+Use this when data is wrong (bad bulk delete, broken clustering run, corrupted rows), not just code.
 
-1. Open the Neon console and select the PIC project.
-2. Navigate to **Branches**.
-3. Create a new branch from a point in time before the incident:
-   - Select the production branch as the parent.
-   - Set the restore point timestamp (UTC).
-4. Verify data integrity on the new branch by running smoke tests against it.
-5. Once verified, update `PIC_DATABASE_URL` to point to the restored branch.
-6. Redeploy the API and workers (local or Modal) with the updated URL.
+### Restore a backup (any deployment)
 
-### Neon Branch Cleanup
+Restore the most recent good `pg_dump` backup, and the matching storage backup if files were affected. The steps are in [database-backup-restore.md](database-backup-restore.md#restore). In short, with Compose:
 
-After confirming the restored branch is stable, delete the old (corrupt) branch
-from the Neon console to avoid confusion and unnecessary storage usage.
+1. `docker compose stop api worker`
+2. Recreate the empty `pic` database and load the backup with `psql`.
+3. Restore `./data` (or the bucket) if needed.
+4. `docker compose up -d api worker`
 
-## Incident Response
+Anything written after the backup is lost, including product curation.
 
-For self-hosted deployments, follow the procedures above and adapt the
-escalation to your team's incident response process.
+A broken clustering run does not need a restore: running clustering again (`POST /api/v1/clusters/run`, or **Runs** in the web UI) rebuilds L1 groups and L2 clusters from the stored embeddings. Products are kept: they link to images, not to clusters.
 
-### General Steps
+### Provider point-in-time restore (optional)
 
-1. Detect the issue (monitoring alerts, user reports, or smoke test failures).
+Some hosted Postgres providers can restore to a point in time. Example with Neon:
+
+1. In the Neon console, open the PIC project and go to **Branches**.
+2. Create a branch from the production branch at a timestamp (UTC) before the incident.
+3. Check the data on the new branch, for example by pointing a local API at it.
+4. Update `PIC_DATABASE_URL` to the restored branch on the API host, the local worker, and the Modal `pic-env` secret if you use Modal.
+5. Restart the API and workers.
+6. Once the restored branch is stable, delete the old branch.
+
+Other providers (AWS RDS, Supabase, and so on) have equivalent features; the PIC side is the same: change `PIC_DATABASE_URL` everywhere and restart.
+
+## Incident response
+
+1. Detect the issue (monitoring, user reports, failing smoke tests).
 2. Assess severity: is the service down, degraded, or is data at risk?
-3. If data is at risk, freeze write traffic immediately (disable API key or scale to zero).
-4. Execute the appropriate rollback procedure above.
-5. After resolution, document the timeline, root cause, and follow-up actions.
+3. If data is at risk, stop writes immediately (`docker compose stop api worker`, or remove the API key).
+4. Take a backup of the current state.
+5. Run the matching rollback procedure above.
+6. Afterwards, write down the timeline, root cause and follow-up actions.
 
 If you discover a security-impacting incident, see [SECURITY.md](../../SECURITY.md).

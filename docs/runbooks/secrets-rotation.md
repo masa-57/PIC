@@ -1,66 +1,89 @@
 # Secrets Rotation Runbook
 
-## Secret Inventory
+## Where settings live
 
-| Secret | Location | Rotation Frequency |
-|--------|----------|--------------------|
-| `PIC_API_KEY` | API host env, Modal `pic-env` | Quarterly |
-| `PIC_DATABASE_URL` | API host env, Modal `pic-env` | On compromise |
-| `PIC_S3_ACCESS_KEY_ID` | API host env, Modal `pic-env` | Quarterly |
-| `PIC_S3_SECRET_ACCESS_KEY` | API host env, Modal `pic-env` | Quarterly |
-| `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | Modal `pic-env` | Annually |
-| `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` | GitHub Actions secrets | Quarterly |
+PIC reads its settings from `PIC_*` environment variables. Where you set them depends on how you run it:
 
-## Rotation Procedures
+- **Docker Compose (default)**: the `x-pic-env` block in `docker-compose.yml`, shared by the `api` and `worker` services. Compose does not load a `.env` file into the containers. After a change, recreate both containers with `docker compose up -d api worker`. If you keep secrets out of `docker-compose.yml` by adding an `env_file:` to both services, edit that file instead; the restart step is the same.
+- **Native processes**: the environment or `.env` file of the `fastapi` process and of `pic-worker`. Restart both.
+- **Modal backend**: the Modal secret `pic-env`, read by the Modal functions. Update it in the Modal dashboard, or recreate it with `uv run modal secret create --force pic-env ...` (this replaces the whole secret, so pass every value). New function runs pick it up.
 
-### 1. API Key Rotation
+The API and the worker read settings only at start, so always restart them after a change.
+
+## Secret inventory
+
+| Secret | Needed by | Rotation frequency |
+|--------|-----------|--------------------|
+| `PIC_API_KEY` | API only | Quarterly, or when someone with access leaves |
+| `PIC_DATABASE_URL` (contains the DB password) | API, worker, Modal `pic-env` | On compromise, or per your policy |
+| `PIC_S3_ACCESS_KEY_ID` / `PIC_S3_SECRET_ACCESS_KEY` | API, worker, Modal `pic-env` (S3-compatible storage) | Quarterly |
+| `PIC_GCS_CREDENTIALS_JSON` | API, worker, Modal `pic-env` (GCS storage) | Annually |
+| `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | API, worker, Modal `pic-env` (Google Drive sync) | Annually |
+| `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` | API host (Modal backend), GitHub Actions secrets (CI deploy) | Quarterly |
+
+"Worker" means the Compose `worker` service or a native `pic-worker`. Skip Modal `pic-env` if you do not use the Modal backend, and skip rows for features you do not use.
+
+## Rotation procedures
+
+### 1. API key
 
 1. Generate a new key:
    ```bash
    python3 -c "import secrets; print(secrets.token_urlsafe(32))"
    ```
-2. Update `PIC_API_KEY` in the API host's environment (`.env` for docker compose) and restart the API
-3. Update Modal: `modal secret set pic-env PIC_API_KEY=<new-key>`
-4. Update n8n HTTP credentials with the new key
-5. Verify: `curl -H "X-API-Key: <new-key>" https://<api-host>/health`
+2. Set `PIC_API_KEY` on the API (Compose: `x-pic-env`) and recreate the `api` container. The worker and Modal do not use it.
+3. Update every API client and script that sends the `X-API-Key` header.
+4. Verify: `curl -H "X-API-Key: <new-key>" https://<api-host>/health/detailed` returns 200, and the old key returns 401.
 
-### 2. Database URL Rotation
+Rotating the key logs everyone out of the web UI. The `pic_session` cookie is derived from the key, so all existing sessions stop working and users log in again at `/ui/login` with the new key.
 
-1. Rotate the password in the Neon dashboard
-2. Build the new connection string: `postgresql+asyncpg://<user>:<new-pass>@<host>/<db>?sslmode=require`
-3. Update `PIC_DATABASE_URL` in the API host's environment and restart the API
-4. Update Modal: `modal secret set pic-env PIC_DATABASE_URL=<new-url>`
-5. Verify: `curl -H "X-API-Key: <key>" https://<api-host>/health/detailed` (check `database: connected`)
+### 2. Database password
 
-### 3. S3/R2 Credential Rotation
+1. Change the database role's password. With your own Postgres, `ALTER ROLE <user> PASSWORD '<new-pass>';`. With a hosted provider (for example Neon, AWS RDS, Supabase), use its dashboard.
+2. Build the new URL: `postgresql+asyncpg://<user>:<new-pass>@<host>:5432/<db>?sslmode=verify-full` (for a remote host).
+3. Update `PIC_DATABASE_URL` on the API and the worker, and in Modal `pic-env` if used.
+4. Restart the API and the worker.
+5. Verify: `curl -H "X-API-Key: <key>" https://<api-host>/health/detailed` shows `"database": "connected"`, and the worker logs show no connection errors.
 
-1. Create a new API token in Cloudflare R2 dashboard
-2. Update `PIC_S3_ACCESS_KEY_ID` and `PIC_S3_SECRET_ACCESS_KEY` in the API host's environment and restart the API
-3. Update Modal:
-   ```bash
-   modal secret set pic-env PIC_S3_ACCESS_KEY_ID=<new-id> PIC_S3_SECRET_ACCESS_KEY=<new-secret>
-   ```
-4. Verify: trigger a test ingest and confirm S3 operations succeed
-5. Revoke the old token in Cloudflare
+For the Compose `db` service: its password is `POSTGRES_PASSWORD` in `docker-compose.yml`, which only takes effect when the data volume is first created. To change it on an existing volume, run `ALTER ROLE` inside the container (`docker compose exec db psql -U pic -d pic`), then update `PIC_DATABASE_URL` in `x-pic-env` and `POSTGRES_PASSWORD` to match. The Compose database listens on `127.0.0.1` only.
 
-### 4. Modal Token Rotation
+### 3. S3-compatible storage keys
 
-1. Generate a new token in the Modal dashboard
-2. Update GitHub Actions secrets: `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`
-3. Verify: push a commit and confirm the CI Modal deploy step succeeds
+Works the same for AWS S3, Cloudflare R2, MinIO and other S3-compatible services.
 
-### 5. GDrive Service Account Key Rotation
+1. Create a new access key in your provider's console (for example, an R2 API token in the Cloudflare dashboard, or an IAM access key in AWS). Give it read and write access to the PIC bucket.
+2. Update `PIC_S3_ACCESS_KEY_ID` and `PIC_S3_SECRET_ACCESS_KEY` on the API and the worker, and in Modal `pic-env` if used.
+3. Restart the API and the worker.
+4. Verify: run a pipeline (web UI **Runs**, or `POST /api/v1/pipeline/run`) and check that it completes, and that thumbnails load in the web UI.
+5. Revoke the old key in the provider's console.
 
-1. Generate a new key in Google Cloud Console (IAM > Service Accounts)
-2. Base64-encode the JSON or store as raw string
-3. Update Modal: `modal secret set pic-env PIC_GDRIVE_SERVICE_ACCOUNT_JSON='<json>'`
-4. Verify: trigger a GDrive sync job and confirm files are discovered
-5. Delete the old key in Google Cloud Console
+### 4. GCS service account key
 
-## Post-Rotation Checklist
+1. Create a new JSON key for the storage service account in Google Cloud Console (IAM & Admin > Service Accounts > Keys).
+2. Update `PIC_GCS_CREDENTIALS_JSON` (the JSON as a single-line string) on the API and the worker, and in Modal `pic-env` if used.
+3. Restart the API and the worker, then verify as for S3.
+4. Delete the old key.
 
-- [ ] Old credentials revoked/deleted
-- [ ] API health check passes (`/health/detailed`)
-- [ ] Pipeline job completes successfully
-- [ ] n8n workflow runs without auth errors
-- [ ] No new errors in the API and worker logs
+### 5. Modal token
+
+1. Create a new token in the Modal dashboard.
+2. Update `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` in the GitHub Actions secrets (for the CI deploy) and on the API host if it uses the Modal backend. Restart the API.
+3. Verify: create a job (for example, run clustering) and check that it starts; push to `main` and check the `deploy-modal` job succeeds.
+4. Revoke the old token in the Modal dashboard.
+
+### 6. Google Drive service account key
+
+1. Create a new JSON key for the service account in Google Cloud Console (IAM & Admin > Service Accounts > Keys).
+2. Update `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` (the JSON as a single-line string) on the API and the worker, and in Modal `pic-env` if used.
+3. Restart the API and the worker.
+4. Verify: start a sync (web UI **Runs** > **Google Drive** > **Sync now**, or `POST /api/v1/gdrive/sync`) and check that the job completes.
+5. Delete the old key in Google Cloud Console.
+
+## Post-rotation checklist
+
+- [ ] Old credentials revoked or deleted
+- [ ] `/health/detailed` returns `"status": "ok"`
+- [ ] A pipeline run completes
+- [ ] API clients and scripts work with the new values (no 401s)
+- [ ] You can log in to the web UI
+- [ ] No new errors in the API and worker logs (`docker compose logs -f api worker`)
