@@ -3,10 +3,12 @@
 import functools
 import json
 import logging
+from typing import Any
 
 import modal
 
 from pic.core.constants import default_retry
+from pic.models.db import JobType
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,29 @@ def _spawn_modal_job(fn_name: str, *args: object) -> str:
     call = fn.spawn(*args)
     logger.info("Spawned Modal %s call_id=%s", fn_name, call.object_id)
     return call.object_id
+
+
+# Job type -> Modal function name. Keep in sync with modal_app.py.
+MODAL_FUNCTIONS: dict[JobType, str] = {
+    JobType.CLUSTER_FULL: MODAL_FN_CLUSTER,
+    JobType.PIPELINE: MODAL_FN_PIPELINE,
+    JobType.GDRIVE_SYNC: MODAL_FN_GDRIVE_SYNC,
+    JobType.URL_INGEST: MODAL_FN_URL_INGEST,
+}
+
+
+@_retry
+async def _spawn_with_retry(fn_name: str, job_id: str, params_json: str | None) -> str:
+    return _spawn_modal_job(fn_name, job_id, params_json)
+
+
+async def spawn_modal_job(job_type: JobType, job_id: str, params: dict[str, Any] | None) -> str:
+    """Spawn the Modal function for ``job_type``. Returns the Modal call ID."""
+    fn_name = MODAL_FUNCTIONS.get(job_type)
+    if fn_name is None:
+        raise ValueError(f"No Modal function for job type {job_type.value}")
+    params_json = json.dumps(params) if params else None
+    return await _spawn_with_retry(fn_name, job_id, params_json)
 
 
 @_retry

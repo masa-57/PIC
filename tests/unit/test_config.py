@@ -163,3 +163,21 @@ class TestGDriveJsonValidator:
 
         with pytest.raises(ValueError, match="must contain 'type' field"):
             Settings(gdrive_service_account_json=json.dumps({"project_id": "test"}))
+
+
+@pytest.mark.unit
+class TestWorkerBackend:
+    def test_defaults_to_local(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PIC_WORKER_BACKEND", raising=False)
+        from pic.config import Settings
+
+        s = Settings()
+        assert s.worker_backend == "local"
+
+    def test_rejects_unknown_backend(self) -> None:
+        from pydantic import ValidationError
+
+        from pic.config import Settings
+
+        with pytest.raises(ValidationError):
+            Settings(worker_backend="celery")
