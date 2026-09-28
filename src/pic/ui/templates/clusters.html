@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Clusters{% endblock %}
+{% block content %}
+<h1>Clusters</h1>
+{% if page.total == 0 and not unclustered %}
+<p class="empty">No clusters yet. Put images in the storage inbox, then start a run on the <a href="/ui/jobs">Runs</a> page.</p>
+{% else %}
+<div class="cards">{% include "_fragments/cluster_cards.html" %}</div>
+{% endif %}
+{% endblock %}

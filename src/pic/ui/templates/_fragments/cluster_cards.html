@@ -1,0 +1,5 @@
+{% from "_macros.html" import card %}
+{% for c in page.items %}{{ card(c) }}{% endfor %}
+{% if page.has_more %}
+<div class="more" hx-get="/ui?offset={{ page.next_offset }}" hx-trigger="revealed" hx-swap="outerHTML"><a href="/ui?offset={{ page.next_offset }}">More clusters</a></div>
+{% elif unclustered %}{{ card(unclustered) }}{% endif %}

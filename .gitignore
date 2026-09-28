@@ -44,7 +44,7 @@ htmlcov/
 .mypy_cache/
 
 # Generated output
-clusters.html
+/clusters.html
 cluster_visualization.html
 
 # Generated guides and their generators (local only)

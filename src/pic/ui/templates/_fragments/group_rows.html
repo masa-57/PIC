@@ -1,0 +1,13 @@
+{% from "_macros.html" import thumb %}
+{% for g in groups.items %}
+<section class="group">
+  <header>
+    <strong>Group {{ g.id }} · {{ g.member_count }} images</strong>
+    {% if g.product_id %}<span class="badge">✓ product</span>{% endif %}
+  </header>
+  <div class="thumbs">{% for t in g.images %}{{ thumb(t) }}{% endfor %}{% if g.more %}<span class="more-count">+{{ g.more }} more</span>{% endif %}</div>
+</section>
+{% endfor %}
+{% if groups.has_more %}
+<div class="more" hx-get="/ui/clusters/{{ ref }}?offset={{ groups.next_offset }}" hx-trigger="revealed" hx-swap="outerHTML"><a href="/ui/clusters/{{ ref }}?offset={{ groups.next_offset }}">More groups</a></div>
+{% endif %}
