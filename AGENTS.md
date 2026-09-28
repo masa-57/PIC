@@ -165,6 +165,7 @@ GitHub Actions are pinned to a full commit SHA with the version in a trailing co
 - Modal app name is `"pic"`
 - Container host needs `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` env vars to dispatch Modal jobs from the API
 - CI integration job runs Alembic against service Postgres and requires `CREATE EXTENSION IF NOT EXISTS vector` before migrations
+- Sync DB URLs (Alembic, migration tests) must say `postgresql+psycopg2://` explicitly. SQLAlchemy 2.1 maps a bare `postgresql://` to psycopg 3, which is not installed
 - Pipeline/cluster workers use PostgreSQL advisory lock (`0x50494301`) -- concurrent runs will fail with 409
 - `JobType.PIPELINE` and `JobType.GDRIVE_SYNC` are valid DB enum values (in addition to `CLUSTER_FULL`, etc.)
 - `images.content_hash` column (SHA256) has a unique index -- duplicate content is rejected

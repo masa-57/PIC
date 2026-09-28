@@ -24,7 +24,7 @@ target_metadata = Base.metadata
 
 def get_sync_url() -> str:
     """Get synchronous database URL for migrations with production-safe TLS defaults."""
-    url = os.environ.get("PIC_DATABASE_URL", "postgresql://localhost:5432/pic")
+    url = os.environ.get("PIC_DATABASE_URL", "postgresql+psycopg2://localhost:5432/pic")
     # Convert async URL to sync for Alembic
     sync_url = url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
 
