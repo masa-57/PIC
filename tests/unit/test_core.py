@@ -161,3 +161,12 @@ class TestDetailedHealthEndpoint:
             assert response.status_code == 200
             data = response.json()
             assert data["status"] == "degraded"
+
+
+@pytest.mark.unit
+def test_api_version_comes_from_package_metadata():
+    from importlib.metadata import version
+
+    from pic.main import app
+
+    assert app.version == version("pic")

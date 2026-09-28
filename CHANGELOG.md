@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-28
+
+The reboot release: PIC now runs on one machine with `docker compose up`, with no cloud accounts, and has a web UI to upload a folder, watch runs, browse clusters and curate products that survive re-clustering.
+
 ### Added
 - Web UI curation: make products from groups, add to, remove from, split and merge products, edit and delete products (#113)
 - `POST /api/v1/images/upload`: multipart upload of images to the storage inbox (#113)
@@ -99,6 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker Compose for local development
 - CI/CD pipeline with GitHub Actions
 
+[Unreleased]: https://github.com/masa-57/PIC/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/masa-57/PIC/releases/tag/v0.3.0
 [0.2.1]: https://github.com/masa-57/pic/releases/tag/v0.2.1
 [0.2.0]: https://github.com/masa-57/pic/releases/tag/v0.2.0
 [0.1.0]: https://github.com/masa-57/pic/releases/tag/v0.1.0
