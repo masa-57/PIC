@@ -141,14 +141,14 @@ For Modal: run `modal setup` to authenticate, then `modal deploy src/pic/modal_a
 - **integration**: real PostgreSQL + pgvector service container (`pgvector/pgvector:pg18`), creates the `vector` extension, runs Alembic, then integration tests
 - **deploy-modal**: on `main` only, after the other three pass; skipped with a notice when `MODAL_TOKEN_ID` is not set
 
-GitHub Actions are referenced by major tag (`actions/checkout@v7`), not SHA. The uv version is pinned once via the `UV_VERSION` env at the top of the workflow. CodeQL runs via GitHub's default setup, not a workflow file. Dependabot (`.github/dependabot.yml`) opens one grouped PR per month for Python deps and one for Actions.
+GitHub Actions are pinned to a full commit SHA with the version in a trailing comment (`actions/checkout@<sha> # v7.0.1`); the repo's Actions policy rejects tag references, and Dependabot bumps the SHAs. The uv version is pinned once via the `UV_VERSION` env at the top of the workflow. CodeQL runs via GitHub's default setup, not a workflow file. Dependabot (`.github/dependabot.yml`) opens one grouped PR per month for Python deps and one for Actions.
 
 ## Dependency Policy
 
 **Run on the latest stable release of every dependency and tool** (Python packages, GitHub Actions, Docker base images, uv, ruff, mypy, Postgres). Staying behind needs a one-line comment saying why, next to the pin.
 
 - Refresh with `uv lock --upgrade`, never a targeted bump, then run all quality gates
-- When a workflow is edited, bump action tags to the current major
+- When a workflow is edited, bump action SHAs to the latest release (`gh api repos/<owner>/<repo>/commits/<tag> --jq .sha`)
 - Lower bounds in `pyproject.toml` are deliberately loose; `uv.lock` is the source of truth
 - Known exception: `requires-python = ">=3.12,<3.13"`. Moving to 3.13+ is untested against the `umap-learn` / `numba` / `torch` stack; try it when touching the ML deps
 

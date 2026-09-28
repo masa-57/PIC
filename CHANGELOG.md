@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Refresh all dependencies to latest stable (FastAPI 0.141, Starlette 1.7, SQLAlchemy 2.1, transformers 5.17, torch 2.14); pip-audit is clean (#111)
-- CI reduced to one workflow with four jobs: lint, unit, integration, deploy-modal (#116)
+- CI reduced to one workflow with four jobs: lint, unit, integration, deploy-modal; actions pinned to release SHAs (#116)
 - Dependabot now opens one grouped PR per month for Python and one for Actions (#117)
 - Local and CI Postgres moved to `pgvector/pgvector:pg18`
 
