@@ -305,7 +305,7 @@ async def _product_context(db: AsyncSession, product_id: int) -> dict[str, objec
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
     choices = [c for c in await browse.list_product_choices(db) if c[0] != product_id]
-    return {"product": product, "merge_choices": choices, "active": "products"}
+    return {"product": product, "merge_choices": choices, "active": "products", "message": None}
 
 
 @router.get("/products/{product_id}", response_class=HTMLResponse)
@@ -344,3 +344,67 @@ async def delete_product_ui(product_id: int, db: AsyncSession = Depends(get_db))
     await db.delete(product)
     await db.commit()
     return Response(status_code=200, headers={"HX-Redirect": "/ui/products"})
+
+
+async def _product_images(
+    request: Request,
+    db: AsyncSession,
+    product_id: int,
+    message: str,
+    message_kind: str = "ok",
+    message_link: str | None = None,
+    status_code: int = 200,
+) -> Response:
+    context = await _product_context(db, product_id)
+    context.update({"message": message, "message_kind": message_kind, "message_link": message_link})
+    return templates.TemplateResponse(request, "_fragments/product_images.html", context, status_code=status_code)
+
+
+@router.post("/products/{product_id}/remove", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
+async def remove_product_images_ui(
+    request: Request,
+    product_id: int,
+    image_ids: list[str] = Form(default=[]),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    try:
+        outcome = await curation.remove_from_product(db, product_id, image_ids)
+    except curation.CurationError as exc:
+        return await _product_images(request, db, product_id, str(exc), "error", status_code=exc.status_code)
+    if product_id in outcome.deleted_product_ids:
+        return Response(status_code=200, headers={"HX-Redirect": "/ui/products"})
+    return await _product_images(request, db, product_id, f"Removed {_plural(outcome.removed, 'image')}.")
+
+
+@router.post("/products/{product_id}/split", response_class=HTMLResponse, dependencies=[Depends(require_htmx)])
+async def split_product_ui(
+    request: Request,
+    product_id: int,
+    image_ids: list[str] = Form(default=[]),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    try:
+        outcome = await curation.split_product(db, product_id, image_ids)
+    except curation.CurationError as exc:
+        return await _product_images(request, db, product_id, str(exc), "error", status_code=exc.status_code)
+    return await _product_images(
+        request,
+        db,
+        product_id,
+        f"Moved {_plural(outcome.added, 'image')} to new product #{outcome.product_id}.",
+        message_link=f"/ui/products/{outcome.product_id}",
+    )
+
+
+@router.post("/products/{product_id}/merge-into", dependencies=[Depends(require_htmx)])
+async def merge_into_ui(
+    request: Request,
+    product_id: int,
+    target_id: int = Form(...),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    try:
+        await curation.merge_products(db, target_id, product_id)
+    except curation.CurationError as exc:
+        return await _product_images(request, db, product_id, str(exc), "error", status_code=exc.status_code)
+    return Response(status_code=200, headers={"HX-Redirect": f"/ui/products/{target_id}"})

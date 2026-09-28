@@ -48,6 +48,16 @@ Compose runs three services: Postgres with pgvector, the API (which applies migr
 The first pipeline run downloads the DINOv2 model (about 350 MB) into a Docker volume; later runs reuse it.
 On Linux, if the worker cannot write to `data/`, run `sudo chown -R 1001 data` (the containers run as uid 1001).
 
+### Curating products
+
+Clusters are suggestions: every pipeline or re-cluster run rebuilds them. **Products** are yours and survive re-clustering.
+
+- On a cluster page, select groups and choose **Make product**. Selecting several groups merges them into one product. **Add to product** adds groups to an existing one.
+- On a product page, remove images, **split** some into a new product, **merge** it into another product, or edit its title, description and tags.
+- Groups whose images already belong to a product show **✓ product**. Newly clustered images appear as groups without one.
+
+The same operations are in the API under `/api/v1/products` (create from `l1_group_ids`, add/remove images, split, merge).
+
 ### Using your Mac's GPU
 
 Docker on macOS cannot reach the Apple GPU, so the worker runs on CPU in Compose.

@@ -24,3 +24,27 @@ class TestUiPages:
         detail = await client.get("/ui/clusters/unclustered")
         assert detail.status_code == 200
         assert f"Group {group_id}" in detail.text
+
+    async def test_make_split_and_merge_through_the_ui(self, client, db, seed_l1_group):
+        from sqlalchemy import select
+
+        from pic.models.db import Image, Product
+
+        hx = {"HX-Request": "true"}
+        g1, imgs1 = await seed_l1_group(member_count=3)
+        g2, imgs2 = await seed_l1_group(member_count=1)
+
+        made = await client.post("/ui/clusters/unclustered/make-product", data={"group_ids": [str(g1)]}, headers=hx)
+        assert made.status_code == 200
+        product_id = (await db.execute(select(Product.id))).scalar_one()
+
+        split = await client.post(f"/ui/products/{product_id}/split", data={"image_ids": [imgs1[0]]}, headers=hx)
+        assert split.status_code == 200
+        ids = sorted((await db.execute(select(Product.id))).scalars())
+        assert len(ids) == 2
+
+        other = next(i for i in ids if i != product_id)
+        merged = await client.post(f"/ui/products/{other}/merge-into", data={"target_id": str(product_id)}, headers=hx)
+        assert merged.headers["HX-Redirect"] == f"/ui/products/{product_id}"
+        members = set((await db.execute(select(Image.id).where(Image.product_id == product_id))).scalars())
+        assert members == set(imgs1)

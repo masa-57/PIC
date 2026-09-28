@@ -612,3 +612,114 @@ class TestProductPages:
         ):
             response = ui_client.post("/ui/products/8/delete", headers=HX)
         assert response.headers["HX-Redirect"] == "/ui/products"
+
+
+@pytest.mark.unit
+class TestProductCuration:
+    def _patches(self, detail=None):
+        return (
+            patch("pic.ui.routes.browse.get_product", new_callable=AsyncMock, return_value=detail or _detail()),
+            patch(
+                "pic.ui.routes.browse.list_product_choices",
+                new_callable=AsyncMock,
+                return_value=[(8, "Mug"), (9, "Cup")],
+            ),
+        )
+
+    def test_merge_picker_excludes_current_product(self, ui_client):
+        a, b = self._patches()
+        with a, b:
+            response = ui_client.get("/ui/products/8")
+        assert '<option value="8">' not in response.text
+        assert '<option value="9">Cup</option>' in response.text
+
+    def test_remove_reports_count(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b = self._patches()
+        with (
+            a,
+            b,
+            patch(
+                "pic.ui.routes.curation.remove_from_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=8, removed=1),
+            ),
+        ):
+            response = ui_client.post("/ui/products/8/remove", data={"image_ids": ["img-2"]}, headers=HX)
+        assert response.status_code == 200
+        assert "Removed 1 image" in response.text
+
+    def test_removing_every_image_redirects_to_list(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        with patch(
+            "pic.ui.routes.curation.remove_from_product",
+            new_callable=AsyncMock,
+            return_value=CurationResult(product_id=8, removed=2, deleted_product_ids=[8]),
+        ):
+            response = ui_client.post("/ui/products/8/remove", data={"image_ids": ["img-1", "img-2"]}, headers=HX)
+        assert response.headers["HX-Redirect"] == "/ui/products"
+
+    def test_split_links_new_product(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b = self._patches()
+        with (
+            a,
+            b,
+            patch(
+                "pic.ui.routes.curation.split_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=15, added=1),
+            ),
+        ):
+            response = ui_client.post("/ui/products/8/split", data={"image_ids": ["img-2"]}, headers=HX)
+        assert "Moved 1 image to new product #15" in response.text
+        assert 'href="/ui/products/15"' in response.text
+
+    def test_split_of_every_image_shows_error(self, ui_client):
+        from pic.services.curation import InvalidOperationError
+
+        a, b = self._patches()
+        with (
+            a,
+            b,
+            patch(
+                "pic.ui.routes.curation.split_product",
+                new_callable=AsyncMock,
+                side_effect=InvalidOperationError("Select fewer than all images to split a product"),
+            ),
+        ):
+            response = ui_client.post("/ui/products/8/split", data={"image_ids": ["img-1", "img-2"]}, headers=HX)
+        assert response.status_code == 400
+        assert "Select fewer than all images" in response.text
+
+    def test_merge_into_redirects_to_target(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        with patch(
+            "pic.ui.routes.curation.merge_products",
+            new_callable=AsyncMock,
+            return_value=CurationResult(product_id=9, added=2, deleted_product_ids=[8]),
+        ) as merge:
+            response = ui_client.post("/ui/products/8/merge-into", data={"target_id": "9"}, headers=HX)
+        assert merge.await_args.args[1:] == (9, 8)
+        assert response.headers["HX-Redirect"] == "/ui/products/9"
+
+    def test_merge_into_deleted_target_shows_error(self, ui_client):
+        from pic.services.curation import NotFoundError
+
+        a, b = self._patches()
+        with (
+            a,
+            b,
+            patch(
+                "pic.ui.routes.curation.merge_products",
+                new_callable=AsyncMock,
+                side_effect=NotFoundError("Product 9 not found"),
+            ),
+        ):
+            response = ui_client.post("/ui/products/8/merge-into", data={"target_id": "9"}, headers=HX)
+        assert response.status_code == 404
+        assert "Product 9 not found" in response.text
