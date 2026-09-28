@@ -1,0 +1,11 @@
+{% macro thumb(t) -%}
+<a class="thumb" href="#img-{{ t.id }}" title="{{ t.filename }}"><img src="{{ t.thumb_url }}" alt="{{ t.filename }}" loading="lazy"></a>
+<div class="lightbox" id="img-{{ t.id }}"><a href="#_" aria-label="Close"><img src="{{ t.full_url }}" alt="{{ t.filename }}" loading="lazy"></a></div>
+{%- endmacro %}
+
+{% macro card(c) -%}
+<a class="card" href="/ui/clusters/{{ c.ref }}">
+  <div class="card-thumbs">{% for t in c.thumbnails %}<img src="{{ t.thumb_url }}" alt="" loading="lazy">{% endfor %}</div>
+  <div class="card-meta"><strong>{{ c.title }}</strong><span>{{ c.total_images }} images · {{ c.group_count }} groups</span></div>
+</a>
+{%- endmacro %}

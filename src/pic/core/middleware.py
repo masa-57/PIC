@@ -47,6 +47,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
                 f"img-src {settings.s3_endpoint_url} data:; frame-ancestors 'none'"
             )
+        elif request.url.path.startswith("/ui"):
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; img-src 'self' https: data:; frame-ancestors 'none'"
+            )
         else:
             response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
         response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
@@ -120,7 +124,11 @@ async def cache_control_middleware(request: Request, call_next: Callable[[Reques
     if request.method != "GET" or response.status_code >= 400:
         return response
     path = request.url.path
-    if path.startswith("/health"):
+    if path.startswith("/ui/static/"):
+        response.headers["Cache-Control"] = "public, max-age=86400"
+    elif path.startswith("/ui"):
+        response.headers["Cache-Control"] = "no-store"
+    elif path.startswith("/health"):
         response.headers["Cache-Control"] = "no-cache"
     elif path.endswith("/file"):
         response.headers["Cache-Control"] = "private, max-age=300"

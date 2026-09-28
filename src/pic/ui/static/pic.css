@@ -1,0 +1,47 @@
+:root { --bg: #f7f7f8; --fg: #1d1d1f; --muted: #6b6b73; --line: #e2e2e6; --accent: #2563eb; --ok: #15803d; --err: #b91c1c; --card: #fff; }
+@media (prefers-color-scheme: dark) { :root { --bg: #16161a; --fg: #ececf1; --muted: #9a9aa3; --line: #2c2c33; --accent: #60a5fa; --ok: #4ade80; --err: #f87171; --card: #1f1f25; } }
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+a { color: var(--accent); }
+.nav { display: flex; gap: 1.5rem; align-items: center; padding: .75rem 1.25rem; border-bottom: 1px solid var(--line); background: var(--card); }
+.nav .brand { font-weight: 700; text-decoration: none; color: var(--fg); }
+.nav nav { display: flex; gap: 1rem; flex: 1; }
+.nav nav a { text-decoration: none; color: var(--muted); }
+.nav nav a[aria-current="page"] { color: var(--fg); font-weight: 600; }
+main { padding: 1.25rem; max-width: 1400px; margin: 0 auto; }
+h1 { font-size: 1.4rem; margin: 0 0 1rem; }
+.muted, .empty { color: var(--muted); }
+button { font: inherit; padding: .4rem .8rem; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.link { border: 0; background: none; color: var(--accent); padding: 0; }
+input, textarea, select { font: inherit; padding: .4rem; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); }
+.flash { padding: .5rem .75rem; border-radius: 6px; border: 1px solid var(--line); }
+.flash.ok { border-color: var(--ok); color: var(--ok); }
+.flash.error { border-color: var(--err); color: var(--err); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+.card { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; text-decoration: none; color: var(--fg); }
+.card-thumbs { display: grid; grid-template-columns: 1fr 1fr; aspect-ratio: 1; background: var(--line); }
+.card-thumbs img { width: 100%; height: 100%; object-fit: cover; }
+.card-meta { display: flex; flex-direction: column; padding: .6rem .75rem; }
+.card-meta span { color: var(--muted); font-size: .85rem; }
+.group { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: .6rem .75rem; margin-bottom: .75rem; }
+.group header { display: flex; gap: .5rem; align-items: center; margin-bottom: .5rem; }
+.badge { font-size: .8rem; padding: .1rem .45rem; border-radius: 999px; border: 1px solid var(--ok); color: var(--ok); text-decoration: none; }
+.thumbs { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.thumb img { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; display: block; }
+.selectable { position: relative; }
+.selectable input { position: absolute; top: 4px; left: 4px; }
+.more-count { color: var(--muted); font-size: .85rem; }
+.more { grid-column: 1 / -1; text-align: center; padding: 1rem; }
+.lightbox { display: none; }
+.lightbox:target { display: flex; position: fixed; inset: 0; background: rgb(0 0 0 / .85); align-items: center; justify-content: center; z-index: 10; }
+.lightbox img { max-width: 92vw; max-height: 92vh; }
+.actions { position: sticky; top: 0; display: flex; gap: .5rem; align-items: center; padding: .5rem 0; background: var(--bg); z-index: 5; }
+table { width: 100%; border-collapse: collapse; background: var(--card); }
+th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.status-failed td:nth-child(2), .error { color: var(--err); }
+.status-completed td:nth-child(2) { color: var(--ok); }
+.run-actions, .url-ingest { display: flex; gap: .5rem; align-items: flex-end; margin-bottom: 1rem; flex-wrap: wrap; }
+.url-ingest textarea { min-width: 28rem; }
+.login { max-width: 22rem; margin: 4rem auto; display: flex; flex-direction: column; gap: .6rem; }
+.product-fields { display: grid; gap: .5rem; max-width: 40rem; margin-bottom: 1rem; }
