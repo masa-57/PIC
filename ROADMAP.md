@@ -1,6 +1,6 @@
 # Roadmap
 
-PIC restarted as a hobby project in September 2026. All work is tracked in the
+PIC restarted in September 2026 as an open-source, self-hosted project. All work is tracked in the
 [v0.3 Reboot](https://github.com/masa-57/PIC/milestone/1) milestone on GitHub
 Issues. This file is only the map; the issues hold the detail.
 
@@ -8,7 +8,8 @@ Issues. This file is only the map; the issues hold the detail.
 
 **Simplify.** Less code, fewer dependencies, fewer config knobs, less CI.
 Simplification is mostly opportunistic: when touching a module, remove what a
-single-user hobby deployment will never need. Items with a clear payoff are
+small self-hosted deployment will never need. PIC stays open source, so keep
+what outside users and contributors rely on. Items with a clear payoff are
 tracked as their own issues under the `simplification` label.
 
 ## Order of work
