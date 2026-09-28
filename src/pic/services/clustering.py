@@ -52,6 +52,7 @@ def cluster_level1(
         min_samples=_min_samples,
         metric="cosine",
         cluster_selection_epsilon=_epsilon,
+        copy=True,
     )
     labels = clusterer.fit_predict(embeddings)
 
@@ -123,6 +124,7 @@ def _cluster_reduced(reduced: np.ndarray, min_cluster_size: int, min_samples: in
         min_samples=min_samples,
         metric="euclidean",
         cluster_selection_method="eom",
+        copy=True,
     )
     return clusterer.fit_predict(reduced)  # type: ignore[no-any-return]
 

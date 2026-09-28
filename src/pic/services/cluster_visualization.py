@@ -10,6 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pic.models.db import Image, L1Group, L2Cluster
 from pic.services.image_store import generate_presigned_url
 
+# SQLAlchemy 2.1 makes Row variadic; this alias means "a row with any columns".
+AnyRow = Row[*tuple[Any, ...]]
+
 # ---------------------------------------------------------------------------
 # DB queries (async)
 # ---------------------------------------------------------------------------
@@ -17,7 +20,7 @@ from pic.services.image_store import generate_presigned_url
 
 async def _load_hierarchy(
     db: AsyncSession,
-) -> tuple[Sequence[Row[Any]], Sequence[Row[Any]], Sequence[Row[Any]]]:
+) -> tuple[Sequence[AnyRow], Sequence[AnyRow], Sequence[AnyRow]]:
     """Load L2 clusters, L1 groups, and images from the database."""
     l2_result = await db.execute(
         select(
@@ -67,20 +70,20 @@ def _presigned(s3_key: str, expiry: int) -> str:
 
 
 def _build_hierarchy(
-    l2_clusters: Sequence[Row[Any]],
-    l1_groups: Sequence[Row[Any]],
-    images: Sequence[Row[Any]],
+    l2_clusters: Sequence[AnyRow],
+    l1_groups: Sequence[AnyRow],
+    images: Sequence[AnyRow],
     expiry: int,
 ) -> list[dict[str, Any]]:
-    img_by_l1: dict[int | None, list[Row[Any]]] = {}
+    img_by_l1: dict[int | None, list[AnyRow]] = {}
     for img in images:
         img_by_l1.setdefault(img.l1_group_id, []).append(img)
 
-    l1_by_l2: dict[int | None, list[Row[Any]]] = {}
+    l1_by_l2: dict[int | None, list[AnyRow]] = {}
     for g in l1_groups:
         l1_by_l2.setdefault(g.l2_cluster_id, []).append(g)
 
-    def _img_dict(img: Row[Any], rep_id: str | None) -> dict[str, Any]:
+    def _img_dict(img: AnyRow, rep_id: str | None) -> dict[str, Any]:
         thumb_key = img.s3_thumbnail_key or img.s3_key
         return {
             "id": img.id,
@@ -92,7 +95,7 @@ def _build_hierarchy(
             "height": img.height,
         }
 
-    def _group_dict(g: Row[Any]) -> dict[str, Any]:
+    def _group_dict(g: AnyRow) -> dict[str, Any]:
         return {
             "id": g.id,
             "rep_id": g.representative_image_id,

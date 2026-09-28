@@ -27,7 +27,7 @@ uv run fastapi dev src/pic/main.py
 
 # Run tests
 uv run pytest -m unit          # Fast, no external deps
-uv run pytest -m integration   # Requires Docker (testcontainers)
+uv run pytest -m integration   # Requires PostgreSQL: docker compose up db -d
 uv run pytest -m e2e           # Full pipeline, slow
 uv run pytest                  # All tests
 
@@ -109,7 +109,6 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 - `scripts/visualize.py` -- Generates HTML visualization of cluster results
 - `docs/n8n-setup-guide.md` -- n8n integration setup documentation
 - `docs/n8n-workflows/` -- n8n workflow JSON exports (batch Google Drive upload)
-- `TECHNICAL_DEBT.md` -- Tracked technical debt items
 
 ## Setup
 
@@ -128,21 +127,30 @@ For Modal: run `modal setup` to authenticate, then `modal deploy src/pic/modal_a
 - Ruff for linting (B008 ignored -- FastAPI Depends pattern)
 - mypy for type checking (`strict = true`, `pydantic.mypy` plugin)
 - pytest markers: `unit`, `integration`, `e2e`
-- Integration tests use testcontainers (PostgreSQL + pgvector) with `NullPool` to avoid asyncpg event-loop binding errors
+- Integration tests run against whatever `PIC_DATABASE_URL` points at (local `docker compose up db`, or the CI service container) using `NullPool` to avoid asyncpg event-loop binding errors
 - Key integration fixtures: `db` (async session), `client` (httpx AsyncClient), `seed_images`, `seed_l1_group`, `seed_l2_cluster`, `seed_job`
 - pgvector `Vector(768)` column type for DINOv2 embeddings
 - L1/L2 naming: L1 = near-duplicate groups, L2 = semantic clusters
-- Pre-commit hooks configured (`.pre-commit-config.yaml`): ruff check + format run automatically on commit
+- Pre-commit hooks configured (`.pre-commit-config.yaml`): ruff check + format on commit, mypy on commit, unit tests on push. Keep its ruff `rev` equal to the ruff version in `uv.lock`
 
 ## CI/CD
 
-`.github/workflows/ci-cd.yml` runs on push/PR:
+`.github/workflows/ci-cd.yml` is the only workflow. Four jobs:
 - **lint**: ruff check + format, `uv lock --check`, mypy, pip-audit (uses `--extra ml`)
-- **container-scan**: builds Docker image and runs Trivy vulnerability scan (`scanners: vuln`, HIGH/CRITICAL fail gate)
-- **unit-test**: pytest with coverage, uploads coverage artifact
-- **integration-test**: Real PostgreSQL + pgvector service container, explicitly creates `vector` extension before Alembic migrations
-- **deploy-modal**: Deploys Modal functions on main branch push (gates on lint + container-scan + unit-test + integration-test)
-- `.github/workflows/codeql.yml` uses `github/codeql-action@v4` and skips upload gracefully when repository code scanning is disabled
+- **unit**: pytest unit tests with 70% coverage floor
+- **integration**: real PostgreSQL + pgvector service container (`pgvector/pgvector:pg18`), creates the `vector` extension, runs Alembic, then integration tests
+- **deploy-modal**: on `main` only, after the other three pass; skipped with a notice when `MODAL_TOKEN_ID` is not set
+
+GitHub Actions are referenced by major tag (`actions/checkout@v7`), not SHA. The uv version is pinned once via the `UV_VERSION` env at the top of the workflow. CodeQL runs via GitHub's default setup, not a workflow file. Dependabot (`.github/dependabot.yml`) opens one grouped PR per month for Python deps and one for Actions.
+
+## Dependency Policy
+
+**Run on the latest stable release of every dependency and tool** (Python packages, GitHub Actions, Docker base images, uv, ruff, mypy, Postgres). Staying behind needs a one-line comment saying why, next to the pin.
+
+- Refresh with `uv lock --upgrade`, never a targeted bump, then run all quality gates
+- When a workflow is edited, bump action tags to the current major
+- Lower bounds in `pyproject.toml` are deliberately loose; `uv.lock` is the source of truth
+- Known exception: `requires-python = ">=3.12,<3.13"`. Moving to 3.13+ is untested against the `umap-learn` / `numba` / `torch` stack; try it when touching the ML deps
 
 ## Gotchas
 
@@ -189,8 +197,8 @@ For Modal: run `modal setup` to authenticate, then `modal deploy src/pic/modal_a
 
 ## Task Tracking
 
-- All features, bugs, and improvements are tracked as GitHub Issues
-- When discovering a new bug or improvement opportunity, create a GitHub Issue
+- All work is tracked as GitHub Issues in the current milestone (see `ROADMAP.md` for the order of work). Check the milestone before starting anything
+- Simplification is a standing goal: when touching a module, remove settings, deps, or features a single-user hobby deployment will never need. Prefer deleting over abstracting. Log larger candidates on the `simplification`-labelled issues rather than doing them by surprise
+- When discovering a new bug or improvement opportunity, create a GitHub Issue and attach it to the milestone
 - Reference issue numbers in commit messages (e.g. `fixes #42`)
 - Do NOT leave TODOs in code without a corresponding GitHub Issue
-- Before starting work, check open issues for context
