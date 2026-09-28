@@ -2,7 +2,6 @@
 
 import os
 from logging.config import fileConfig
-from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from alembic import context
 from dotenv import load_dotenv
@@ -24,24 +23,10 @@ target_metadata = Base.metadata
 
 def get_sync_url() -> str:
     """Get synchronous database URL for migrations with production-safe TLS defaults."""
+    from pic.core.db_url import migration_url
+
     url = os.environ.get("PIC_DATABASE_URL", "postgresql+psycopg2://localhost:5432/pic")
-    # Convert async URL to sync for Alembic
-    sync_url = url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
-
-    parts = urlsplit(sync_url)
-    params = parse_qs(parts.query)
-
-    if parts.hostname not in ("localhost", "127.0.0.1", None):
-        sslmode = params.get("sslmode", [None])[0]
-        if sslmode not in {"verify-full", "verify-ca"}:
-            params["sslmode"] = ["verify-full"]
-
-        db_ssl_ca = os.environ.get("PIC_DB_SSL_CA", "").strip()
-        if db_ssl_ca:
-            params["sslrootcert"] = [db_ssl_ca]
-
-    clean_query = urlencode({k: v[0] for k, v in params.items()}) if params else ""
-    return urlunsplit(parts._replace(query=clean_query))
+    return migration_url(url, os.environ.get("PIC_DB_SSL_CA", "").strip())
 
 
 def run_migrations_offline() -> None:

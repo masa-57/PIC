@@ -1,22 +1,32 @@
-# API Dockerfile for PIC
-# Worker runs on Modal (serverless GPU) — no worker stage needed
+# PIC images: `api` (slim, no ML deps) and `worker` (local job runner with ML deps).
+# On Linux the lockfile resolves CPU-only torch, so the worker image has no CUDA.
 
 FROM python:3.12-slim AS base
-COPY --from=ghcr.io/astral-sh/uv:0.9.30 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /uvx /bin/
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+RUN adduser --disabled-password --gecos '' --uid 1001 appuser
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 
 FROM base AS api
 RUN uv sync --frozen --no-dev --no-install-project
-COPY README.md ./
+COPY README.md alembic.ini ./
 COPY src/ src/
 RUN uv sync --frozen --no-dev
-
-RUN adduser --disabled-password --gecos '' --uid 1001 appuser
 USER appuser
-
 ENV PORT=8000
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=4)" || exit 1
-CMD uv run fastapi run src/pic/main.py --host 0.0.0.0 --port $PORT
+CMD uv run --no-sync fastapi run src/pic/main.py --host 0.0.0.0 --port $PORT
+
+FROM base AS worker
+RUN uv sync --frozen --no-dev --extra ml --no-install-project
+COPY README.md ./
+COPY src/ src/
+RUN uv sync --frozen --no-dev --extra ml
+# DINOv2 weights download here on first run; compose mounts a volume so it happens once.
+RUN mkdir -p /home/appuser/.cache/huggingface && chown -R appuser:appuser /home/appuser/.cache
+USER appuser
+CMD ["uv", "run", "--no-sync", "pic-worker"]

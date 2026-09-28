@@ -86,8 +86,6 @@ jobs:
             ${{ env.UV_PYTHON_INSTALL_DIR }}
           key: venv-${{ runner.os }}-${{ hashFiles('uv.lock', 'pyproject.toml') }}
       - run: uv sync --frozen --extra ml
-      - name: Create pgvector extension
-        run: uv run python -c "import psycopg2; c=psycopg2.connect('postgresql://postgres:test@localhost:5432/pic_test'); c.autocommit=True; c.cursor().execute('CREATE EXTENSION IF NOT EXISTS vector')"
       - run: uv run alembic upgrade head
       - run: uv run pytest -m integration
 

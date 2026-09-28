@@ -20,6 +20,7 @@ dependencies = [
     # Database
     "sqlalchemy[asyncio]>=2.0",
     "asyncpg>=0.30",
+    "psycopg2-binary>=2.9",  # sync driver for Alembic migrations
     "alembic>=1.14",
     # AWS
     "boto3>=1.35",
@@ -70,7 +71,6 @@ dev = [
     "ruff>=0.5",
     "mypy>=1.10",
     "pytest-cov>=5.0",
-    "psycopg2-binary>=2.9",
     "pip-audit>=2.7",
 ]
 
