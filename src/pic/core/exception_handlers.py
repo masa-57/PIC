@@ -2,6 +2,7 @@
 
 import http
 import logging
+from collections.abc import Mapping
 
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -10,6 +11,13 @@ from fastapi.responses import JSONResponse
 from pic.models.schemas import ProblemDetail
 
 logger = logging.getLogger(__name__)
+
+
+def _ui_error_headers(request: Request, headers: Mapping[str, str] | None = None) -> Mapping[str, str] | None:
+    """Tell htmx not to swap a JSON error into a web UI page (it would replace the target element)."""
+    if request.url.path.startswith("/ui") and request.headers.get("HX-Request") == "true":
+        return {**(headers or {}), "HX-Reswap": "none"}
+    return headers
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -25,6 +33,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
             instance=str(request.url.path),
             request_id=request_id,
         ).model_dump(),
+        headers=_ui_error_headers(request),
     )
 
 
@@ -45,7 +54,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
             instance=str(request.url.path),
             request_id=request_id,
         ).model_dump(),
-        headers=exc.headers,
+        headers=_ui_error_headers(request, exc.headers),
     )
 
 
@@ -77,4 +86,5 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             ).model_dump(),
             "errors": safe_errors,
         },
+        headers=_ui_error_headers(request),
     )

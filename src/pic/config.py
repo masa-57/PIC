@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import Literal
 
-from pydantic import ValidationError, ValidationInfo, field_validator, model_validator
+from pydantic import ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -61,8 +61,6 @@ class Settings(BaseSettings):
     # API
     api_key: str = ""  # Protected routes require this unless auth is explicitly disabled
     auth_disabled: bool = False  # Explicit acknowledgment for unauthenticated mode
-    cors_origins: list[str] = []  # Empty = no CORS; set explicitly in production
-    cors_allow_credentials: bool = False  # Set True only with specific origins, not "*"
     max_upload_size_mb: int = 20
     max_image_download_mb: int = 50  # Max image size for pipeline download
     max_concurrent_downloads: int = 10  # Concurrent S3 downloads in pipeline discovery
@@ -141,29 +139,12 @@ class Settings(BaseSettings):
             raise ValueError("hnsw_ef_search must be <= 1000")
         return v
 
-    @field_validator("cors_allow_credentials")
-    @classmethod
-    def validate_cors_credentials(cls, v: bool, info: ValidationInfo) -> bool:
-        if v and info.data.get("cors_origins") == ["*"]:
-            raise ValueError("cors_allow_credentials=True with wildcard origins is insecure")
-        return v
-
     @model_validator(mode="after")
     def validate_s3_credentials(self) -> "Settings":
         if self.s3_endpoint_url and (not self.s3_access_key_id or not self.s3_secret_access_key):
             raise ValueError(
                 "S3 credentials (PIC_S3_ACCESS_KEY_ID, PIC_S3_SECRET_ACCESS_KEY) "
                 "are required when PIC_S3_ENDPOINT_URL is set"
-            )
-        return self
-
-    @model_validator(mode="after")
-    def validate_cors_wildcard_blocked_in_production(self) -> "Settings":
-        """Block CORS wildcard in production (when api_key is set)."""
-        if self.cors_origins == ["*"] and self.api_key:
-            raise ValueError(
-                "CORS wildcard ['*'] is not allowed when PIC_API_KEY is set (production mode). "
-                "Specify explicit origins in PIC_CORS_ORIGINS."
             )
         return self
 

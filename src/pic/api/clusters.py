@@ -2,7 +2,6 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -24,12 +23,9 @@ from pic.models.schemas import (
     VisualizationOut,
     VisualizationPoint,
 )
-from pic.services.cluster_visualization import generate_visualization_html
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/clusters", tags=["clusters"])
-# Separate router for browser-accessible HTML pages
-view_router = APIRouter(prefix="/clusters", tags=["clusters"])
 
 
 @router.post(
@@ -241,17 +237,3 @@ async def get_visualization(
             )
 
     return VisualizationOut(points=points)
-
-
-@view_router.get(
-    "/view",
-    response_class=HTMLResponse,
-    summary="Visual cluster browser",
-    description="Returns a self-contained HTML page showing L2 → L1 → Image hierarchy.",
-)
-async def view_clusters(
-    db: AsyncSession = Depends(get_db),
-) -> HTMLResponse:
-    """Browser-friendly cluster visualization page."""
-    html = await generate_visualization_html(db, url_expiry=3600)
-    return HTMLResponse(content=html)

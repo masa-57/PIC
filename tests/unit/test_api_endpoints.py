@@ -1610,26 +1610,26 @@ class TestPaginationLinks:
 
 
 @pytest.mark.unit
-class TestClusterViewEndpoint:
-    def test_view_returns_html(self, client, override_db):
-        """GET /clusters/view should return HTML with cluster visualization."""
-        with (
-            patch(
-                "pic.api.clusters.generate_visualization_html",
-                return_value="<html><body>test</body></html>",
-            ),
-        ):
-            response = client.get("/api/v1/clusters/view")
-            assert response.status_code == 200
-            assert "text/html" in response.headers["content-type"]
-            assert "<html>" in response.text
+class TestImageUpload:
+    def test_upload_stores_images(self, client, override_db):
+        from pic.services.uploads import UploadResult
 
-    def test_view_requires_api_key_header(self):
-        """With API key configured, /clusters/view requires X-API-Key header."""
-        with patch("pic.core.auth.settings") as mock_settings:
-            mock_settings.api_key = "secret-key"
-            from pic.main import app
+        result = UploadResult(
+            stored=["images/abc_one.jpg"], skipped=[{"name": "x.txt", "reason": "not a supported image type"}]
+        )
+        with patch("pic.api.images.store_uploads", new_callable=AsyncMock, return_value=result) as store:
+            response = client.post(
+                "/api/v1/images/upload",
+                files=[("files", ("one.jpg", b"jpeg", "image/jpeg")), ("files", ("x.txt", b"t", "text/plain"))],
+            )
+        assert response.status_code == 200
+        assert response.json() == {
+            "stored": 1,
+            "keys": ["images/abc_one.jpg"],
+            "skipped": [{"name": "x.txt", "reason": "not a supported image type"}],
+        }
+        sent = store.await_args.args[0]
+        assert [(f.name, f.data) for f in sent] == [("one.jpg", b"jpeg"), ("x.txt", b"t")]
 
-            with TestClient(app) as c:
-                response = c.get("/api/v1/clusters/view")
-                assert response.status_code == 401
+    def test_upload_requires_files(self, client, override_db):
+        assert client.post("/api/v1/images/upload").status_code == 422

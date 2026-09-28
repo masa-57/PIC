@@ -24,6 +24,7 @@ Hierarchical image clustering API for product catalog images. Two-level clusteri
 - Pluggable storage backends: S3-compatible (Cloudflare R2, MinIO, AWS S3), Google Cloud Storage, or local filesystem
 - URL-based image ingestion (download, deduplicate, and store images from URLs)
 - API key authentication with timing-safe comparison
+- Web UI at `/ui`: upload a local folder, watch runs with progress, browse clusters
 - Structured JSON logging with request ID tracking
 - Prometheus metrics
 
@@ -37,14 +38,10 @@ cd PIC
 mkdir -p data/images
 docker compose up --build -d
 
-# Add images and run the pipeline
-cp /path/to/product/photos/*.jpg data/images/
-curl -X POST http://localhost:8000/api/v1/pipeline/run
-
-# Watch progress, then browse the clusters
-curl http://localhost:8000/api/v1/jobs
-open http://localhost:8000/api/v1/clusters/view
+open http://localhost:8000/ui
 ```
+
+On the **Runs** page, choose **Local folder**, pick any folder of product photos and click **Upload and run pipeline**. Progress and a time estimate show under Recent runs; then browse the results on **Clusters**. Other sources on the same page: files already in the storage inbox (`data/images/` with Compose), Google Drive, or image URLs. From scripts, use `POST /api/v1/images/upload` and `POST /api/v1/pipeline/run`.
 
 Compose runs three services: Postgres with pgvector, the API (which applies migrations on start), and `pic-worker`, which picks up jobs and runs them. API docs are at http://localhost:8000/docs.
 
@@ -156,7 +153,7 @@ Copy `.env.example` to `.env` and configure. Key environment variables:
 | `PIC_GDRIVE_FOLDER_ID` | Google Drive folder ID to watch (optional) |
 | `PIC_GDRIVE_SCOPES` | Google Drive OAuth scopes (optional, default: full drive access) |
 
-See `.env.example` for the full list including clustering parameters, embedding settings, and CORS configuration.
+See `.env.example` for the full list including clustering parameters and embedding settings.
 
 ## Development
 

@@ -37,27 +37,6 @@ class TestPhashSizeValidator:
 
 
 @pytest.mark.unit
-class TestCorsCredentialsValidator:
-    def test_credentials_with_wildcard_raises(self):
-        from pic.config import Settings
-
-        with pytest.raises(ValueError, match="wildcard origins is insecure"):
-            Settings(cors_origins=["*"], cors_allow_credentials=True)
-
-    def test_credentials_with_specific_origins_ok(self):
-        from pic.config import Settings
-
-        s = Settings(cors_origins=["https://example.com"], cors_allow_credentials=True)
-        assert s.cors_allow_credentials is True
-
-    def test_no_credentials_with_wildcard_ok(self):
-        from pic.config import Settings
-
-        s = Settings(cors_origins=["*"], cors_allow_credentials=False, api_key="")
-        assert s.cors_allow_credentials is False
-
-
-@pytest.mark.unit
 class TestDefaultValues:
     def test_defaults(self):
         from pic.config import Settings

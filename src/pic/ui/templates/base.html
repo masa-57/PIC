@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "[45]..", "swap": true, "error": true}]}'>
+  <title>{% block title %}PIC{% endblock %} · PIC</title>
+  <link rel="stylesheet" href="/ui/static/pic.css?v={{ static_version }}">
+  <script src="/ui/static/htmx.min.js?v={{ static_version }}" defer></script>
+  {% block scripts %}{% endblock %}
+</head>
+<body>
+  <header class="nav">
+    <a class="brand" href="/ui">PIC</a>
+    <nav>
+      <a href="/ui"{% if active == "clusters" %} aria-current="page"{% endif %}>Clusters</a>
+      <a href="/ui/jobs"{% if active == "jobs" %} aria-current="page"{% endif %}>Runs</a>
+    </nav>
+    {% if auth_enabled() %}
+    <form method="post" action="/ui/logout"><button class="link" type="submit">Log out</button></form>
+    {% endif %}
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

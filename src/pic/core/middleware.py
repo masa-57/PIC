@@ -7,6 +7,7 @@ import time
 import uuid
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -27,9 +28,17 @@ def _sanitize_request_id(request_id: str | None) -> str:
     return str(uuid.uuid4())
 
 
+def _ui_image_sources() -> str:
+    """img-src for UI pages: presigned URLs are https, except self-hosted S3 on plain http (e.g. MinIO)."""
+    sources = "'self' https: data:"
+    if settings.storage_backend == "s3" and settings.s3_endpoint_url.startswith("http://"):
+        parts = urlsplit(settings.s3_endpoint_url)
+        sources += f" {parts.scheme}://{parts.netloc}"
+    return sources
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     _DOCS_PATHS = {"/docs", "/redoc", "/openapi.json"}
-    _HTML_VIEW_PATHS = {"/api/v1/clusters/view"}
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
         response: Response = await call_next(request)
@@ -42,10 +51,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
                 "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; img-src 'self' data: cdn.jsdelivr.net"
             )
-        elif request.url.path in self._HTML_VIEW_PATHS:
+        elif request.url.path.startswith("/ui"):
             response.headers["Content-Security-Policy"] = (
-                "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
-                f"img-src {settings.s3_endpoint_url} data:; frame-ancestors 'none'"
+                f"default-src 'self'; img-src {_ui_image_sources()}; frame-ancestors 'none'"
             )
         else:
             response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
@@ -120,7 +128,11 @@ async def cache_control_middleware(request: Request, call_next: Callable[[Reques
     if request.method != "GET" or response.status_code >= 400:
         return response
     path = request.url.path
-    if path.startswith("/health"):
+    if path.startswith("/ui/static/"):
+        response.headers["Cache-Control"] = "public, max-age=86400"
+    elif path.startswith("/ui"):
+        response.headers["Cache-Control"] = "no-store"
+    elif path.startswith("/health"):
         response.headers["Cache-Control"] = "no-cache"
     elif path.endswith("/file"):
         response.headers["Cache-Control"] = "private, max-age=300"
