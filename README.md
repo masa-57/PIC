@@ -29,31 +29,48 @@ Hierarchical image clustering API for product catalog images. Two-level clusteri
 
 ## Quick Start
 
-```bash
-# Prerequisites: Python 3.12, uv, Docker
+Prerequisites: Docker. Nothing else.
 
-# Clone the repository
+```bash
 git clone https://github.com/masa-57/PIC.git
 cd PIC
+mkdir -p data/images
+docker compose up --build -d
 
-# Install dependencies
-uv sync
+# Add images and run the pipeline
+cp /path/to/product/photos/*.jpg data/images/
+curl -X POST http://localhost:8000/api/v1/pipeline/run
 
-# Start PostgreSQL with pgvector
-docker compose up db -d
-
-# Copy and configure environment variables
-cp .env.example .env
-# Edit .env with your settings (database, S3, API key)
-
-# Run database migrations
-uv run alembic upgrade head
-
-# Start the API server
-uv run fastapi dev src/pic/main.py
+# Watch progress, then browse the clusters
+curl http://localhost:8000/api/v1/jobs
+open http://localhost:8000/api/v1/clusters/view
 ```
 
-API docs available at http://localhost:8000/docs
+Compose runs three services: Postgres with pgvector, the API (which applies migrations on start), and `pic-worker`, which picks up jobs and runs them. API docs are at http://localhost:8000/docs.
+
+The first pipeline run downloads the DINOv2 model (about 350 MB) into a Docker volume; later runs reuse it.
+On Linux, if the worker cannot write to `data/`, run `sudo chown -R 1001 data` (the containers run as uid 1001).
+
+### Using your Mac's GPU
+
+Docker on macOS cannot reach the Apple GPU, so the worker runs on CPU in Compose.
+To use the GPU, run the database and API in Docker and the worker natively:
+
+```bash
+docker compose up -d db api
+docker compose stop worker
+uv sync --extra ml
+PIC_DATABASE_URL=postgresql+asyncpg://pic:pic_local@localhost:5432/pic \
+PIC_STORAGE_BACKEND=local PIC_LOCAL_STORAGE_PATH=./data \
+uv run pic-worker
+```
+
+The embedding code picks Apple's MPS device automatically.
+
+### Running on Modal instead
+
+Set `PIC_WORKER_BACKEND=modal` on the API and deploy the Modal app (see [docs/deployment/modal-setup.md](docs/deployment/modal-setup.md)).
+Do not run `pic-worker` in that mode; it refuses to start.
 
 ## Architecture
 
@@ -71,13 +88,13 @@ PIC uses a two-level clustering approach:
 | Component | Purpose |
 |-----------|---------|
 | **FastAPI** | REST API for images, clusters, search, products, pipeline |
-| **Modal** | Serverless GPU workers for embedding computation and clustering |
+| **Workers** | `pic-worker` (local, default) or Modal serverless GPU functions; both compute embeddings and run clustering |
 | **PostgreSQL + pgvector** | Metadata storage + vector similarity search (HNSW index) |
 | **Object Storage** | Pluggable storage backend (S3, GCS, or local filesystem) with inbox/processed/rejected lifecycle |
 
 **Flows**:
 
-- **Ingestion**: Upload images to storage `images/` prefix -> compute pHash + DINOv2 embedding -> store vectors in PostgreSQL -> move to `processed/`
+- **Jobs**: the API records each job, then either leaves it for the local `pic-worker` (default) or spawns a Modal function (`PIC_WORKER_BACKEND=modal`). Both run the same worker code.
 - **URL Ingestion**: Submit public image URLs via API -> download, deduplicate, and store with configurable concurrency. PIC rejects localhost, private-network, link-local, and redirected internal targets. When `auto_pipeline=true`, PIC creates and tracks a separate pipeline job after ingestion succeeds.
 - **Clustering**: Triggered via API or pipeline. L1 runs HDBSCAN on DINOv2 cosine distance; L2 runs UMAP + HDBSCAN on DINOv2 embeddings.
 - **Pipeline**: Single endpoint for n8n/automation -- discovers, deduplicates, ingests, and clusters in one call.
@@ -106,8 +123,8 @@ The Prometheus scrape target is `GET /metrics` at the app root. It uses the same
 
 PIC is designed for deployment with:
 
-- **API server**: Any container platform (Railway, Fly.io, Cloud Run, etc.) using `Dockerfile.railway`
-- **GPU workers**: Modal serverless functions (`modal deploy src/pic/modal_app.py`)
+- **API server**: Any container platform (Railway, Fly.io, Cloud Run, etc.) using `Dockerfile` (the default, last stage is the slim `api` image)
+- **Workers**: the `pic-worker` process (`Dockerfile` target `worker`), or Modal serverless GPU functions with `PIC_WORKER_BACKEND=modal`
 - **Database**: PostgreSQL with pgvector extension (Neon, Supabase, self-hosted)
 - **Object storage**: S3-compatible (Cloudflare R2, MinIO, AWS S3), Google Cloud Storage, or local filesystem
 
@@ -122,6 +139,7 @@ Copy `.env.example` to `.env` and configure. Key environment variables:
 |----------|-------------|
 | `PIC_DATABASE_URL` | PostgreSQL connection string (asyncpg format) |
 | `PIC_STORAGE_BACKEND` | Storage backend: `s3` (default), `gcs`, or `local` |
+| `PIC_WORKER_BACKEND` | Where jobs run: `local` (`pic-worker`, default) or `modal` |
 | `PIC_S3_BUCKET` | S3 bucket name for image storage |
 | `PIC_S3_ENDPOINT_URL` | S3-compatible endpoint URL |
 | `PIC_S3_ACCESS_KEY_ID` | S3 access key |

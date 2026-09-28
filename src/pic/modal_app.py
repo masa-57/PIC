@@ -34,6 +34,8 @@ pic_image = (
         "numba>=0.59,<1.0",
         "scipy>=1.12,<2.0",
     )
+    # Jobs chained inside Modal (URL ingest -> pipeline) must dispatch to Modal, not the local worker.
+    .env({"PIC_WORKER_BACKEND": "modal"})
     .add_local_python_source("pic")
 )
 
@@ -49,6 +51,8 @@ pic_check_image = (
         "google-auth>=2.0,<3.0",
         "tenacity>=8.0,<10.0",
     )
+    # Jobs chained inside Modal (URL ingest -> pipeline) must dispatch to Modal, not the local worker.
+    .env({"PIC_WORKER_BACKEND": "modal"})
     .add_local_python_source("pic")
 )
 
@@ -161,22 +165,6 @@ async def _check_gdrive_for_new_files_impl() -> None:
     except Exception:
         logger.exception("Failed to spawn GPU worker for GDrive sync")
         await _mark_job_failed(job_id, "Failed to spawn GPU worker from cron checker")
-
-
-@app.function(
-    image=pic_image,
-    gpu="T4",
-    memory=8192,
-    timeout=1800,
-    max_containers=5,
-    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=5.0),
-    secrets=[modal.Secret.from_name("pic-env")],
-)
-async def run_ingest(image_id: str) -> None:
-    """Process an uploaded image: compute pHash + DINOv2 embedding."""
-    from pic.worker.ingest import run_ingest as _run_ingest
-
-    await _run_ingest(image_id)
 
 
 @app.function(

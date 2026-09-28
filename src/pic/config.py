@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+from typing import Literal
 
 from pydantic import ValidationError, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings
@@ -35,6 +36,9 @@ class Settings(BaseSettings):
     # Local filesystem storage (required when storage_backend=local)
     local_storage_path: Path = Path("data/storage")
     local_storage_base_url: str = ""  # e.g., http://localhost:8000/files
+
+    # Worker backend: "local" = pic-worker process polls Postgres; "modal" = spawn Modal functions
+    worker_backend: Literal["local", "modal"] = "local"
 
     # Embedding
     dinov2_model: str = "facebook/dinov2-base"

@@ -1,4 +1,15 @@
-# Local development stack
+# Local stack: Postgres + API + local worker. No cloud accounts needed.
+#   mkdir -p data/images && docker compose up --build
+#   cp /path/to/photos/*.jpg data/images/
+#   curl -X POST http://localhost:8000/api/v1/pipeline/run
+x-pic-env: &pic-env
+  PIC_DATABASE_URL: postgresql+asyncpg://pic:pic_local@db:5432/pic?sslmode=disable
+  PIC_STORAGE_BACKEND: local
+  PIC_LOCAL_STORAGE_PATH: /data
+  PIC_LOCAL_STORAGE_BASE_URL: http://localhost:8000/files
+  PIC_WORKER_BACKEND: local
+  PIC_AUTH_DISABLED: "true"  # Dev only: no API key needed locally
+
 services:
   db:
     image: pgvector/pgvector:pg18
@@ -7,43 +18,43 @@ services:
       POSTGRES_USER: pic
       POSTGRES_PASSWORD: pic_local  # Dev only — not used in production
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"  # localhost only: dev password
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pic"]
       interval: 5s
       timeout: 3s
       retries: 5
 
-  minio:
-    image: minio/minio
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
-    volumes:
-      - miniodata:/data
-
   api:
     build:
       context: .
       target: api
+    command: sh -c "uv run --no-sync alembic upgrade head && uv run --no-sync fastapi run src/pic/main.py --host 0.0.0.0 --port 8000"
     ports:
-      - "8000:8000"
-    environment:
-      PIC_DATABASE_URL: postgresql+asyncpg://pic:pic_local@db:5432/pic
-      PIC_S3_BUCKET: pic-local
-      PIC_S3_ENDPOINT_URL: http://minio:9000
-      PIC_S3_ACCESS_KEY_ID: minioadmin
-      PIC_S3_SECRET_ACCESS_KEY: minioadmin
+      - "127.0.0.1:8000:8000"  # localhost only: auth is disabled in this stack
+    environment: *pic-env
+    volumes:
+      - ./data:/data
     depends_on:
       db:
         condition: service_healthy
 
+  worker:
+    build:
+      context: .
+      target: worker
+    environment: *pic-env
+    volumes:
+      - ./data:/data
+      - hf-cache:/home/appuser/.cache/huggingface
+    depends_on:
+      api:
+        condition: service_healthy  # api runs migrations before it reports healthy
+    restart: unless-stopped  # pic-worker exits if the DB is unreachable at startup
+    stop_grace_period: 5m  # let an in-flight job finish on docker compose stop
+
 volumes:
   pgdata:
-  miniodata:
+  hf-cache:

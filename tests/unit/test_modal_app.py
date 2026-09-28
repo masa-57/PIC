@@ -188,3 +188,25 @@ async def test_mark_job_failed_records_failed_metric() -> None:
         await _mark_job_failed("job-123", "boom")
 
     mock_record.assert_called_once()
+
+
+@pytest.mark.unit
+def test_modal_images_set_worker_backend_to_modal() -> None:
+    """Jobs chained inside Modal (URL ingest -> pipeline) must dispatch to Modal, not queue for pic-worker."""
+    import importlib
+
+    import modal
+
+    import pic.modal_app
+
+    calls: list[dict[str, str]] = []
+    real_env = modal.Image.env
+
+    def spy(self: modal.Image, vars: dict[str, str]) -> modal.Image:
+        calls.append(dict(vars))
+        return real_env(self, vars)
+
+    with patch.object(modal.Image, "env", spy):
+        importlib.reload(pic.modal_app)
+
+    assert calls.count({"PIC_WORKER_BACKEND": "modal"}) == 2  # GPU worker image and GDrive cron image

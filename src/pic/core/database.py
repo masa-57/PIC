@@ -32,7 +32,7 @@ def _build_engine_args(url: str) -> tuple[str, dict[str, object]]:
         if settings.db_ssl_ca:
             ctx.load_verify_locations(settings.db_ssl_ca)
         connect_args["ssl"] = ctx
-    elif parts.hostname not in ("localhost", "127.0.0.1", None):
+    elif sslmode != "disable" and parts.hostname not in ("localhost", "127.0.0.1", None):
         logger.warning(
             "Non-localhost DB without sslmode set. Set ?sslmode=verify-full in PIC_DATABASE_URL for production TLS."
         )

@@ -2,6 +2,8 @@
 
 [Modal](https://modal.com) runs PIC's GPU workloads (embedding generation, clustering, Google Drive sync) as serverless functions.
 
+Set `PIC_WORKER_BACKEND=modal` on the API. The default `local` backend never contacts Modal, and `pic-worker` refuses to start in `modal` mode.
+
 ## Prerequisites
 
 - Modal account ([modal.com](https://modal.com))
@@ -34,7 +36,6 @@ modal deploy src/pic/modal_app.py --tag "v0.2.0"
 ```
 
 This deploys:
-- `run_ingest` -- Processes uploaded images (hash + DINOv2 embedding, then moves objects to `processed/`)
 - `run_cluster` -- Runs hierarchical clustering (L1 HDBSCAN on cosine distance + L2 UMAP/HDBSCAN on DINOv2 embeddings)
 - `run_pipeline` -- End-to-end pipeline (discover, dedup, ingest, cluster)
 - `run_url_ingest` -- Downloads images from URLs, stores them, and can queue a separate pipeline job

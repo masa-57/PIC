@@ -21,9 +21,15 @@ uv sync
 # Install with ML deps (needed for workers/tests with embeddings)
 uv sync --extra ml
 
+# Full local stack: db + api (migrates on start) + local worker; images go in data/images/
+mkdir -p data/images && docker compose up --build -d
+
 # Run API locally (requires PostgreSQL with pgvector)
 docker compose up db -d
 uv run fastapi dev src/pic/main.py
+
+# Run the local worker natively (uses the Apple GPU on macOS)
+uv run pic-worker
 
 # Run tests
 uv run pytest -m unit          # Fast, no external deps
@@ -51,18 +57,18 @@ modal deploy src/pic/modal_app.py
 uv run alembic upgrade head                    # Apply all pending migrations
 uv run alembic revision --autogenerate -m "description"  # Generate migration from model changes
 
-# Bulk upload images to R2 (waits for ingestion, then auto-clusters)
+# Upload a folder to the storage inbox, run the pipeline, wait for it (uses PIC_* storage settings)
 python scripts/seed.py /path/to/images/
-python scripts/seed.py /path/to/images/ --no-cluster  # Upload only, skip clustering
+python scripts/seed.py /path/to/images/ --no-cluster  # Upload only
 ```
 
 A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make lint`, `make format`, `make migrate`, `make seed DIR=/path`, `make audit`.
 
 ## Architecture
 
-**Deployment**: Container host (API) + Modal serverless GPU (ML workers) + S3-compatible storage (images) + PostgreSQL/pgvector (metadata + vectors)
+**Deployment**: API container + workers (local `pic-worker` by default, or Modal serverless GPU) + object storage (local, S3-compatible or GCS) + PostgreSQL/pgvector (metadata + vectors)
 
-**Ingestion flow**: Images uploaded to S3 `images/` via `seed.py` -> Modal `run_ingest` function -> compute pHash + DINOv2 embedding -> store in PostgreSQL -> move to `processed/`
+**Job flow**: the API creates a job row with its `params`, then `dispatch_job()` either leaves it PENDING for `pic-worker` (`PIC_WORKER_BACKEND=local`, default) or spawns the matching Modal function (`modal`). `pic-worker` claims jobs with `FOR UPDATE SKIP LOCKED`, runs one at a time, and on start fails RUNNING local jobs left by a crashed worker. There is no per-image ingest job: the pipeline discovers, dedups, ingests and clusters.
 
 **Clustering flow**: Separate from ingestion. Triggered via `POST /api/v1/clusters/run` or automatically by `seed.py` after upload. Runs UMAP + HDBSCAN on all images with embeddings. Ingestion does NOT auto-cluster.
 
@@ -92,14 +98,15 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 - `src/pic/api/deps.py` -- Shared FastAPI dependencies (get_db session)
 - `src/pic/api/router.py` -- Central router combining all endpoint routers
 - `src/pic/api/gdrive.py` -- Google Drive sync trigger endpoint
-- `src/pic/services/` -- Business logic (embedding, clustering, vector_store, image_store, modal_dispatch, gdrive)
+- `src/pic/services/` -- Business logic (embedding, clustering, vector_store, image_store, dispatch, modal_dispatch, gdrive)
+- `src/pic/services/dispatch.py` -- Routes new jobs to the local or Modal backend
 - `src/pic/services/clustering_pipeline.py` -- Shared clustering logic used by both cluster and pipeline workers
 - `src/pic/services/gdrive.py` -- Google Drive API wrapper (list, download, move files)
 - `src/pic/models/` -- SQLAlchemy models (`db.py`) and Pydantic schemas (`schemas.py`)
-- `src/pic/worker/` -- Modal job entry points (ingest, cluster, gdrive_sync)
+- `src/pic/worker/` -- Job implementations shared by both backends (cluster, pipeline, url_ingest, gdrive_sync)
+- `src/pic/worker/local_runner.py` -- `pic-worker`: claims PENDING jobs and runs them in-process
 - `src/pic/worker/pipeline.py` -- Pipeline worker (discover, dedup, ingest, cluster)
 - `src/pic/worker/gdrive_sync.py` -- Google Drive -> S3 sync worker (download, dedup, embed, cluster)
-- `src/pic/worker/entrypoint.py` -- Shared worker entry point logic
 - `src/pic/worker/helpers.py` -- Advisory lock, job status helpers (`acquire_advisory_lock`, `mark_job_running/failed/completed`)
 - `src/pic/modal_app.py` -- Modal app definition (GPU functions for ingest, clustering, gdrive sync + CPU cron for gdrive check)
 - `src/pic/config.py` -- Pydantic Settings (all `PIC_*` env vars)
@@ -163,16 +170,17 @@ GitHub Actions are pinned to a full commit SHA with the version in a trailing co
 - Modal functions use lazy imports inside function bodies so Modal secrets (env vars) are available before `settings` loads
 - Modal secret is named `pic-env` -- contains all `PIC_*` env vars for workers
 - Modal app name is `"pic"`
-- Container host needs `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` env vars to dispatch Modal jobs from the API
-- CI integration job runs Alembic against service Postgres and requires `CREATE EXTENSION IF NOT EXISTS vector` before migrations
-- Sync DB URLs (Alembic, migration tests) must say `postgresql+psycopg2://` explicitly. SQLAlchemy 2.1 maps a bare `postgresql://` to psycopg 3, which is not installed
-- Pipeline/cluster workers use PostgreSQL advisory lock (`0x50494301`) -- concurrent runs will fail with 409
+- With `PIC_WORKER_BACKEND=modal`, the API host needs `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` to dispatch Modal jobs. The default is `local`: existing Modal deployments must set `modal` explicitly
+- `pic-worker` refuses to start unless `PIC_WORKER_BACKEND=local`, so a job never runs on both backends
+- The initial migration creates the `vector` extension, so a fresh database migrates with `alembic upgrade head` alone. The DB role needs permission to create extensions
+- Sync DB URLs (Alembic, migration tests) must say `postgresql+psycopg2://` explicitly. SQLAlchemy 2.1 maps a bare `postgresql://` to psycopg 3, which is not installed. `pic.core.db_url.migration_url` forces `sslmode=verify-full` for non-localhost hosts unless the URL says `sslmode=disable` (compose does)
+- Pipeline/cluster workers use PostgreSQL advisory lock (`0x4E494301`) -- concurrent runs will fail with 409
 - `JobType.PIPELINE` and `JobType.GDRIVE_SYNC` are valid DB enum values (in addition to `CLUSTER_FULL`, etc.)
 - `images.content_hash` column (SHA256) has a unique index -- duplicate content is rejected
 - HNSW vector index exists on `embedding` column -- fast k-NN search, no need for brute-force scans
 - Structured JSON logging in production -- request IDs tracked via `X-Request-ID` header
 - `Product.tags` is stored as native PostgreSQL JSONB -- treat it as structured JSON, not serialized text
-- GDrive sync worker shares the same advisory lock (`0x50494301`) as pipeline -- they cannot run concurrently
+- GDrive sync worker shares the same advisory lock (`0x4E494301`) as pipeline -- they cannot run concurrently
 - Modal cron `check_gdrive_for_new_files` runs every 15 min on a lightweight CPU image (no ML deps)
 - GDrive sync requires both `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` and `PIC_GDRIVE_FOLDER_ID` -- endpoint returns 400 if missing
 

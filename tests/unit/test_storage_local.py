@@ -1,5 +1,7 @@
 """Unit tests for LocalStorageBackend."""
 
+from pathlib import Path
+
 import pytest
 
 from pic.services.storage.base import StorageBackend
@@ -62,3 +64,15 @@ class TestLocalStorageBackend:
     def test_rejects_path_traversal(self, local_backend):
         with pytest.raises(ValueError, match="path traversal"):
             local_backend.move("images/../etc/passwd", "processed/hacked")
+
+
+@pytest.mark.unit
+def test_list_objects_with_relative_root(tmp_path, monkeypatch) -> None:  # noqa: ANN001
+    """A relative PIC_LOCAL_STORAGE_PATH (e.g. ./data, as the README uses) must list keys."""
+    from pic.services.storage.local import LocalStorageBackend
+
+    monkeypatch.chdir(tmp_path)
+    backend = LocalStorageBackend(root_path=Path("./data"), base_url="")
+    backend.upload("images/shoe.jpg", b"jpeg-bytes")
+
+    assert backend.list_objects("images/") == ["images/shoe.jpg"]

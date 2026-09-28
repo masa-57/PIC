@@ -137,18 +137,20 @@ class TestRunUrlIngest:
             patch("pic.worker.image_processing.insert_image_record", new_callable=AsyncMock, return_value="img-1"),
             patch("pic.services.image_store.upload_to_s3"),
             patch(
-                "pic.services.modal_dispatch.submit_pipeline_job",
+                "pic.services.dispatch.dispatch_job",
                 new_callable=AsyncMock,
                 return_value="call-123",
-            ) as mock_submit_pipeline_job,
+            ) as mock_dispatch_job,
         ):
             mock_session_factory.return_value.__aenter__ = AsyncMock(side_effect=[running_db, work_db])
             mock_session_factory.return_value.__aexit__ = AsyncMock(return_value=False)
 
             await run_url_ingest("url-job-1", ["https://example.com/photo.jpg"], auto_pipeline=True)
 
-        mock_submit_pipeline_job.assert_awaited_once()
-        pipeline_job_id = mock_submit_pipeline_job.await_args.args[0]
+        mock_dispatch_job.assert_awaited_once()
+        job_type, pipeline_job_id, params = mock_dispatch_job.await_args.args
+        assert job_type == JobType.PIPELINE
+        assert params is None
 
         assert pipeline_job_id != "url-job-1"
         added_job = work_db.add.call_args.args[0]

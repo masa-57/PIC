@@ -20,6 +20,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # pgvector must exist before any Vector column; no-op when already installed.
+    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
     # Create tables without circular FKs first
     op.create_table('l2_clusters',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),

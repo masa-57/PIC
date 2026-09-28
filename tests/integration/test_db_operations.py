@@ -279,3 +279,20 @@ class TestPgvectorOperations:
         # Index may or may not exist depending on migration state,
         # but query itself should succeed with pgvector installed
         result.all()  # Should not error
+
+
+@pytest.mark.integration
+async def test_job_params_round_trip(db) -> None:
+    import uuid
+
+    from sqlalchemy import select
+
+    from pic.models.db import Job, JobStatus, JobType
+
+    job_id = str(uuid.uuid4())
+    params = {"urls": ["https://example.com/a.jpg"], "auto_pipeline": True}
+    db.add(Job(id=job_id, type=JobType.URL_INGEST, status=JobStatus.PENDING, params=params))
+    await db.commit()
+
+    stored = (await db.execute(select(Job.params).where(Job.id == job_id))).scalar_one()
+    assert stored == params

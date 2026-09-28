@@ -1,22 +1,31 @@
-"""Dispatch ML jobs to Modal functions (dispatches ML jobs to Modal)."""
+"""Modal worker backend: spawn the Modal function that runs a job."""
 
 import functools
 import json
 import logging
+from typing import Any
 
 import modal
 
 from pic.core.constants import default_retry
+from pic.models.db import JobType
 
 logger = logging.getLogger(__name__)
 
 # Modal function names — keep in sync with modal_app.py
 MODAL_APP_NAME = "pic"
-MODAL_FN_INGEST = "run_ingest"
 MODAL_FN_CLUSTER = "run_cluster"
 MODAL_FN_PIPELINE = "run_pipeline"
 MODAL_FN_GDRIVE_SYNC = "sync_gdrive_to_r2"
 MODAL_FN_URL_INGEST = "run_url_ingest"
+
+# Job type -> Modal function name.
+MODAL_FUNCTIONS: dict[JobType, str] = {
+    JobType.CLUSTER_FULL: MODAL_FN_CLUSTER,
+    JobType.PIPELINE: MODAL_FN_PIPELINE,
+    JobType.GDRIVE_SYNC: MODAL_FN_GDRIVE_SYNC,
+    JobType.URL_INGEST: MODAL_FN_URL_INGEST,
+}
 
 _retry = default_retry
 
@@ -36,34 +45,14 @@ def _spawn_modal_job(fn_name: str, *args: object) -> str:
 
 
 @_retry
-async def submit_ingest_job(image_id: str, s3_key: str) -> str:
-    """Trigger Modal function to process an image. Returns the Modal call ID."""
-    return _spawn_modal_job(MODAL_FN_INGEST, image_id)
+async def _spawn_with_retry(fn_name: str, job_id: str, params_json: str | None) -> str:
+    return _spawn_modal_job(fn_name, job_id, params_json)
 
 
-@_retry
-async def submit_cluster_job(job_id: str, params: dict[str, int] | None = None) -> str:
-    """Trigger Modal function to run clustering. Returns the Modal call ID."""
+async def spawn_modal_job(job_type: JobType, job_id: str, params: dict[str, Any] | None) -> str:
+    """Spawn the Modal function for ``job_type``. Returns the Modal call ID."""
+    fn_name = MODAL_FUNCTIONS.get(job_type)
+    if fn_name is None:
+        raise ValueError(f"No Modal function for job type {job_type.value}")
     params_json = json.dumps(params) if params else None
-    return _spawn_modal_job(MODAL_FN_CLUSTER, job_id, params_json)
-
-
-@_retry
-async def submit_pipeline_job(job_id: str, params: dict[str, int] | None = None) -> str:
-    """Trigger Modal function to run full pipeline. Returns the Modal call ID."""
-    params_json = json.dumps(params) if params else None
-    return _spawn_modal_job(MODAL_FN_PIPELINE, job_id, params_json)
-
-
-@_retry
-async def submit_gdrive_sync_job(job_id: str, params: dict[str, int] | None = None) -> str:
-    """Trigger Modal function to sync from Google Drive. Returns the Modal call ID."""
-    params_json = json.dumps(params) if params else None
-    return _spawn_modal_job(MODAL_FN_GDRIVE_SYNC, job_id, params_json)
-
-
-@_retry
-async def submit_url_ingest_job(job_id: str, params: dict[str, object] | None = None) -> str:
-    """Trigger Modal function for URL-based image ingest. Returns Modal call ID."""
-    params_json = json.dumps(params) if params else None
-    return _spawn_modal_job(MODAL_FN_URL_INGEST, job_id, params_json)
+    return await _spawn_with_retry(fn_name, job_id, params_json)

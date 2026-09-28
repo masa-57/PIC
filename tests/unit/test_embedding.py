@@ -173,3 +173,46 @@ class TestComputeEmbeddingsBatch:
             results = compute_embeddings_batch([])
 
         assert results == []
+
+
+@pytest.mark.unit
+def test_auto_image_processor_loads_dinov2_config_offline(tmp_path) -> None:  # noqa: ANN001
+    """_load_model uses AutoImageProcessor; in transformers 5 it needs torchvision, whose absence broke every ingest."""
+    from PIL import Image as PILImage
+    from transformers import AutoImageProcessor, BitImageProcessor
+
+    BitImageProcessor(crop_size={"height": 224, "width": 224}).save_pretrained(tmp_path)
+    processor = AutoImageProcessor.from_pretrained(tmp_path)
+    inputs = processor(images=PILImage.new("RGB", (320, 240), "red"), return_tensors="pt")
+    assert tuple(inputs["pixel_values"].shape) == (1, 3, 224, 224)
+
+
+@pytest.mark.unit
+def test_compute_embeddings_batch_with_real_processor(tmp_path) -> None:  # noqa: ANN001
+    """Runs the real DINOv2 preprocessing (only the model is stubbed); transformers 5 rejects unknown kwargs."""
+    import torch
+    from transformers import AutoImageProcessor, BitImageProcessor
+
+    from pic.services.embedding import compute_embeddings_batch
+
+    BitImageProcessor(crop_size={"height": 224, "width": 224}).save_pretrained(tmp_path)
+    processor = AutoImageProcessor.from_pretrained(tmp_path)
+
+    class _StubModel:
+        def __call__(self, pixel_values: torch.Tensor, **_: object) -> object:
+            batch = pixel_values.shape[0]
+            return type("Out", (), {"last_hidden_state": torch.ones(batch, 2, 768)})()
+
+    def _jpeg(color: str) -> bytes:
+        buf = io.BytesIO()
+        PILImage.new("RGB", (320, 240), color).save(buf, format="JPEG")
+        return buf.getvalue()
+
+    with (
+        patch("pic.services.embedding._load_model", return_value=(_StubModel(), processor)),
+        patch("pic.services.embedding._get_device", return_value="cpu"),
+    ):
+        vectors = compute_embeddings_batch([_jpeg("red"), _jpeg("blue")])
+
+    assert len(vectors) == 2
+    assert all(len(v) == 768 for v in vectors)

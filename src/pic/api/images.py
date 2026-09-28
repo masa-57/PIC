@@ -11,7 +11,6 @@ from pic.core.rate_limit import limiter
 from pic.models.db import Image, JobType
 from pic.models.schemas import ImageFileOut, ImageListOut, ImageOut, ProblemDetail, UrlIngestOut, UrlIngestRequest
 from pic.services.image_store import generate_presigned_url
-from pic.services.modal_dispatch import submit_url_ingest_job
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/images", tags=["images"])
@@ -72,12 +71,7 @@ async def ingest_from_urls(
     urls = [str(u) for u in body.urls]
     params = {"urls": urls, "auto_pipeline": body.auto_pipeline}
 
-    job = await create_and_dispatch_job(
-        db,
-        job_type=JobType.URL_INGEST,
-        dispatch_fn=submit_url_ingest_job,
-        params=params,
-    )
+    job = await create_and_dispatch_job(db, job_type=JobType.URL_INGEST, params=params)
     return UrlIngestOut(job_id=job.id, urls_submitted=len(urls))
 
 

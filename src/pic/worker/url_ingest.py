@@ -97,7 +97,7 @@ async def _download_urls(urls: list[str]) -> list[DownloadResult]:
 async def _queue_auto_pipeline_job(db: AsyncSession) -> tuple[str | None, str | None]:
     """Create and dispatch a separate pipeline job for auto-pipeline mode."""
     from pic.models.db import Job
-    from pic.services.modal_dispatch import submit_pipeline_job
+    from pic.services.dispatch import dispatch_job
 
     pipeline_job_id = str(uuid.uuid4())
     db.add(Job(id=pipeline_job_id, type=JobType.PIPELINE, status=JobStatus.PENDING))
@@ -105,7 +105,7 @@ async def _queue_auto_pipeline_job(db: AsyncSession) -> tuple[str | None, str | 
     record_job_created(JobType.PIPELINE)
 
     try:
-        modal_call_id = await submit_pipeline_job(pipeline_job_id)
+        call_id = await dispatch_job(JobType.PIPELINE, pipeline_job_id, None)
     except Exception:
         logger.exception("Failed to trigger auto-pipeline job %s", pipeline_job_id)
         await db.execute(
@@ -113,7 +113,7 @@ async def _queue_auto_pipeline_job(db: AsyncSession) -> tuple[str | None, str | 
             .where(Job.id == pipeline_job_id)
             .values(
                 status=JobStatus.FAILED,
-                error="Failed to dispatch job to Modal",
+                error="Failed to dispatch job to worker backend",
                 completed_at=datetime.now(UTC),
             )
         )
@@ -121,8 +121,8 @@ async def _queue_auto_pipeline_job(db: AsyncSession) -> tuple[str | None, str | 
         record_job_finished(JobType.PIPELINE, JobStatus.FAILED)
         return None, "Failed to dispatch auto-pipeline job"
 
-    if modal_call_id:
-        await db.execute(update(Job).where(Job.id == pipeline_job_id).values(modal_call_id=modal_call_id))
+    if call_id:
+        await db.execute(update(Job).where(Job.id == pipeline_job_id).values(modal_call_id=call_id))
         await db.commit()
 
     return pipeline_job_id, None
