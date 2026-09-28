@@ -86,13 +86,13 @@ docker compose up --build -d     # db + api (migrates on start) + pic-worker
 
 For API development, run `docker compose up db -d` and `uv run fastapi dev src/pic/main.py`, plus `uv run pic-worker` to process jobs.
 
-### Cloud (Railway + Modal)
+### Cloud (container host + Modal)
 
 | Component | Platform | Notes |
 |-----------|----------|-------|
-| API Server | Railway | Auto-deploys from GitHub |
+| API Server | Any container host | `Dockerfile` default (`api`) stage |
 | Workers | Modal (`PIC_WORKER_BACKEND=modal`) | Serverless, pay-per-use GPU |
-| Database | Neon / Railway PostgreSQL | Managed PostgreSQL with pgvector |
+| Database | Neon / Supabase | Managed PostgreSQL with pgvector |
 | Object Storage | Cloudflare R2 | S3-compatible, free egress |
 
 ### Self-Hosted
@@ -125,8 +125,6 @@ All configuration is via environment variables with the `PIC_` prefix.
 | `PIC_LOCAL_STORAGE_BASE_URL` | Local only | Base URL for file serving |
 | `PIC_CORS_ORIGINS` | No | Allowed CORS origins (comma-separated) |
 | `PIC_LOG_LEVEL` | No | Log level (default: `INFO`) |
-| `PIC_SENTRY_DSN` | No | Sentry DSN for error tracking |
-| `PIC_RATE_LIMIT_STORAGE_URL` | No | Shared Redis backend for rate limiting |
 | `PIC_GDRIVE_FOLDER_ID` | No | Google Drive folder for sync |
 | `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | No | GDrive service account credentials |
 | `PIC_GDRIVE_SCOPES` | No | OAuth scopes for Google Drive sync |

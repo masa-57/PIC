@@ -70,17 +70,12 @@ class Settings(BaseSettings):
     thumbnail_height: int = 256
     presigned_url_expiry: int = 900  # Seconds (15 minutes)
     presigned_url_max_expiry: int = 86_400  # Clamp presigned URLs to <= 24h
-    rate_limit_default: str = "60/minute"
-    rate_limit_burst: str = "10/second"
-    rate_limit_storage_url: str = ""  # Redis URI for shared rate limiting (e.g., redis://localhost:6379)
-    job_trigger_rate_limit: str = "5/minute"
     job_queue_max_pending: int = 100
     max_pagination_offset: int = 10_000
     stale_job_timeout_minutes: int = 90  # Must exceed longest Modal function timeout (60min + buffer)
 
     # Observability
     log_level: str = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-    sentry_dsn: str = ""  # Empty = Sentry disabled
 
     # Google Drive Sync (optional — empty = disabled)
     gdrive_service_account_json: str = ""  # Service account JSON credentials as string

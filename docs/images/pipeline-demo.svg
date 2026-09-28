@@ -254,7 +254,7 @@
     <text x="636" y="436" text-anchor="middle" fill="#c4b5fd" font-size="10">Modal</text>
 
     <rect x="687" y="418" width="82" height="28" rx="14" fill="#1a1a2e" stroke="#06b6d4" stroke-width="1"/>
-    <text x="728" y="436" text-anchor="middle" fill="#22d3ee" font-size="10">Railway</text>
+    <text x="728" y="436" text-anchor="middle" fill="#22d3ee" font-size="10">Docker</text>
 
     <rect x="784" y="418" width="80" height="28" rx="14" fill="#1a1a2e" stroke="#f97316" stroke-width="1"/>
     <text x="824" y="436" text-anchor="middle" fill="#fb923c" font-size="10">Gemini</text>

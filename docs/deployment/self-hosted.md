@@ -49,3 +49,15 @@ The embedding code picks CUDA, then Apple MPS, then CPU.
 
 The 15-minute Drive check only exists on Modal. With the local backend, trigger
 a sync with `POST /api/v1/gdrive/sync`.
+
+## Exposing the API publicly
+
+Compose binds the API to `127.0.0.1` and disables auth for local use. Before
+putting it on a public address:
+
+- Set `PIC_API_KEY` to a long random value and remove `PIC_AUTH_DISABLED`.
+- Put a reverse proxy in front for TLS and rate limiting. PIC has no built-in
+  rate limiter; the job endpoints are bounded only by the pending-job queue
+  limit (HTTP 429 when full). For example, with Caddy and the
+  [caddy-ratelimit](https://github.com/mholt/caddy-ratelimit) module, or nginx
+  `limit_req`.

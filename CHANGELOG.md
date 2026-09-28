@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Local and CI Postgres moved to `pgvector/pgvector:pg18`
 
 ### Removed
+- Built-in rate limiting (`slowapi`) and its settings `PIC_RATE_LIMIT_DEFAULT`, `PIC_RATE_LIMIT_BURST`, `PIC_RATE_LIMIT_STORAGE_URL`, `PIC_JOB_TRIGGER_RATE_LIMIT`, plus the `X-RateLimit-Limit` header. Rate-limit at a reverse proxy instead; see `docs/deployment/self-hosted.md` (#120)
+- Sentry integration (`sentry-sdk`, `PIC_SENTRY_DSN`) (#120)
+- Railway config (`railway.json`) and its runbook; the API image runs on any container host (#118)
 - Single-image ingest path (`run_ingest` Modal function, `pic.worker.ingest`, worker CLI entrypoint) (#112)
 - MinIO from docker compose; local storage replaces it
 - Unused dev dependencies `moto`, `testcontainers`, `coverage` (#117)

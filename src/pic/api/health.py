@@ -3,12 +3,11 @@
 import logging
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from sqlalchemy import func, select, text
 
 from pic.core.auth import verify_api_key
 from pic.core.database import async_session, engine, get_pool_status
-from pic.core.rate_limit import limiter
 from pic.models.db import Job, JobStatus
 from pic.models.schemas import DetailedHealthOut, HealthOut, PoolStatusOut
 from pic.worker.helpers import check_modal_job_status, sweep_stale_jobs
@@ -19,8 +18,7 @@ router = APIRouter()
 
 
 @router.get("/health", response_model=HealthOut)
-@limiter.limit("30/minute")
-async def health_check(request: Request) -> HealthOut:
+async def health_check() -> HealthOut:
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -36,9 +34,8 @@ async def health_check(request: Request) -> HealthOut:
 
 
 @router.get("/health/detailed", response_model=DetailedHealthOut, dependencies=[Depends(verify_api_key)])
-@limiter.limit("10/minute")
-async def detailed_health_check(request: Request) -> DetailedHealthOut:
-    """Detailed health check for external monitoring (Railway, UptimeRobot)."""
+async def detailed_health_check() -> DetailedHealthOut:
+    """Detailed health check for external monitoring (e.g. UptimeRobot)."""
     # Database check
     try:
         async with engine.connect() as conn:

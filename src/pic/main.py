@@ -4,12 +4,10 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-import sentry_sdk
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
-from slowapi.errors import RateLimitExceeded
 
 from pic.api.health import router as health_router
 from pic.api.router import api_router, browser_router
@@ -18,7 +16,6 @@ from pic.core.auth import log_auth_mode, verify_api_key
 from pic.core.database import engine
 from pic.core.exception_handlers import (
     http_exception_handler,
-    rate_limit_handler,
     unhandled_exception_handler,
     validation_exception_handler,
 )
@@ -30,7 +27,6 @@ from pic.core.middleware import (
     cache_control_middleware,
     etag_middleware,
 )
-from pic.core.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +34,6 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging(level=getattr(logging, settings.log_level))
-    if settings.sentry_dsn:
-        sentry_sdk.init(
-            dsn=settings.sentry_dsn,
-            traces_sample_rate=0.1,
-        )
-        logger.info("Sentry error tracking enabled")
     if settings.cors_origins == ["*"]:
         logger.warning("CORS is set to allow all origins — restrict cors_origins in production")
     log_auth_mode()
@@ -60,10 +50,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.state.limiter = limiter
-
 # Exception handlers
-app.add_exception_handler(RateLimitExceeded, rate_limit_handler)  # type: ignore[arg-type]
 app.add_exception_handler(Exception, unhandled_exception_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore[arg-type]
 app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]

@@ -1,5 +1,5 @@
 # PIC images: `worker` (local job runner with ML deps) and `api` (slim, no ML deps).
-# `api` is the LAST stage on purpose: platforms that build without a target (Railway) get the API image.
+# `api` is the LAST stage on purpose: platforms that build without a target get the API image.
 # On Linux the lockfile resolves CPU-only torch, so the worker image has no CUDA.
 
 FROM python:3.12-slim AS base

@@ -98,10 +98,6 @@ async def access_log_middleware(request: Request, call_next: Callable[[Request],
     response: Response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
 
-    # Expose rate limit configuration to clients
-    if request.url.path.startswith("/api/"):
-        response.headers["X-RateLimit-Limit"] = settings.rate_limit_default
-
     if request.url.path not in _ACCESS_LOG_SKIP_PATHS:
         latency_ms = (time.perf_counter() - start) * 1000
         status = response.status_code
