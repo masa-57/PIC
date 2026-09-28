@@ -32,7 +32,7 @@ seed: ## Upload images and auto-cluster (pass DIR=path)
 	python scripts/seed.py $(DIR)
 
 audit: ## Run dependency vulnerability scan
-	uv run pip-audit
+	uv run pip-audit --skip-editable
 
 backup-db: ## Create a logical PostgreSQL backup (set PIC_POSTGRES_URL)
 	@test -n "$(PIC_POSTGRES_URL)" || (echo "PIC_POSTGRES_URL is required"; exit 1)

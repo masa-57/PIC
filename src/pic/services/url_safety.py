@@ -82,7 +82,7 @@ async def resolve_public_ips(url: str) -> tuple[IPAddress, ...]:
     for family, _, _, _, sockaddr in addr_info:
         if family not in {socket.AF_INET, socket.AF_INET6}:
             continue
-        resolved_ips.append(ipaddress.ip_address(sockaddr[0].split("%", 1)[0]))
+        resolved_ips.append(ipaddress.ip_address(str(sockaddr[0]).split("%", 1)[0]))
 
     if not resolved_ips:
         raise ValueError(f"Could not resolve URL host '{hostname}'")

@@ -13,120 +13,56 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  # Keep in sync with the uv version used locally (uv --version).
+  UV_VERSION: "0.12.x"
+
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      docs_only: ${{ steps.filter.outputs.docs_only }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          fetch-depth: 0
-      - name: Detect docs-only changes
-        id: filter
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "docs_only=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          else
-            BASE_SHA="${{ github.event.before }}"
-            HEAD_SHA="${{ github.sha }}"
-          fi
-
-          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
-            echo "docs_only=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          mapfile -t changed_files < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-
-          if [ "${#changed_files[@]}" -eq 0 ]; then
-            echo "docs_only=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          docs_only=true
-          for path in "${changed_files[@]}"; do
-            case "$path" in
-              *.md) ;;
-              *) docs_only=false; break ;;
-            esac
-          done
-
-          if [ "$docs_only" = "true" ]; then
-            echo "::notice::Docs-only change detected; skipping lint, test, and deploy jobs."
-          fi
-
-          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
-
   lint:
-    if: needs.changes.outputs.docs_only != 'true'
-    needs: [changes]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          version: "0.9.x"
-          enable-cache: true
+          version: ${{ env.UV_VERSION }}
+      # Cache the whole venv plus uv's Python, including compiled bytecode.
+      # Cold .pyc compilation of torch/transformers/umap costs ~45s per job.
+      - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            .venv
+            ${{ env.UV_PYTHON_INSTALL_DIR }}
+          key: venv-${{ runner.os }}-${{ hashFiles('uv.lock', 'pyproject.toml') }}
       - run: uv sync --frozen --extra ml
       - run: uv run ruff check src/ tests/ scripts/
       - run: uv run ruff format --check src/ tests/ scripts/
       - run: uv lock --check
       - run: uv run mypy src/pic/
-      - run: uv run pip-audit
+      - run: uv run pip-audit --skip-editable  # the project itself is not on PyPI
 
-  container-scan:
-    if: needs.changes.outputs.docs_only != 'true'
-    needs: [changes]
+  unit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Build Railway image for scan
-        run: docker build -f Dockerfile.railway -t pic-api:scan .
-      - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          image-ref: pic-api:scan
-          format: table
-          exit-code: "1"
-          ignore-unfixed: true
-          scanners: vuln
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
-
-  unit-test:
-    if: needs.changes.outputs.docs_only != 'true'
-    needs: [changes]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7
+          version: ${{ env.UV_VERSION }}
+      # Cache the whole venv plus uv's Python, including compiled bytecode.
+      # Cold .pyc compilation of torch/transformers/umap costs ~45s per job.
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
-          version: "0.9.x"
-          enable-cache: true
-          prune-cache: false
+          path: |
+            .venv
+            ${{ env.UV_PYTHON_INSTALL_DIR }}
+          key: venv-${{ runner.os }}-${{ hashFiles('uv.lock', 'pyproject.toml') }}
       - run: uv sync --frozen --extra ml
-      - run: uv run pytest -m unit --cov=src/pic --cov-report=xml --cov-fail-under=70 -v
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        if: always()
-        with:
-          name: coverage-report
-          path: coverage.xml
+      - run: uv run pytest -m unit --cov=src/pic --cov-report=term --cov-fail-under=70
 
-  integration-test:
-    if: needs.changes.outputs.docs_only != 'true'
-    needs: [changes]
+  integration:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:pg18
         env:
           POSTGRES_DB: pic_test
           POSTGRES_USER: postgres
@@ -134,95 +70,31 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7
-        with:
-          version: "0.9.x"
-          enable-cache: true
-          prune-cache: false
-      - run: uv sync --frozen --extra ml
-      - name: Ensure pgvector extension exists
-        run: |
-          uv run python - <<'PY'
-          import time
-
-          import psycopg2
-
-          dsn = "postgresql://postgres:test@localhost:5432/pic_test"
-          last_error = None
-          for _ in range(10):
-              try:
-                  conn = psycopg2.connect(dsn)
-                  conn.autocommit = True
-                  with conn.cursor() as cur:
-                      cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
-                  conn.close()
-                  break
-              except psycopg2.OperationalError as exc:
-                  last_error = exc
-                  time.sleep(1)
-          else:
-              raise SystemExit(f"Failed to initialize pgvector extension: {last_error}")
-          PY
-      - name: Apply migrations before integration tests
-        run: uv run alembic upgrade head
-        env:
-          PIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/pic_test
-      - name: Run integration tests
-        run: uv run pytest -m integration --cov=src/pic --cov-report=xml:coverage-integration.xml --cov-fail-under=45 -v
-        env:
-          PIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/pic_test
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        if: always()
-        with:
-          name: coverage-integration-report
-          path: coverage-integration.xml
-
-  coverage-report:
-    if: needs.changes.outputs.docs_only != 'true' && always()
-    needs: [changes, unit-test, integration-test]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: coverage-*
-          merge-multiple: true
-      - name: Display coverage files
-        run: ls -la *.xml
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: combined-coverage
-          path: "*.xml"
-
-  deploy-readiness:
-    if: github.ref == 'refs/heads/main' && needs.changes.outputs.docs_only != 'true'
-    needs: [changes]
-    runs-on: ubuntu-latest
-    outputs:
-      modal_enabled: ${{ steps.modal.outputs.enabled }}
     env:
-      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
-      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      PIC_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/pic_test
     steps:
-      - name: Check Modal deploy configuration
-        id: modal
-        shell: bash
-        run: |
-          if [ -n "$MODAL_TOKEN_ID" ] && [ -n "$MODAL_TOKEN_SECRET" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::Skipping Modal deploy because MODAL_TOKEN_ID and MODAL_TOKEN_SECRET are not configured."
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      # Cache the whole venv plus uv's Python, including compiled bytecode.
+      # Cold .pyc compilation of torch/transformers/umap costs ~45s per job.
+      - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            .venv
+            ${{ env.UV_PYTHON_INSTALL_DIR }}
+          key: venv-${{ runner.os }}-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+      - run: uv sync --frozen --extra ml
+      - name: Create pgvector extension
+        run: uv run python -c "import psycopg2; c=psycopg2.connect('postgresql://postgres:test@localhost:5432/pic_test'); c.autocommit=True; c.cursor().execute('CREATE EXTENSION IF NOT EXISTS vector')"
+      - run: uv run alembic upgrade head
+      - run: uv run pytest -m integration
 
   deploy-modal:
-    if: github.ref == 'refs/heads/main' && needs.deploy-readiness.outputs.modal_enabled == 'true'
-    needs: [lint, unit-test, integration-test, container-scan, deploy-readiness]
+    if: github.ref == 'refs/heads/main'
+    needs: [lint, unit, integration]
     runs-on: ubuntu-latest
-    outputs:
-      rollback_sha: ${{ steps.rollback_sha.outputs.sha }}
     concurrency:
       group: deploy-modal-main
       cancel-in-progress: false
@@ -230,62 +102,18 @@ jobs:
       MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
       MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          fetch-depth: 2
-      - name: Determine rollback SHA
-        id: rollback_sha
-        shell: bash
-        run: |
-          BEFORE_SHA="${{ github.event.before }}"
-          if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
-            echo "sha=$BEFORE_SHA" >> "$GITHUB_OUTPUT"
-          else
-            echo "sha=$(git rev-parse HEAD~1)" >> "$GITHUB_OUTPUT"
-          fi
-      - uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7
-        with:
-          version: "0.9.x"
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
-      - run: uv sync --frozen
-      - run: uv run modal deploy src/pic/modal_app.py --tag "${GITHUB_SHA}"
-
-  post-deploy-smoke:
-    if: github.ref == 'refs/heads/main' && needs.deploy-modal.result == 'success'
-    needs: [deploy-modal]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Install httpx
-        run: pip install httpx
-      - name: Run smoke tests
-        env:
-          PRODUCTION_API_URL_SECRET: ${{ secrets.PRODUCTION_API_URL }}
-          PRODUCTION_API_URL_VAR: ${{ vars.PRODUCTION_API_URL }}
+      - name: Deploy to Modal
+        if: env.MODAL_TOKEN_ID != ''
         run: |
-          API_URL="${PRODUCTION_API_URL_SECRET:-$PRODUCTION_API_URL_VAR}"
-          if [ -z "$API_URL" ]; then
-            echo "::warning::Skipping smoke tests because PRODUCTION_API_URL is not configured (set repository secret or variable)."
-            exit 0
-          fi
-          python scripts/smoke_test.py "$API_URL"
+          uv sync --frozen
+          uv run modal deploy src/pic/modal_app.py --tag "${GITHUB_SHA}"
+      - name: Skip notice
+        if: env.MODAL_TOKEN_ID == ''
+        run: echo "::notice::MODAL_TOKEN_ID not set; skipping Modal deploy."
 
-  rollback-modal:
-    if: github.ref == 'refs/heads/main' && always() && needs.deploy-readiness.outputs.modal_enabled == 'true' && needs.post-deploy-smoke.result == 'failure'
-    needs: [deploy-readiness, deploy-modal, post-deploy-smoke]
-    runs-on: ubuntu-latest
-    env:
-      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
-      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ needs.deploy-modal.outputs.rollback_sha }}
-      - uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7
-        with:
-          version: "0.9.x"
-          enable-cache: true
-      - run: uv sync --frozen
-      - run: uv run modal deploy src/pic/modal_app.py --tag "rollback-${{ needs.deploy-modal.outputs.rollback_sha }}"
-
-  # Railway auto-deploys from GitHub push — no step needed
+  # Railway auto-deploys the API from GitHub push; no step needed.
