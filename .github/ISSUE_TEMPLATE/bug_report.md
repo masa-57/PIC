@@ -27,4 +27,4 @@ assignees: ""
 - PIC version:
 - Python version:
 - Platform:
-- Deployment (Railway / Docker / local):
+- Deployment (Docker / Modal / local):

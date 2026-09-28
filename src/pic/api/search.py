@@ -1,12 +1,11 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pic.api.deps import PaginationParams, get_db, get_or_404
 from pic.config import settings
-from pic.core.rate_limit import limiter
 from pic.models.db import Image
 from pic.models.schemas import DuplicateSearchRequest, ProblemDetail, SearchRequest, SearchResult, SearchResultsOut
 from pic.services.hash_utils import hex_to_bitstring
@@ -24,9 +23,7 @@ router = APIRouter(prefix="/search", tags=["search"])
         404: {"model": ProblemDetail, "description": "Query image not found"},
     },
 )
-@limiter.limit("30/minute")
 async def search_similar(
-    request: Request,
     body: SearchRequest,
     db: AsyncSession = Depends(get_db),
 ) -> SearchResultsOut:
@@ -42,9 +39,7 @@ async def search_similar(
         404: {"model": ProblemDetail, "description": "Query image not found"},
     },
 )
-@limiter.limit("30/minute")
 async def search_duplicates(
-    request: Request,
     body: DuplicateSearchRequest,
     pagination: PaginationParams = Depends(),
     db: AsyncSession = Depends(get_db),
@@ -141,9 +136,7 @@ async def _do_similar_search(image_id: str, n_results: int, db: AsyncSession) ->
         404: {"model": ProblemDetail, "description": "Query image not found"},
     },
 )
-@limiter.limit("30/minute")
 async def search_similar_get(
-    request: Request,
     image_id: str,
     n_results: int = Query(10, ge=1, le=100, description="Number of similar images to return (1-100)"),
     db: AsyncSession = Depends(get_db),
@@ -160,9 +153,7 @@ async def search_similar_get(
         404: {"model": ProblemDetail, "description": "Query image not found"},
     },
 )
-@limiter.limit("30/minute")
 async def search_duplicates_get(
-    request: Request,
     image_id: str,
     threshold: int | None = Query(
         None, ge=0, description="Hamming distance threshold for duplicate detection (default: config)"

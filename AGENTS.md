@@ -80,8 +80,6 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 
 **Health checks**: `GET /health` (basic) and `GET /health/detailed` (DB connectivity + recent job failures).
 
-**Rate limiting**: Configured via `PIC_RATE_LIMIT_DEFAULT` and `PIC_RATE_LIMIT_BURST` env vars (slowapi). Supports shared Redis backend via `PIC_RATE_LIMIT_STORAGE_URL` for multi-instance deployments (empty = in-memory).
-
 **R2 lifecycle**: `images/` is an inbox; after successful ingest, objects move to `processed/`. Duplicates (detected by pipeline) move to `rejected/`.
 
 **Google Drive sync flow**: `POST /api/v1/gdrive/sync` or automatic via Modal cron (every 15 min). Tier 1 (CPU cron) checks GDrive for new images -> if found, spawns Tier 2 (GPU worker) that downloads images, computes hashes + embeddings, uploads to S3, moves processed files to GDrive `processed/` subfolder, then runs clustering. Uses same advisory lock as pipeline.
@@ -121,7 +119,7 @@ A `Makefile` provides shortcuts: `make dev`, `make test`, `make test-all`, `make
 
 Copy `.env.example` to `.env` and fill in values. Key vars: `PIC_DATABASE_URL`, `PIC_S3_BUCKET`, `PIC_S3_ENDPOINT_URL`, `PIC_S3_ACCESS_KEY_ID`, `PIC_S3_SECRET_ACCESS_KEY`.
 
-Optional observability: `PIC_SENTRY_DSN` (error tracking, empty = disabled). Prometheus metrics are exposed at `/metrics` via `prometheus-fastapi-instrumentator`; that endpoint uses the same auth dependency unless `PIC_AUTH_DISABLED=true`.
+Observability: Prometheus metrics are exposed at `/metrics` via `prometheus-fastapi-instrumentator`; that endpoint uses the same auth dependency unless `PIC_AUTH_DISABLED=true`.
 
 Optional Google Drive sync: `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` (service account JSON string), `PIC_GDRIVE_FOLDER_ID` (folder to watch). Both must be set to enable GDrive sync. OAuth scopes configurable via `PIC_GDRIVE_SCOPES` (default: `["https://www.googleapis.com/auth/drive"]`; use `drive.readonly` if move-to-processed is not needed).
 

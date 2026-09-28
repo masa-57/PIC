@@ -6,28 +6,10 @@ import logging
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from slowapi.errors import RateLimitExceeded
 
 from pic.models.schemas import ProblemDetail
 
 logger = logging.getLogger(__name__)
-
-
-async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
-    """Return 429 with Retry-After header so clients know when to retry."""
-    retry_after = getattr(exc, "retry_after", 60)
-    request_id = getattr(request.state, "request_id", None)
-    return JSONResponse(
-        status_code=429,
-        content=ProblemDetail(
-            title="Too Many Requests",
-            status=429,
-            detail=str(exc.detail),
-            instance=str(request.url.path),
-            request_id=request_id,
-        ).model_dump(),
-        headers={"Retry-After": str(retry_after)},
-    )
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:

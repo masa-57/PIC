@@ -1,7 +1,7 @@
 # Log Aggregation
 
-This document describes the PIC project's logging configuration, Railway's built-in
-log viewer, and recommended external log aggregation services.
+This document describes the PIC project's logging configuration, how to view
+logs, and recommended external log aggregation services.
 
 ## Current Logging Configuration
 
@@ -39,26 +39,16 @@ The log level is controlled by the `PIC_LOG_LEVEL` environment variable
 configures the root logger and quiets noisy libraries (`httpcore`, `httpx`,
 `transformers`).
 
-## Railway Built-in Log Viewer
+## Viewing Logs
 
-Railway provides a built-in log viewer accessible from the service dashboard
-under the **Logs** tab.
+With docker compose, follow the API and worker logs with:
 
-### Capabilities
+```bash
+docker compose logs -f api worker
+```
 
-- Real-time log streaming from running deployments.
-- Basic text search within the current log buffer.
-- Deployment-scoped log views.
-
-### Limitations
-
-- Logs are ephemeral and not persisted beyond the deployment lifecycle.
-- Limited search functionality (no regex, no field-based queries).
-- No alerting or metric extraction from logs.
-- No log export or API access for programmatic consumption.
-- Log retention is short (typically hours, not days).
-
-For production use, an external log aggregation service is recommended.
+A native `pic-worker` logs to its terminal. Modal worker logs are in the Modal
+dashboard. Neither keeps logs long-term; for that, use an external service.
 
 ## Recommended External Services
 
@@ -67,7 +57,7 @@ For production use, an external log aggregation service is recommended.
 - Full-text search with field-based filtering.
 - Log-to-metric conversion for alerting.
 - APM integration for distributed tracing.
-- Setup: Configure a Datadog log drain in Railway or use the Datadog agent.
+- Setup: Use the Datadog agent or your container host's log drain.
 
 ### Grafana Loki
 
@@ -83,19 +73,18 @@ For production use, an external log aggregation service is recommended.
 - Real-time tail and search.
 - Alert rules on log patterns.
 - Good for smaller deployments.
-- Setup: Configure a syslog drain in Railway.
+- Setup: Configure a syslog drain on your container host.
 
 ## Forwarding Logs to External Services
 
-Railway does not natively support log drains. To forward logs to an external
-aggregation service, use one of these approaches:
+To forward logs to an external aggregation service, use one of these approaches:
 
-- **Railway CLI streaming**: Pipe `railway logs` output to your log service.
+- **Docker logging driver**: Configure a `logging` driver (e.g. `syslog`, `loki`)
+  for the `api` and `worker` services in `docker-compose.yml`.
+- **Host log drain**: Most container hosts can forward stdout to a log service.
 - **Application-level forwarding**: Add a Python logging handler that sends
   logs directly to your aggregation service (e.g., Datadog's `datadog_logger`,
   Loki's `python-logging-loki`, or Papertrail's `SysLogHandler`).
-- **Railway Observability Integrations**: Check the Railway dashboard for
-  available third-party integrations under project settings.
 
 ### Environment-Specific Configuration
 
@@ -121,7 +110,6 @@ All application logs follow the JSON format described above. Key log sources:
 | `pic.services.*` | Business logic (clustering, embedding, ingestion) |
 | `pic.core.database` | Database connection pool events |
 | `pic.core.auth` | Authentication and authorization |
-| `pic.core.rate_limit` | Rate limiting events |
 
 ### Filtering by Request ID
 

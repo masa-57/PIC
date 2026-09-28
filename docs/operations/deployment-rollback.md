@@ -2,22 +2,14 @@
 
 This document covers rollback procedures for all PIC infrastructure components.
 
-## Railway API Rollback
+## API Rollback
 
-Railway maintains a history of deployments. To roll back:
-
-1. Open the Railway dashboard and navigate to the PIC project.
-2. Select the API service.
-3. Go to the **Deployments** tab.
-4. Find the last known-good deployment and click **Redeploy**.
-5. Monitor the deployment logs to confirm the rollback succeeds.
-
-Railway auto-deploys from the `main` branch. If the bad commit is already on `main`,
-revert the commit in Git and push to `main` to trigger a clean deploy:
+Revert the bad commit on `main`, then rebuild and restart the API from it:
 
 ```bash
 git revert <bad-commit-sha>
 git push origin main
+docker compose up --build -d api worker   # or redeploy on your container host
 ```
 
 ## Modal Workers Rollback
@@ -85,7 +77,7 @@ Neon supports branching and point-in-time recovery (PITR):
    - Set the restore point timestamp (UTC).
 4. Verify data integrity on the new branch by running smoke tests against it.
 5. Once verified, update `PIC_DATABASE_URL` to point to the restored branch.
-6. Redeploy the API (Railway) and workers (Modal) with the updated URL.
+6. Redeploy the API and workers (local or Modal) with the updated URL.
 
 ### Neon Branch Cleanup
 

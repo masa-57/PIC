@@ -25,7 +25,7 @@ Hierarchical image clustering API for product catalog images. Two-level clusteri
 - URL-based image ingestion (download, deduplicate, and store images from URLs)
 - API key authentication with timing-safe comparison
 - Structured JSON logging with request ID tracking
-- Prometheus metrics and Sentry error tracking
+- Prometheus metrics
 
 ## Quick Start
 
@@ -123,7 +123,7 @@ The Prometheus scrape target is `GET /metrics` at the app root. It uses the same
 
 PIC is designed for deployment with:
 
-- **API server**: Any container platform (Railway, Fly.io, Cloud Run, etc.) using `Dockerfile` (the default, last stage is the slim `api` image)
+- **API server**: Any container platform (Fly.io, Cloud Run, a VPS, etc.) using `Dockerfile` (the default, last stage is the slim `api` image)
 - **Workers**: the `pic-worker` process (`Dockerfile` target `worker`), or Modal serverless GPU functions with `PIC_WORKER_BACKEND=modal`
 - **Database**: PostgreSQL with pgvector extension (Neon, Supabase, self-hosted)
 - **Object storage**: S3-compatible (Cloudflare R2, MinIO, AWS S3), Google Cloud Storage, or local filesystem
@@ -152,8 +152,6 @@ Copy `.env.example` to `.env` and configure. Key environment variables:
 | `PIC_ENV` | Runtime environment (`development`, `staging`, `production`, `test`) |
 | `PIC_API_KEY` | API authentication key (required in production unless explicitly disabled) |
 | `PIC_AUTH_DISABLED` | Explicitly allow unauthenticated mode when no `PIC_API_KEY` is set |
-| `PIC_SENTRY_DSN` | Sentry DSN for error tracking (optional) |
-| `PIC_RATE_LIMIT_STORAGE_URL` | Redis URI for shared rate limiting (optional, empty = in-memory) |
 | `PIC_GDRIVE_SERVICE_ACCOUNT_JSON` | Google Drive service account JSON (optional) |
 | `PIC_GDRIVE_FOLDER_ID` | Google Drive folder ID to watch (optional) |
 | `PIC_GDRIVE_SCOPES` | Google Drive OAuth scopes (optional, default: full drive access) |

@@ -81,7 +81,7 @@ scrape_configs:
           environment: "production"
 ```
 
-If you keep `PIC_API_KEY` enabled, point Prometheus at a proxy endpoint that handles header injection. Do not assume Railway or another public ingress can scrape `/metrics` directly without credentials.
+If you keep `PIC_API_KEY` enabled, point Prometheus at a proxy endpoint that handles header injection. Do not assume a public ingress can scrape `/metrics` directly without credentials.
 
 ## Grafana Dashboard Configuration
 

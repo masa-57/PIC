@@ -1,15 +1,13 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from pic.api.deps import PaginationParams, build_pagination_links, create_and_dispatch_job, get_db
-from pic.config import settings
-from pic.core.rate_limit import limiter
 from pic.models.db import Image, JobType, L1Group, L2Cluster
 from pic.models.schemas import (
     ClusterHierarchyOut,
@@ -43,9 +41,7 @@ view_router = APIRouter(prefix="/clusters", tags=["clusters"])
         503: {"model": ProblemDetail, "description": "Failed to dispatch job"},
     },
 )
-@limiter.limit(settings.job_trigger_rate_limit)
 async def run_clustering(
-    request: Request,
     response: Response,
     body: ClusterRunRequest | None = None,
     db: AsyncSession = Depends(get_db),
@@ -254,7 +250,6 @@ async def get_visualization(
     description="Returns a self-contained HTML page showing L2 → L1 → Image hierarchy.",
 )
 async def view_clusters(
-    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> HTMLResponse:
     """Browser-friendly cluster visualization page."""

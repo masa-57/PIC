@@ -63,8 +63,6 @@ class TestDefaultValues:
         from pic.config import Settings
 
         s = Settings()
-        assert s.rate_limit_default == "60/minute"
-        assert s.rate_limit_burst == "10/second"
         assert s.db_pool_size == 10
         assert s.db_pool_max_overflow == 20
         assert s.db_pool_timeout == 30

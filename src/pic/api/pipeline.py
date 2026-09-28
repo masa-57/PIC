@@ -3,12 +3,10 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pic.api.deps import create_and_dispatch_job, get_db
-from pic.config import settings
-from pic.core.rate_limit import limiter
 from pic.models.db import JobType
 from pic.models.schemas import ClusterRunRequest, JobOut, ProblemDetail
 
@@ -25,9 +23,7 @@ router = APIRouter(prefix="/pipeline", tags=["pipeline"])
         503: {"model": ProblemDetail, "description": "Failed to dispatch job"},
     },
 )
-@limiter.limit(settings.job_trigger_rate_limit)
 async def run_pipeline(
-    request: Request,
     response: Response,
     body: ClusterRunRequest | None = None,
     db: AsyncSession = Depends(get_db),
