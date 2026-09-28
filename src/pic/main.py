@@ -3,6 +3,7 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from importlib.metadata import version
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -49,7 +50,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="PIC — Image Clustering API",
     description="Hierarchical image clustering with near-duplicate detection and semantic similarity",
-    version="0.1.0",
+    version=version("pic"),
     lifespan=lifespan,
 )
 
