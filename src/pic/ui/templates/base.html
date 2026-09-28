@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "[45]..", "swap": true, "error": true}]}'>
   <title>{% block title %}PIC{% endblock %} · PIC</title>
-  <link rel="stylesheet" href="/ui/static/pic.css">
-  <script src="/ui/static/htmx.min.js" defer></script>
+  <link rel="stylesheet" href="/ui/static/pic.css?v={{ static_version }}">
+  <script src="/ui/static/htmx.min.js?v={{ static_version }}" defer></script>
 </head>
 <body>
   <header class="nav">

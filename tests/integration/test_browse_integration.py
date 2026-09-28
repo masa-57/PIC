@@ -76,3 +76,35 @@ class TestJobs:
         second = await seed_job()
         jobs = await browse.recent_jobs(db)
         assert {j.id for j in jobs} == {first, second}
+
+
+@pytest.mark.integration
+class TestTypicalDurations:
+    async def test_median_of_recent_completed_jobs_per_type(self, db):
+        import uuid
+        from datetime import UTC, datetime, timedelta
+
+        from pic.models.db import Job
+
+        base = datetime(2026, 9, 28, 10, 0, tzinfo=UTC)
+        for i, seconds in enumerate([10, 30, 20]):
+            created = base + timedelta(minutes=i)
+            db.add(
+                Job(
+                    id=str(uuid.uuid4()),
+                    type=JobType.CLUSTER_FULL,
+                    status=JobStatus.COMPLETED,
+                    created_at=created,
+                    completed_at=created + timedelta(seconds=seconds),
+                )
+            )
+        db.add(
+            Job(
+                id=str(uuid.uuid4()), type=JobType.PIPELINE, status=JobStatus.FAILED, created_at=base, completed_at=base
+            )
+        )
+        await db.commit()
+
+        durations = await browse.typical_durations(db)
+
+        assert durations == {JobType.CLUSTER_FULL: 20.0}

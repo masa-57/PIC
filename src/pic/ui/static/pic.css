@@ -57,3 +57,5 @@ code { font-size: .9em; padding: .05rem .3rem; border-radius: 4px; background: v
 #src-inbox:checked ~ #panel-inbox, #src-gdrive:checked ~ #panel-gdrive, #src-urls:checked ~ #panel-urls { display: block; }
 .tab-panel form { display: grid; gap: .5rem; max-width: 42rem; }
 .tab-panel form button { justify-self: start; }
+.progress-cell { min-width: 12rem; }
+.progress-cell progress { width: 100%; height: .6rem; accent-color: var(--accent); display: block; margin-bottom: .2rem; }

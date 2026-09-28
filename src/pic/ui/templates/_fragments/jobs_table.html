@@ -1,15 +1,24 @@
 <div id="jobs"{% if polling %} hx-get="/ui/jobs/table" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
   {% if message %}<p class="flash {{ message_kind }}">{{ message }}</p>{% endif %}
   <table>
-    <thead><tr><th>Type</th><th>Status</th><th>Progress</th><th>Created</th><th>Finished</th><th>Details</th></tr></thead>
+    <thead><tr><th>Type</th><th>Status</th><th>Progress</th><th>Time</th><th>Created (UTC)</th><th>Details</th></tr></thead>
     <tbody>
-    {% for j in jobs %}
+    {% for v in views %}
+      {% set j = v.job %}
       <tr class="status-{{ j.status.value }}">
         <td>{{ j.type.value }}</td>
         <td>{{ j.status.value }}</td>
-        <td>{{ (j.progress * 100) | round | int }}%</td>
+        <td class="progress-cell">
+          {% if v.active %}
+          <progress max="100" value="{{ v.percent }}">{{ v.percent }}%</progress>
+          <span>{{ v.percent }}% · {{ v.step }}</span>
+          {% else %}{{ v.percent }}%{% endif %}
+        </td>
+        <td>
+          {% if v.active %}{{ v.elapsed }} elapsed<br><span class="muted">{% if v.remaining == "almost done" %}almost done{% elif v.remaining %}~{{ v.remaining }} left{% elif v.typical %}usually takes ~{{ v.typical }}{% else %}estimating…{% endif %}</span>
+          {% elif v.took %}Took {{ v.took }}{% endif %}
+        </td>
         <td>{{ j.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
-        <td>{{ j.completed_at.strftime("%Y-%m-%d %H:%M:%S") if j.completed_at else "" }}</td>
         <td>{% if j.error %}<span class="error">{{ j.error }}</span><br>{% endif %}<span class="muted">{{ summarize(j.result) }}</span></td>
       </tr>
     {% else %}

@@ -99,3 +99,79 @@ class TestGdriveConfigured:
         assert browse.gdrive_configured() is False
         monkeypatch.setattr(browse.settings, "gdrive_service_account_json", "{}")
         assert browse.gdrive_configured() is True
+
+
+def _job(job_type, status, progress=0.0, age_s=60.0, took_s=None):
+    from datetime import UTC, datetime, timedelta
+
+    from pic.models.db import Job
+
+    now = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
+    created = now - timedelta(seconds=age_s)
+    completed = created + timedelta(seconds=took_s) if took_s is not None else None
+    job = Job(id="j", type=job_type, status=status, progress=progress, created_at=created, completed_at=completed)
+    return job, now
+
+
+@pytest.mark.unit
+class TestFormatDuration:
+    @pytest.mark.parametrize(("seconds", "text"), [(0, "0s"), (12.4, "12s"), (72, "1m 12s"), (3900, "1h 5m")])
+    def test_formats(self, seconds, text):
+        assert browse.format_duration(seconds) == text
+
+
+@pytest.mark.unit
+class TestJobView:
+    def test_pending_waits_for_worker(self):
+        from pic.models.db import JobStatus, JobType
+
+        job, now = _job(JobType.PIPELINE, JobStatus.PENDING)
+        view = browse.job_view(job, now, {})
+        assert (view.step, view.percent, view.active) == ("Waiting for worker", 0, True)
+
+    def test_pipeline_ingest_estimates_from_progress_rate(self):
+        from pic.models.db import JobStatus, JobType
+
+        job, now = _job(JobType.PIPELINE, JobStatus.RUNNING, progress=0.3, age_s=60)
+        view = browse.job_view(job, now, {})
+        assert view.step == "Ingesting images"
+        assert view.percent == 30
+        assert view.elapsed == "1m 0s"
+        assert view.remaining == "2m 20s"  # 60s * 0.7 / 0.3
+
+    def test_other_jobs_estimate_from_typical_duration(self):
+        from pic.models.db import JobStatus, JobType
+
+        job, now = _job(JobType.CLUSTER_FULL, JobStatus.RUNNING, age_s=10)
+        view = browse.job_view(job, now, {JobType.CLUSTER_FULL: 30.0})
+        assert (view.step, view.remaining) == ("Clustering", "20s")
+
+    def test_overdue_job_says_almost_done(self):
+        from pic.models.db import JobStatus, JobType
+
+        job, now = _job(JobType.CLUSTER_FULL, JobStatus.RUNNING, age_s=45)
+        assert browse.job_view(job, now, {JobType.CLUSTER_FULL: 30.0}).remaining == "almost done"
+
+    def test_no_history_has_no_estimate(self):
+        from pic.models.db import JobStatus, JobType
+
+        job, now = _job(JobType.URL_INGEST, JobStatus.RUNNING, age_s=5)
+        assert browse.job_view(job, now, {}).remaining is None
+
+    def test_finished_job_reports_duration(self):
+        from pic.models.db import JobStatus, JobType
+
+        job, now = _job(JobType.PIPELINE, JobStatus.COMPLETED, progress=1.0, age_s=100, took_s=26)
+        view = browse.job_view(job, now, {})
+        assert (view.active, view.took, view.percent) == (False, "26s", 100)
+
+
+@pytest.mark.unit
+class TestPendingExpectation:
+    def test_pending_job_shows_typical_duration(self):
+        from pic.models.db import JobStatus, JobType
+
+        job, now = _job(JobType.CLUSTER_FULL, JobStatus.PENDING, age_s=2)
+        view = browse.job_view(job, now, {JobType.CLUSTER_FULL: 7.0})
+        assert view.typical == "7s"
+        assert view.remaining is None

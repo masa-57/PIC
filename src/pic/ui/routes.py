@@ -1,6 +1,7 @@
 """Web UI routes. Pages render Jinja2 templates; htmx requests get fragments."""
 
 import hmac
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
@@ -115,6 +116,13 @@ _RUN_LABELS = {"pipeline": "pipeline run", "cluster": "re-cluster", "gdrive": "G
 _ACTIVE_STATUSES = (JobStatus.PENDING, JobStatus.RUNNING)
 
 
+async def _job_views(db: AsyncSession) -> list[browse.JobView]:
+    jobs = await browse.recent_jobs(db)
+    typical = await browse.typical_durations(db) if any(j.status in _ACTIVE_STATUSES for j in jobs) else {}
+    now = datetime.now(UTC)
+    return [browse.job_view(job, now, typical) for job in jobs]
+
+
 async def _jobs_table(
     request: Request,
     db: AsyncSession,
@@ -122,10 +130,10 @@ async def _jobs_table(
     message_kind: str = "ok",
     status_code: int = 200,
 ) -> Response:
-    jobs = await browse.recent_jobs(db)
+    views = await _job_views(db)
     context = {
-        "jobs": jobs,
-        "polling": any(j.status in _ACTIVE_STATUSES for j in jobs),
+        "views": views,
+        "polling": any(v.active for v in views),
         "message": message,
         "message_kind": message_kind,
     }
@@ -134,10 +142,10 @@ async def _jobs_table(
 
 @router.get("/jobs", response_class=HTMLResponse)
 async def jobs_page(request: Request, db: AsyncSession = Depends(get_db)) -> Response:
-    jobs = await browse.recent_jobs(db)
+    views = await _job_views(db)
     context = {
-        "jobs": jobs,
-        "polling": any(j.status in _ACTIVE_STATUSES for j in jobs),
+        "views": views,
+        "polling": any(v.active for v in views),
         "message": None,
         "active": "jobs",
         "storage": browse.storage_info(),

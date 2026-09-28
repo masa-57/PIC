@@ -172,7 +172,10 @@ def _job(status="completed", error=None, result=None):
 @pytest.mark.unit
 class TestRunsPage:
     def test_polls_only_while_a_job_is_active(self, ui_client):
-        with patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[_job("running")]):
+        with (
+            patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[_job("running")]),
+            patch("pic.ui.routes.browse.typical_durations", new_callable=AsyncMock, return_value={}),
+        ):
             active = ui_client.get("/ui/jobs")
         with patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[_job("completed")]):
             idle = ui_client.get("/ui/jobs")
@@ -350,3 +353,82 @@ class TestAddImagesPanel:
             response = ui_client.post("/ui/jobs/run/gdrive", headers=HX)
         assert response.status_code == 200
         assert dispatch.await_args.args[1] == JobType.GDRIVE_SYNC
+
+
+@pytest.mark.unit
+class TestRunProgress:
+    def test_running_job_shows_bar_step_and_estimate(self, ui_client):
+        from datetime import UTC, datetime, timedelta
+
+        from pic.models.db import Job, JobStatus, JobType
+
+        job = Job(
+            id="job-9",
+            type=JobType.PIPELINE,
+            status=JobStatus.RUNNING,
+            progress=0.3,
+            created_at=datetime.now(UTC) - timedelta(seconds=60),
+            completed_at=None,
+        )
+        with (
+            patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[job]),
+            patch("pic.ui.routes.browse.typical_durations", new_callable=AsyncMock, return_value={}),
+        ):
+            response = ui_client.get("/ui/jobs/table", headers=HX)
+        assert '<progress max="100" value="30">' in response.text
+        assert "Ingesting images" in response.text
+        assert "left" in response.text
+
+    def test_finished_job_shows_duration(self, ui_client):
+        from datetime import UTC, datetime, timedelta
+
+        from pic.models.db import Job, JobStatus, JobType
+
+        created = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
+        job = Job(
+            id="job-8",
+            type=JobType.CLUSTER_FULL,
+            status=JobStatus.COMPLETED,
+            progress=1.0,
+            created_at=created,
+            completed_at=created + timedelta(seconds=26),
+        )
+        with (
+            patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[job]),
+            patch("pic.ui.routes.browse.typical_durations", new_callable=AsyncMock, return_value={}),
+        ):
+            response = ui_client.get("/ui/jobs/table", headers=HX)
+        assert "Took 26s" in response.text
+
+
+@pytest.mark.unit
+class TestStaticCacheBusting:
+    def test_static_urls_carry_a_content_version(self, auth_client):
+        # Static files are cached for a day; a changed file must get a new URL.
+        import re
+
+        from pic.ui.templating import static_version
+
+        html = auth_client.get("/ui/login").text
+        assert re.search(r'/ui/static/pic\.css\?v=[0-9a-f]{12}"', html)
+        assert re.search(r'/ui/static/htmx\.min\.js\?v=[0-9a-f]{12}"', html)
+        assert f"?v={static_version}" in html
+
+
+@pytest.mark.unit
+def test_pending_job_row_says_usual_duration(ui_client):
+    from datetime import UTC, datetime
+
+    from pic.models.db import Job, JobStatus, JobType
+
+    job = Job(
+        id="job-7", type=JobType.CLUSTER_FULL, status=JobStatus.PENDING, progress=0.0, created_at=datetime.now(UTC)
+    )
+    with (
+        patch("pic.ui.routes.browse.recent_jobs", new_callable=AsyncMock, return_value=[job]),
+        patch(
+            "pic.ui.routes.browse.typical_durations", new_callable=AsyncMock, return_value={JobType.CLUSTER_FULL: 7.0}
+        ),
+    ):
+        response = ui_client.get("/ui/jobs/table", headers=HX)
+    assert "usually takes ~7s" in response.text

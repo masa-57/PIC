@@ -1,7 +1,9 @@
 """Read models for the web UI: small, paged queries that return plain dataclasses."""
 
 import json
+import statistics
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
 from sqlalchemy import func, select
@@ -269,3 +271,92 @@ def storage_info() -> StorageInfo:
 
 def gdrive_configured() -> bool:
     return bool(settings.gdrive_folder_id and settings.gdrive_service_account_json)
+
+
+_TYPICAL_SAMPLE = 5
+_RUNNING_STEPS = {
+    JobType.CLUSTER_FULL: "Clustering",
+    JobType.URL_INGEST: "Downloading images",
+    JobType.GDRIVE_SYNC: "Syncing from Google Drive",
+}
+
+
+@dataclass(frozen=True)
+class JobView:
+    """A job plus human-readable progress for the Runs table."""
+
+    job: Job
+    active: bool
+    step: str
+    percent: int
+    elapsed: str
+    remaining: str | None
+    took: str | None
+    typical: str | None = None
+
+
+def format_duration(seconds: float) -> str:
+    total = int(seconds)
+    if total < 60:
+        return f"{total}s"
+    if total < 3600:
+        return f"{total // 60}m {total % 60}s"
+    return f"{total // 3600}h {total % 3600 // 60}m"
+
+
+def _aware(moment: datetime) -> datetime:
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
+async def typical_durations(db: AsyncSession) -> dict[JobType, float]:
+    """Median duration in seconds of the last few completed jobs of each type."""
+    rows = await db.execute(
+        select(Job.type, Job.created_at, Job.completed_at)
+        .where(Job.status == JobStatus.COMPLETED, Job.completed_at.isnot(None))
+        .order_by(Job.completed_at.desc())
+        .limit(100)
+    )
+    samples: dict[JobType, list[float]] = {}
+    for job_type, created_at, completed_at in rows.all():
+        bucket = samples.setdefault(job_type, [])
+        if completed_at is not None and len(bucket) < _TYPICAL_SAMPLE:
+            bucket.append((_aware(completed_at) - _aware(created_at)).total_seconds())
+    return {job_type: statistics.median(values) for job_type, values in samples.items()}
+
+
+def _pipeline_step(progress: float) -> str:
+    if progress < 0.1:
+        return "Discovering images"
+    if progress < 0.5:
+        return "Ingesting images"
+    return "Clustering"
+
+
+def job_view(job: Job, now: datetime, typical: dict[JobType, float]) -> JobView:
+    """Step name, elapsed time and a rough time-remaining estimate for one job.
+
+    Pipeline jobs report per-batch progress while ingesting, so the estimate
+    extrapolates from the rate so far. Other jobs only report 0% or 100%, so the
+    estimate counts down from how long recent jobs of the same type took.
+    """
+    elapsed_s = max(0.0, (now - _aware(job.created_at)).total_seconds())
+    percent = round(job.progress * 100)
+    if job.status not in (JobStatus.PENDING, JobStatus.RUNNING):
+        took = (
+            format_duration((_aware(job.completed_at) - _aware(job.created_at)).total_seconds())
+            if job.completed_at
+            else None
+        )
+        return JobView(job, False, job.status.value, percent, format_duration(elapsed_s), None, took)
+    if job.status == JobStatus.PENDING:
+        usual = format_duration(typical[job.type]) if job.type in typical else None
+        return JobView(job, True, "Waiting for worker", 0, format_duration(elapsed_s), None, None, usual)
+
+    step = _pipeline_step(job.progress) if job.type == JobType.PIPELINE else _RUNNING_STEPS.get(job.type, "Running")
+    remaining: str | None = None
+    if job.type == JobType.PIPELINE and 0.1 <= job.progress < 0.5:
+        remaining = format_duration(elapsed_s * (1 - job.progress) / job.progress)
+    elif job.type in typical:
+        left = typical[job.type] - elapsed_s
+        remaining = format_duration(left) if left >= 1 else "almost done"
+    return JobView(job, True, step, percent, format_duration(elapsed_s), remaining, None)
