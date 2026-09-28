@@ -33,8 +33,22 @@ Ongoing simplification: [#118](https://github.com/masa-57/PIC/issues/118)
 (config surface), [#120](https://github.com/masa-57/PIC/issues/120) (features
 to drop).
 
+## Later
+
+Worth doing once the milestone above is done, or when a real need shows up.
+
+- **Job queue.** Replace Postgres polling in the local worker with a proper
+  queue (Redis, Celery or similar) if job volume or latency demands it.
+- **Parallel job execution.** Let the local worker run more than one job at a
+  time; today it runs one, and pipeline/cluster jobs share an advisory lock.
+- **Local NVIDIA GPU support.** Ship CPU and CUDA torch variants in the
+  lockfile so a Linux worker can use an NVIDIA GPU. Shares the fix with
+  [#124](https://github.com/masa-57/PIC/issues/124).
+- **Image upload endpoint.** Pairs with the web UI
+  ([#113](https://github.com/masa-57/PIC/issues/113)).
+
 ## Not planned
 
-Webhooks, batch API, real-time clustering, Celery / Ray / Kubernetes workers.
+Webhooks, batch API, real-time clustering, Ray / Kubernetes workers.
 These were on the previous roadmap and are out of scope until there is a user
 who needs them.
