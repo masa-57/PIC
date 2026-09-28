@@ -1,7 +1,8 @@
 import io
 import logging
 import threading
-from typing import Any
+from collections.abc import Callable
+from typing import Any, cast
 
 import imagehash
 import torch
@@ -10,6 +11,14 @@ from transformers import AutoImageProcessor, AutoModel
 
 from pic.config import settings
 from pic.services.image_validation import validate_pixel_count
+
+_Fn = Callable[..., Any]
+
+
+def _no_grad[F: _Fn](fn: F) -> F:
+    """Typed wrapper around ``torch.no_grad()``; mypy skips torch, so its decorator is untyped."""
+    return cast("F", torch.no_grad()(fn))
+
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +43,7 @@ def _load_model() -> tuple[Any, Any]:
             if _model is None:
                 device = _get_device()
                 logger.info("Loading DINOv2 model %s on %s", settings.dinov2_model, device)
-                _processor = AutoImageProcessor.from_pretrained(settings.dinov2_model)  # type: ignore[no-untyped-call]
+                _processor = AutoImageProcessor.from_pretrained(settings.dinov2_model)
                 _model = AutoModel.from_pretrained(settings.dinov2_model).to(device)
                 _model.eval()
                 logger.info("DINOv2 model loaded")
@@ -69,7 +78,7 @@ def compute_hashes(image_bytes_or_pil: bytes | PILImage.Image) -> tuple[str, str
         return compute_phash(image), compute_dhash(image)
 
 
-@torch.no_grad()
+@_no_grad
 def compute_embedding(image_bytes: bytes) -> list[float]:
     """Compute DINOv2 embedding for a single image. Returns 768-dim vector."""
     model, processor = _load_model()
@@ -89,7 +98,7 @@ def compute_embedding(image_bytes: bytes) -> list[float]:
     return list(embedding.squeeze().cpu().tolist())
 
 
-@torch.no_grad()
+@_no_grad
 def compute_embeddings_batch(images_bytes: list[bytes]) -> list[list[float]]:
     """Compute DINOv2 embeddings for a batch of images. Returns list of 768-dim vectors."""
     model, processor = _load_model()

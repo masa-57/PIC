@@ -117,3 +117,19 @@ python_version = "3.12"
 strict = true
 ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
+
+# CPU-only torch on Linux (CI, Docker, local workers). Skips ~3 GB of CUDA wheels.
+# Modal GPU images install their own CUDA torch in modal_app.py and are unaffected.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+# Don't analyze the huge ML libraries; their types are mostly Any to us anyway.
+# Cuts cold mypy time sharply in CI.
+[[tool.mypy.overrides]]
+module = ["torch.*", "transformers.*", "sklearn.*", "umap.*", "numba.*", "scipy.*"]
+follow_imports = "skip"
