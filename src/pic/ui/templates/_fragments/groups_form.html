@@ -6,7 +6,7 @@
       {% for pid, label in product_choices %}<option value="{{ pid }}">{{ label }}</option>{% endfor %}
     </select>
     <button hx-post="/ui/clusters/{{ ref }}/add-to-product"{% if not product_choices %} disabled{% endif %}>Add to product</button>
-    <span class="muted">Select groups, then act. Selecting several groups merges them.</span>
+    <span class="muted">Select whole groups or single images, then act. Several groups merge into one product; selecting some images of a group splits them off.</span>
   </div>
   {% include "_fragments/flash.html" %}
   <div id="groups">{% include "_fragments/group_rows.html" %}</div>

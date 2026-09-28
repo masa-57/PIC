@@ -52,7 +52,7 @@ On Linux, if the worker cannot write to `data/`, run `sudo chown -R 1001 data` (
 
 **Products** are your curated catalog:
 
-- On a cluster page, select groups and click **Make product**. Selecting several groups merges them. **Add to product** adds groups to an existing product.
+- On a cluster page, select groups or single images and click **Make product**. Selecting several groups merges them; selecting some images of a group splits them off. **Add to product** adds the selection to an existing product.
 - On a product page, remove images, **split** some into a new product, **merge** into another product, or edit the title, description and tags.
 - Groups whose images already belong to a product show **✓ product**, so after the next run you only need to look at new groups.
 

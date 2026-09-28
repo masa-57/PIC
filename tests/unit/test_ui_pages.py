@@ -787,3 +787,65 @@ class TestStalePages:
         ):
             response = ui_client.post("/ui/products/8/delete", headers=HX)
         assert response.headers["HX-Redirect"] == "/ui/products"
+
+
+@pytest.mark.unit
+class TestImageLevelSelection:
+    """Selecting individual thumbnails on a cluster page splits a mixed group in one step."""
+
+    def _patch_page(self):
+        row = GroupRow(id=5, member_count=2, product_id=None, images=[_thumb("img-1"), _thumb("img-2")])
+        return (
+            patch("pic.ui.routes.browse.get_cluster_title", new_callable=AsyncMock, return_value="mugs"),
+            patch("pic.ui.routes.browse.list_groups", new_callable=AsyncMock, return_value=Page([row], 1, 0, 20)),
+            patch("pic.ui.routes.browse.list_product_choices", new_callable=AsyncMock, return_value=[(8, "Mug")]),
+        )
+
+    def test_thumbnails_are_selectable(self, ui_client):
+        a, b, c = self._patch_page()
+        with a, b, c:
+            text = ui_client.get("/ui/clusters/3").text
+        assert 'name="image_ids" value="img-1"' in text
+        assert 'name="image_ids" value="img-2"' in text
+
+    def test_make_product_from_selected_images(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b, c = self._patch_page()
+        with (
+            a,
+            b,
+            c,
+            patch(
+                "pic.ui.routes.curation.create_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=12, added=1),
+            ) as create,
+        ):
+            response = ui_client.post("/ui/clusters/3/make-product", data={"image_ids": ["img-2"]}, headers=HX)
+        assert response.status_code == 200
+        assert create.await_args.kwargs["image_ids"] == ["img-2"]
+        assert create.await_args.kwargs["l1_group_ids"] == []
+        assert "Created product #12 with 1 image" in response.text
+
+    def test_add_selected_images_to_product(self, ui_client):
+        from pic.services.curation import CurationResult
+
+        a, b, c = self._patch_page()
+        with (
+            a,
+            b,
+            c,
+            patch(
+                "pic.ui.routes.curation.add_to_product",
+                new_callable=AsyncMock,
+                return_value=CurationResult(product_id=8, added=1),
+            ) as add,
+        ):
+            response = ui_client.post(
+                "/ui/clusters/3/add-to-product",
+                data={"image_ids": ["img-1"], "group_ids": ["6"], "product_id": "8"},
+                headers=HX,
+            )
+        assert response.status_code == 200
+        assert add.await_args.kwargs == {"l1_group_ids": [6], "image_ids": ["img-1"]}

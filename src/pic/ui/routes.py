@@ -267,11 +267,12 @@ async def make_product(
     request: Request,
     ref: str,
     group_ids: list[int] = Form(default=[]),
+    image_ids: list[str] = Form(default=[]),
     offset: int = Form(0),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     try:
-        outcome = await curation.create_product(db, l1_group_ids=group_ids)
+        outcome = await curation.create_product(db, l1_group_ids=group_ids, image_ids=image_ids)
     except curation.CurationError as exc:
         return await _groups_form(request, db, ref, offset, str(exc), "error", status_code=exc.status_code)
     message = f"Created product #{outcome.product_id} with {_plural(outcome.added, 'image')}"
@@ -286,11 +287,12 @@ async def add_groups_to_product(
     ref: str,
     product_id: int = Form(...),
     group_ids: list[int] = Form(default=[]),
+    image_ids: list[str] = Form(default=[]),
     offset: int = Form(0),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     try:
-        outcome = await curation.add_to_product(db, product_id, l1_group_ids=group_ids)
+        outcome = await curation.add_to_product(db, product_id, l1_group_ids=group_ids, image_ids=image_ids)
     except curation.CurationError as exc:
         return await _groups_form(request, db, ref, offset, str(exc), "error", status_code=exc.status_code)
     message = f"Added {_plural(outcome.added, 'image')} to product #{product_id}"
