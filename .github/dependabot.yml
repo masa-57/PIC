@@ -2,6 +2,8 @@ version: 2
 updates:
   - package-ecosystem: "uv"
     directory: "/"
+    # Only bump uv.lock; pyproject lower bounds stay loose by policy (see AGENTS.md).
+    versioning-strategy: "lockfile-only"
     schedule:
       interval: "monthly"
     groups:
